@@ -23,13 +23,7 @@ def index():
     if risk_level:
         query = query.filter(EventReport.risk_level == risk_level)
 
-    # If no search or filter is applied, show only the latest 5 reports
-    if not search_query and not risk_level:
-        reports = query.order_by(EventReport.date.desc()).limit(5).all()
-    else:
-        # When searching or filtering, show all matching reports
-        reports = query.order_by(EventReport.date.desc()).all()
-
+    reports = query.order_by(EventReport.date.desc()).all()
     return render_template('index.html', reports=reports)
 
 @app.route('/comparative-search')
@@ -60,15 +54,19 @@ def comparative_search():
     # Apply filters based on search parameters
     if location:
         query = query.filter(EventReport.location.ilike(f'%{location}%'))
+        logging.debug(f"Filtering by location: {location}")
 
     if event_type:
-        query = query.filter(EventReport.incident_type.ilike(f'%{event_type}%'))
+        query = query.filter(EventReport.incident_type == event_type)
+        logging.debug(f"Filtering by event type: {event_type}")
 
     if venue_type:
         query = query.filter(EventReport.venue_type == venue_type)
+        logging.debug(f"Filtering by venue type: {venue_type}")
 
     # Handle attendance ranges
     if attendance_range:
+        logging.debug(f"Filtering by attendance range: {attendance_range}")
         if attendance_range == 'small':
             query = query.filter(EventReport.attendance < 1000)
         elif attendance_range == 'medium':
@@ -78,8 +76,14 @@ def comparative_search():
         elif attendance_range == 'xlarge':
             query = query.filter(EventReport.attendance > 15000)
 
-    # Sort by date descending and get all matching events
-    similar_events = query.order_by(EventReport.date.desc()).all() if any([location, event_type, attendance_range, venue_type]) else []
+    # Execute query and get results
+    similar_events = query.order_by(EventReport.date.desc()).all()
+    logging.debug(f"Found {len(similar_events)} matching events")
+
+    # Log the IDs of found events for debugging
+    if similar_events:
+        event_ids = [event.id for event in similar_events]
+        logging.debug(f"Found event IDs: {event_ids}")
 
     return render_template('comparative_search.html', 
                          similar_events=similar_events,
