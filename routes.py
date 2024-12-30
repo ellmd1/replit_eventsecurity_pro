@@ -162,3 +162,7 @@ def chat_query():
             'response': 'Sorry, I encountered an error processing your query.',
             'events': []
         }), 500
+
+@app.route('/chat')
+def chat():
+    return render_template('chat.html')
