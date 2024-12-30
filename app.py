@@ -42,6 +42,11 @@ def create_app():
             # Create tables
             db.create_all()
             logging.info("Database tables created successfully")
+
+            # Verify OpenAI API key
+            if not os.environ.get("OPENAI_API_KEY"):
+                logging.warning("OPENAI_API_KEY not found in environment variables")
+
         except Exception as e:
             logging.error(f"Error during app initialization: {str(e)}")
             raise
