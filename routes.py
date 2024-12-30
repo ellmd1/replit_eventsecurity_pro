@@ -4,8 +4,13 @@ from models import EventReport, AccessLog
 from datetime import datetime
 import logging
 from sqlalchemy import or_, func, extract
+from chat_processor import process_natural_language_query, generate_response_summary
 
 @app.route('/')
+def dashboard():
+    return render_template('dashboard.html')
+
+@app.route('/browse')
 def index():
     search_query = request.args.get('search', '')
     risk_level = request.args.get('risk_level', '')
@@ -23,52 +28,33 @@ def index():
     if risk_level:
         query = query.filter(EventReport.risk_level == risk_level)
 
-    reports = query.order_by(EventReport.date.desc()).all()
+    # Only get the 5 most recent reports
+    reports = query.order_by(EventReport.date.desc()).limit(5).all()
     return render_template('index.html', reports=reports)
 
 @app.route('/comparative-search')
 def comparative_search():
-    # Get search parameters
+    # Only show results if there are search parameters
+    if not any(request.args.values()):
+        return render_template('comparative_search.html', 
+                             venue_types=get_venue_types(),
+                             event_types=get_event_types(),
+                             similar_events=[])
+
     location = request.args.get('location', '')
     event_type = request.args.get('event_type', '')
     attendance_range = request.args.get('attendance_range', '')
     venue_type = request.args.get('venue_type', '')
 
-    # Get unique venue types from database
-    venue_types = db.session.query(
-        EventReport.venue_type
-    ).filter(
-        EventReport.venue_type.isnot(None)
-    ).distinct().order_by(EventReport.venue_type).all()
-    venue_types = [vt[0] for vt in venue_types if vt[0]]  # Filter out None values
-
-    # Get unique event types from database
-    event_types = db.session.query(
-        EventReport.incident_type
-    ).filter(
-        EventReport.incident_type.isnot(None)
-    ).distinct().order_by(EventReport.incident_type).all()
-    event_types = [et[0] for et in event_types if et[0]]  # Filter out None values
-
-    # Initialize base query
     query = EventReport.query
 
-    # Apply filters based on search parameters
     if location:
         query = query.filter(EventReport.location.ilike(f'%{location}%'))
-        logging.debug(f"Filtering by location: {location}")
-
     if event_type:
         query = query.filter(EventReport.incident_type == event_type)
-        logging.debug(f"Filtering by event type: {event_type}")
-
     if venue_type:
         query = query.filter(EventReport.venue_type == venue_type)
-        logging.debug(f"Filtering by venue type: {venue_type}")
-
-    # Handle attendance ranges
     if attendance_range:
-        logging.debug(f"Filtering by attendance range: {attendance_range}")
         if attendance_range == 'small':
             query = query.filter(EventReport.attendance < 1000)
         elif attendance_range == 'medium':
@@ -78,14 +64,27 @@ def comparative_search():
         elif attendance_range == 'xlarge':
             query = query.filter(EventReport.attendance > 15000)
 
-    # Execute query and get results
     similar_events = query.order_by(EventReport.date.desc()).all()
-    logging.debug(f"Found {len(similar_events)} matching events")
-
     return render_template('comparative_search.html',
                          similar_events=similar_events,
-                         venue_types=venue_types,
-                         event_types=event_types)
+                         venue_types=get_venue_types(),
+                         event_types=get_event_types())
+
+def get_venue_types():
+    types = db.session.query(
+        EventReport.venue_type
+    ).filter(
+        EventReport.venue_type.isnot(None)
+    ).distinct().order_by(EventReport.venue_type).all()
+    return [t[0] for t in types if t[0]]
+
+def get_event_types():
+    types = db.session.query(
+        EventReport.incident_type
+    ).filter(
+        EventReport.incident_type.isnot(None)
+    ).distinct().order_by(EventReport.incident_type).all()
+    return [t[0] for t in types if t[0]]
 
 @app.route('/report/<int:report_id>')
 def view_report(report_id):
@@ -115,24 +114,19 @@ def view_access_logs():
     logs = AccessLog.query.order_by(AccessLog.accessed_at.desc()).all()
     return render_template('access_log.html', logs=logs)
 
+@app.route('/chat')
+def chat():
+    return render_template('chat.html')
+
 @app.route('/chat_query', methods=['POST'])
 def chat_query():
     try:
         query = request.json.get('query', '')
-
-        # Initialize base query
         event_query = EventReport.query
-
-        # Process query with AI
         event_query, explanation = process_natural_language_query(query, event_query)
-
-        # Get results
         events = event_query.limit(5).all()
-
-        # Generate natural language response
         response = generate_response_summary(events, explanation)
 
-        # Format event list for JSON response
         event_list = []
         for event in events:
             event_list.append({
@@ -158,7 +152,3 @@ def chat_query():
             'response': 'Sorry, I encountered an error processing your query.',
             'events': []
         }), 500
-
-@app.route('/chat')
-def chat():
-    return render_template('chat.html')
