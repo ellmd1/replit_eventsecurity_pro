@@ -7,10 +7,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (accessLogForm) {
         accessLogForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
             const reportId = this.dataset.reportId;
             const assessorName = this.elements.assessorName.value;
             const purpose = this.elements.purpose.value;
+            const assessmentContext = this.elements.assessmentContext.value;
+            const similarEventDetails = this.elements.similarEventDetails.value;
 
             try {
                 const response = await fetch('/log_access', {
@@ -21,7 +23,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     body: JSON.stringify({
                         report_id: reportId,
                         assessor_name: assessorName,
-                        purpose: purpose
+                        purpose: purpose,
+                        assessment_context: assessmentContext,
+                        similar_event_details: similarEventDetails
                     })
                 });
 
