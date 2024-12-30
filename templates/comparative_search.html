@@ -6,7 +6,7 @@
         <h4 class="mb-0">Find Similar Past Events</h4>
     </div>
     <div class="card-body">
-        <form method="GET" action="{{ url_for('comparative_search') }}">
+        <form method="GET" action="{{ url_for('comparative_search') }}" id="searchForm">
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Venue Location</label>
@@ -44,6 +44,7 @@
                 </div>
             </div>
             <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="button" class="btn btn-secondary" onclick="clearSearch()">Clear Search</button>
                 <button type="submit" class="btn btn-primary">Find Similar Events</button>
             </div>
         </form>
@@ -87,4 +88,11 @@
     </div>
 </div>
 {% endif %}
+
+<script>
+function clearSearch() {
+    document.getElementById('searchForm').reset();
+    window.location.href = '{{ url_for("comparative_search") }}';
+}
+</script>
 {% endblock %}
