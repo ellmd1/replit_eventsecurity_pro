@@ -3,6 +3,7 @@ from app import app, db
 from models import EventReport, AccessLog
 from datetime import datetime
 import logging
+from sqlalchemy import or_
 
 @app.route('/')
 def index():
@@ -30,6 +31,38 @@ def index():
         reports = query.order_by(EventReport.date.desc()).all()
 
     return render_template('index.html', reports=reports)
+
+@app.route('/comparative-search')
+def comparative_search():
+    location = request.args.get('location', '')
+    event_type = request.args.get('event_type', '')
+    attendance_range = request.args.get('attendance_range', '')
+    venue_type = request.args.get('venue_type', '')
+
+    query = EventReport.query
+
+    # Apply filters based on search parameters
+    if location:
+        query = query.filter(EventReport.location.ilike(f'%{location}%'))
+
+    if event_type:
+        query = query.filter(EventReport.incident_type.ilike(f'%{event_type}%'))
+
+    # Handle attendance ranges
+    if attendance_range:
+        if attendance_range == 'small':
+            query = query.filter(EventReport.attendance < 1000)
+        elif attendance_range == 'medium':
+            query = query.filter(EventReport.attendance.between(1000, 5000))
+        elif attendance_range == 'large':
+            query = query.filter(EventReport.attendance.between(5000, 15000))
+        elif attendance_range == 'xlarge':
+            query = query.filter(EventReport.attendance > 15000)
+
+    # Sort by date descending and get all matching events
+    similar_events = query.order_by(EventReport.date.desc()).all() if any([location, event_type, attendance_range, venue_type]) else []
+
+    return render_template('comparative_search.html', similar_events=similar_events)
 
 @app.route('/report/<int:report_id>')
 def view_report(report_id):
