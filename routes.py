@@ -8,7 +8,19 @@ from chat_processor import process_natural_language_query, generate_response_sum
 
 @app.route('/')
 def dashboard():
-    return render_template('dashboard.html')
+    # Get 5 upcoming events ordered by date
+    upcoming_events = EventReport.query.order_by(EventReport.date.desc()).limit(5).all()
+
+    # Calculate risk levels distribution for chart
+    risk_levels = {
+        'High': len([e for e in upcoming_events if e.risk_level == 'High']),
+        'Medium': len([e for e in upcoming_events if e.risk_level == 'Medium']),
+        'Low': len([e for e in upcoming_events if e.risk_level == 'Low'])
+    }
+
+    return render_template('dashboard.html', 
+                         upcoming_events=upcoming_events,
+                         risk_levels=risk_levels)
 
 @app.route('/browse')
 def index():
