@@ -29,24 +29,94 @@
         </div>
 
         <div class="row mt-4">
-            <div class="col-md-6">
-                <h6>Security Measures</h6>
-                <p>{{ report.security_measures or 'Not recorded' }}</p>
-            </div>
-            <div class="col-md-6">
-                <h6>Incident Response</h6>
-                <p>{{ report.incident_response or 'Not recorded' }}</p>
+            <div class="col-md-12">
+                <h6>Security Overview</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <tr>
+                            <th>Security Staff</th>
+                            <td>
+                                <strong>Total Staff:</strong> {{ report.security_staff_count or 'Not recorded' }}<br>
+                                {% if report.security_staff_roles %}
+                                <strong>Roles:</strong><br>
+                                <ul class="mb-0">
+                                    {% for role, count in report.security_staff_roles.items() %}
+                                    <li>{{ role }}: {{ count }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Incidents Reported</th>
+                            <td>
+                                <strong>Total Incidents:</strong> {{ report.incidents_reported or 'None reported' }}<br>
+                                {% if report.incident_summary %}
+                                <strong>Summary:</strong><br>
+                                {{ report.incident_summary }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
             </div>
         </div>
 
         <div class="row mt-4">
             <div class="col-md-6">
-                <h6>Lessons Learned</h6>
-                <p>{{ report.lessons_learned or 'Not recorded' }}</p>
+                <h6>Security Protocols</h6>
+                <p>{{ report.security_protocols or 'Not recorded' }}</p>
             </div>
             <div class="col-md-6">
-                <h6>Recommendations</h6>
-                <p>{{ report.recommendations or 'Not recorded' }}</p>
+                <h6>Emergency Response Plan</h6>
+                <p>{{ report.emergency_response_plan or 'Not recorded' }}</p>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <h6>Post-Event Analysis</h6>
+                <div class="accordion" id="postEventAnalysis">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#analysisDetails">
+                                View Analysis Details
+                            </button>
+                        </h2>
+                        <div id="analysisDetails" class="accordion-collapse collapse show">
+                            <div class="accordion-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">Security Measures</h6>
+                                        <p>{{ report.security_measures or 'Not recorded' }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">Incident Response</h6>
+                                        <p>{{ report.incident_response or 'Not recorded' }}</p>
+                                    </div>
+                                </div>
+                                <div class="row mt-4">
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">Lessons Learned</h6>
+                                        <p>{{ report.lessons_learned or 'Not recorded' }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">Recommendations</h6>
+                                        <p>{{ report.recommendations or 'Not recorded' }}</p>
+                                    </div>
+                                </div>
+                                {% if report.post_event_analysis %}
+                                <div class="row mt-4">
+                                    <div class="col-md-12">
+                                        <h6 class="mb-3">Additional Analysis</h6>
+                                        <p>{{ report.post_event_analysis }}</p>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

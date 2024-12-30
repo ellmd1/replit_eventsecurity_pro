@@ -12,12 +12,23 @@ class EventReport(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     venue_type = db.Column(db.String(50))
 
+    # Enhanced security details
+    security_staff_count = db.Column(db.Integer, default=0)
+    security_staff_roles = db.Column(db.JSON, default=dict)  # Different types of security personnel
+    incidents_reported = db.Column(db.Integer, default=0)
+    incident_summary = db.Column(db.Text)  # Summary of security incidents
+
     # Fields for detailed risk assessment
     attendance = db.Column(db.Integer)
     security_measures = db.Column(db.Text)
     incident_response = db.Column(db.Text)
     lessons_learned = db.Column(db.Text)
     recommendations = db.Column(db.Text)
+
+    # Additional assessment fields
+    security_protocols = db.Column(db.Text)  # Detailed security protocols used
+    emergency_response_plan = db.Column(db.Text)  # Emergency response procedures
+    post_event_analysis = db.Column(db.Text)  # Analysis after the event
 
     access_logs = db.relationship('AccessLog', backref='event_report', lazy=True)
     scenarios = db.relationship('EventScenario', backref='event_report', lazy=True)
