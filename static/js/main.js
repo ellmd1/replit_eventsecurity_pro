@@ -5,13 +5,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // Chat functionality
     const chatForm = document.getElementById('chatForm');
     const chatMessages = document.getElementById('chatMessages');
-    const chatbox = document.getElementById('chatbox');
+    const queryInput = document.getElementById('queryInput');
+
+    // Example prompts functionality
+    document.querySelectorAll('.example-prompt').forEach(button => {
+        button.addEventListener('click', function() {
+            queryInput.value = this.textContent.trim();
+            queryInput.focus();
+        });
+    });
 
     if (chatForm) {
         chatForm.addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const queryInput = document.getElementById('queryInput');
             const query = queryInput.value.trim();
 
             if (!query) return;
