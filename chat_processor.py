@@ -10,6 +10,7 @@ from models import EventReport
 # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
 # do not change this unless explicitly requested by the user
 client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
+logging.info("OpenAI client initialized")
 
 def process_natural_language_query(query: str, db_query):
     """Process natural language query using OpenAI and convert to database filters"""
