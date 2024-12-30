@@ -8,18 +8,20 @@ import logging
 def index():
     search_query = request.args.get('search', '')
     risk_level = request.args.get('risk_level', '')
-    
+
     query = EventReport.query
-    
+
     if search_query:
         query = query.filter(
             (EventReport.title.ilike(f'%{search_query}%')) |
-            (EventReport.description.ilike(f'%{search_query}%'))
+            (EventReport.description.ilike(f'%{search_query}%')) |
+            (EventReport.lessons_learned.ilike(f'%{search_query}%')) |
+            (EventReport.recommendations.ilike(f'%{search_query}%'))
         )
-    
+
     if risk_level:
         query = query.filter(EventReport.risk_level == risk_level)
-        
+
     reports = query.order_by(EventReport.date.desc()).all()
     return render_template('index.html', reports=reports)
 
@@ -35,7 +37,9 @@ def log_access():
         access_log = AccessLog(
             event_report_id=data['report_id'],
             assessor_name=data['assessor_name'],
-            purpose=data['purpose']
+            purpose=data['purpose'],
+            assessment_context=data['assessment_context'],
+            similar_event_details=data['similar_event_details']
         )
         db.session.add(access_log)
         db.session.commit()

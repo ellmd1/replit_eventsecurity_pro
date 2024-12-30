@@ -9,28 +9,78 @@
         </span>
     </div>
     <div class="card-body">
-        <h5>{{ report.title }}</h5>
-        <p class="text-muted">
-            <strong>Date:</strong> {{ report.date.strftime('%Y-%m-%d') }}<br>
-            <strong>Location:</strong> {{ report.location }}<br>
-            <strong>Incident Type:</strong> {{ report.incident_type }}
-        </p>
-        <div class="mb-4">
-            <h6>Description</h6>
-            <p>{{ report.description }}</p>
+        <div class="row">
+            <div class="col-md-6">
+                <h5>{{ report.title }}</h5>
+                <p class="text-muted">
+                    <strong>Date:</strong> {{ report.date.strftime('%Y-%m-%d') }}<br>
+                    <strong>Location:</strong> {{ report.location }}<br>
+                    <strong>Incident Type:</strong> {{ report.incident_type }}<br>
+                    <strong>Attendance:</strong> {{ report.attendance if report.attendance else 'Not recorded' }}
+                </p>
+            </div>
         </div>
-        
-        <div class="card mb-4">
+
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <h6>Description</h6>
+                <p>{{ report.description }}</p>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h6>Security Measures</h6>
+                <p>{{ report.security_measures or 'Not recorded' }}</p>
+            </div>
+            <div class="col-md-6">
+                <h6>Incident Response</h6>
+                <p>{{ report.incident_response or 'Not recorded' }}</p>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <h6>Lessons Learned</h6>
+                <p>{{ report.lessons_learned or 'Not recorded' }}</p>
+            </div>
+            <div class="col-md-6">
+                <h6>Recommendations</h6>
+                <p>{{ report.recommendations or 'Not recorded' }}</p>
+            </div>
+        </div>
+
+        <div class="card mt-4">
             <div class="card-body">
                 <h6>Log Access</h6>
                 <form id="accessLogForm" data-report-id="{{ report.id }}">
-                    <div class="mb-3">
-                        <label class="form-label">Assessor Name</label>
-                        <input type="text" class="form-control" name="assessorName" required>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Assessor Name</label>
+                                <input type="text" class="form-control" name="assessorName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Assessment Context</label>
+                                <select class="form-select" name="assessmentContext" required>
+                                    <option value="">Select context...</option>
+                                    <option value="Planning similar event">Planning similar event</option>
+                                    <option value="Post-incident review">Post-incident review</option>
+                                    <option value="General research">General research</option>
+                                    <option value="Training preparation">Training preparation</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Purpose of Access</label>
-                        <textarea class="form-control" name="purpose" required></textarea>
+                        <textarea class="form-control" name="purpose" required rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Similar Event Details (if applicable)</label>
+                        <textarea class="form-control" name="similarEventDetails" rows="3"></textarea>
                     </div>
                     <button type="submit" class="btn btn-primary">Log Access</button>
                 </form>
