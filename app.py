@@ -25,6 +25,7 @@ def create_app():
         "pool_recycle": 300,
         "pool_pre_ping": True,
     }
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     # Initialize extensions with app
     db.init_app(app)
@@ -32,11 +33,11 @@ def create_app():
 
     with app.app_context():
         try:
-            # Import models and register routes
-            import models  # noqa: F401
-            from routes import init_routes
+            # Import models
+            from models import EventReport, AccessLog, ChatHistory
 
-            # Initialize routes
+            # Import and initialize routes
+            from routes import init_routes
             init_routes(app, db)
 
             # Create tables
