@@ -2,11 +2,13 @@ import os
 import logging
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 try:
     from flask import Flask
     from flask_sqlalchemy import SQLAlchemy
     from sqlalchemy.orm import DeclarativeBase
+    from pgvector.sqlalchemy import Vector
 
     logger.info("Initializing Flask application")
 
@@ -15,17 +17,13 @@ try:
 
     db = SQLAlchemy(model_class=Base)
     app = Flask(__name__)
-
-    # Configuration
-    app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
+    app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "a secret key"
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_recycle": 300,
         "pool_pre_ping": True,
     }
 
-    # Initialize database
-    logger.info("Initializing database")
     db.init_app(app)
 
     with app.app_context():
