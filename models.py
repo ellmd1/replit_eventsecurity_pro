@@ -1,6 +1,5 @@
 from datetime import datetime
 from app import db
-from pgvector.sqlalchemy import Vector
 
 class EventReport(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -33,15 +32,6 @@ class EventReport(db.Model):
 
     access_logs = db.relationship('AccessLog', backref='event_report', lazy=True)
     scenarios = db.relationship('EventScenario', backref='event_report', lazy=True)
-    embeddings = db.relationship('EventEmbedding', backref='event_report', lazy=True, uselist=False)
-
-class EventEmbedding(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=False)
-    # Store embeddings as a vector with 384 dimensions (default for sentence-transformers)
-    embedding = db.Column(Vector(384))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class AccessLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)

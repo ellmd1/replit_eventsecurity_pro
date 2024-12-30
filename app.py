@@ -1,37 +1,30 @@
 import os
 import logging
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
 
-logger = logging.getLogger(__name__)
+# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
-try:
-    from flask import Flask
-    from flask_sqlalchemy import SQLAlchemy
-    from sqlalchemy.orm import DeclarativeBase
-    from pgvector.sqlalchemy import Vector
+class Base(DeclarativeBase):
+    pass
 
-    logger.info("Initializing Flask application")
+db = SQLAlchemy(model_class=Base)
+app = Flask(__name__)
 
-    class Base(DeclarativeBase):
-        pass
+# Configuration
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_recycle": 300,
+    "pool_pre_ping": True,
+}
 
-    db = SQLAlchemy(model_class=Base)
-    app = Flask(__name__)
-    app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "a secret key"
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_recycle": 300,
-        "pool_pre_ping": True,
-    }
+# Initialize the database
+db.init_app(app)
 
-    db.init_app(app)
-
-    with app.app_context():
-        logger.info("Creating database tables")
-        import models  # noqa: F401
-        db.create_all()
-        logger.info("Database initialization complete")
-
-except Exception as e:
-    logger.error(f"Failed to initialize application: {str(e)}")
-    raise
+with app.app_context():
+    import models
+    import routes
+    db.create_all()
