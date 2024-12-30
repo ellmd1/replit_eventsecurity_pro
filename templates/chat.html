@@ -38,6 +38,28 @@
                             Send
                         </button>
                     </form>
+
+                    <!-- Example prompts section -->
+                    <div class="mt-3">
+                        <small class="text-muted">Try these example queries:</small>
+                        <div class="d-flex flex-wrap gap-2 mt-2">
+                            <button type="button" class="example-prompt btn btn-outline-secondary btn-sm">
+                                Show events with high security staff count
+                            </button>
+                            <button type="button" class="example-prompt btn btn-outline-secondary btn-sm">
+                                Find events with reported security incidents
+                            </button>
+                            <button type="button" class="example-prompt btn btn-outline-secondary btn-sm">
+                                List all stadium events with more than 10000 attendees
+                            </button>
+                            <button type="button" class="example-prompt btn btn-outline-secondary btn-sm">
+                                Compare security measures between high-risk events
+                            </button>
+                            <button type="button" class="example-prompt btn btn-outline-secondary btn-sm">
+                                Show events with valuable lessons learned
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -77,6 +99,15 @@
 
 .chat-message .event-card:hover {
     border-color: var(--bs-primary);
+}
+
+.example-prompt {
+    transition: all 0.2s ease;
+}
+
+.example-prompt:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 </style>
 {% endblock %}
