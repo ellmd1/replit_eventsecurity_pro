@@ -4,7 +4,6 @@ from models import EventReport, AccessLog
 from datetime import datetime
 import logging
 from sqlalchemy import or_, func, extract
-from chat_processor import process_natural_language_query, generate_response_summary
 
 @app.route('/')
 def index():
@@ -29,27 +28,29 @@ def index():
 
 @app.route('/comparative-search')
 def comparative_search():
+    # Get search parameters
     location = request.args.get('location', '')
     event_type = request.args.get('event_type', '')
     attendance_range = request.args.get('attendance_range', '')
     venue_type = request.args.get('venue_type', '')
 
-    # Get unique venue types from the database
+    # Get unique venue types from database
     venue_types = db.session.query(
         EventReport.venue_type
     ).filter(
         EventReport.venue_type.isnot(None)
     ).distinct().order_by(EventReport.venue_type).all()
-    venue_types = [vt[0] for vt in venue_types]
+    venue_types = [vt[0] for vt in venue_types if vt[0]]  # Filter out None values
 
-    # Get unique event types from the database
+    # Get unique event types from database
     event_types = db.session.query(
         EventReport.incident_type
     ).filter(
         EventReport.incident_type.isnot(None)
     ).distinct().order_by(EventReport.incident_type).all()
-    event_types = [et[0] for et in event_types]
+    event_types = [et[0] for et in event_types if et[0]]  # Filter out None values
 
+    # Initialize base query
     query = EventReport.query
 
     # Apply filters based on search parameters
@@ -81,12 +82,7 @@ def comparative_search():
     similar_events = query.order_by(EventReport.date.desc()).all()
     logging.debug(f"Found {len(similar_events)} matching events")
 
-    # Log the IDs of found events for debugging
-    if similar_events:
-        event_ids = [event.id for event in similar_events]
-        logging.debug(f"Found event IDs: {event_ids}")
-
-    return render_template('comparative_search.html', 
+    return render_template('comparative_search.html',
                          similar_events=similar_events,
                          venue_types=venue_types,
                          event_types=event_types)
