@@ -4,19 +4,79 @@
 <div class="container">
     <div class="row">
         <div class="col-md-12">
-            <h4 class="mb-4">Event Database Chat</h4>
+            <h4 class="mb-4">Security Event Assistant</h4>
             <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Chat with AI Assistant</span>
+                        <small class="text-muted">Ask about events, security measures, and risk assessments</small>
+                    </div>
+                </div>
                 <div class="card-body">
                     <div class="chat-messages mb-3" id="chatMessages" style="height: 400px; overflow-y: auto;">
-                        <!-- Messages will be inserted here -->
+                        <!-- System welcome message -->
+                        <div class="chat-message assistant">
+                            <div class="message-content bg-secondary text-white rounded p-2 mb-2">
+                                Welcome! I can help you find and analyze security events. Try asking questions like:
+                                <ul class="mb-0 mt-2">
+                                    <li>Show me high-risk events from last month</li>
+                                    <li>What events had more than 5000 attendees?</li>
+                                    <li>Find outdoor events with security incidents</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                     <form id="chatForm" class="d-flex gap-2">
-                        <input type="text" class="form-control" id="queryInput" placeholder="Ask about events (e.g., 'Show me high risk events from this year')" required>
-                        <button type="submit" class="btn btn-primary">Send</button>
+                        <input type="text" 
+                               class="form-control" 
+                               id="queryInput" 
+                               placeholder="Ask about events, security measures, or risk levels..." 
+                               required
+                               autocomplete="off">
+                        <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
+                            <i data-feather="send"></i>
+                            Send
+                        </button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.chat-message {
+    margin-bottom: 1rem;
+}
+
+.chat-message.user {
+    text-align: right;
+}
+
+.chat-message .message-content {
+    display: inline-block;
+    max-width: 80%;
+}
+
+.chat-message.user .message-content {
+    background: var(--bs-primary);
+    color: white;
+    text-align: left;
+}
+
+.chat-message.assistant .message-content {
+    background: var(--bs-secondary);
+    color: white;
+}
+
+.chat-message .event-card {
+    background: var(--bs-dark);
+    border: 1px solid var(--bs-gray-700);
+    margin-top: 0.5rem;
+}
+
+.chat-message .event-card:hover {
+    border-color: var(--bs-primary);
+}
+</style>
 {% endblock %}
