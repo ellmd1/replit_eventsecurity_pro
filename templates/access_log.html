@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h4 class="mb-4">Access Logs</h4>
+
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Date/Time</th>
+                <th>Report Title</th>
+                <th>Assessor</th>
+                <th>Purpose</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.accessed_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                <td>
+                    <a href="{{ url_for('view_report', report_id=log.event_report.id) }}">
+                        {{ log.event_report.title }}
+                    </a>
+                </td>
+                <td>{{ log.assessor_name }}</td>
+                <td>{{ log.purpose }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

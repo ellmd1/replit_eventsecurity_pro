@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <form class="d-flex gap-2">
+            <input type="text" name="search" class="form-control" placeholder="Search reports..." value="{{ request.args.get('search', '') }}">
+            <select name="risk_level" class="form-select" style="width: auto;">
+                <option value="">All Risk Levels</option>
+                <option value="Low" {% if request.args.get('risk_level') == 'Low' %}selected{% endif %}>Low</option>
+                <option value="Medium" {% if request.args.get('risk_level') == 'Medium' %}selected{% endif %}>Medium</option>
+                <option value="High" {% if request.args.get('risk_level') == 'High' %}selected{% endif %}>High</option>
+            </select>
+            <button type="submit" class="btn btn-primary">Search</button>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    {% for report in reports %}
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">{{ report.title }}</h5>
+                <h6 class="card-subtitle mb-2 text-muted">{{ report.date.strftime('%Y-%m-%d') }}</h6>
+                <p class="card-text">{{ report.description[:200] }}...</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge bg-{{ 'danger' if report.risk_level == 'High' else 'warning' if report.risk_level == 'Medium' else 'success' }}">
+                        {{ report.risk_level }} Risk
+                    </span>
+                    <a href="{{ url_for('view_report', report_id=report.id) }}" class="btn btn-secondary btn-sm">View Details</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
