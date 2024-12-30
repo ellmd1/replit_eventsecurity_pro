@@ -1,14 +1,23 @@
 from flask import render_template, request, redirect, url_for, jsonify
-from flask_socketio import SocketIO, emit
+from flask_socketio import emit
 from app import app, db
-from models import EventReport, AccessLog, EventScenario
+from socket_init import socketio
+from models import EventReport, AccessLog, EventScenario, EventEmbedding
 from datetime import datetime, timedelta
 import logging
 from sqlalchemy import or_, func, extract, and_
-from chat_processor import process_natural_language_query, generate_response_summary
+from rag_chat_processor import get_chat_response, update_all_embeddings
 
-# Initialize SocketIO
-socketio = SocketIO(app)
+logger = logging.getLogger(__name__)
+
+# Update route handlers to use imported socketio
+@socketio.on('connect')
+def handle_connect():
+    """Handle client connection"""
+    logger.info('Client connected')
+    emit('receive_message', {
+        'message': 'Connected to Security Consultant. How can I assist you today?'
+    })
 
 @app.route('/')
 def dashboard():
@@ -148,17 +157,16 @@ def chat():
 @app.route('/chat_query', methods=['POST'])
 def chat_query():
     try:
-        query = request.json.get('query', '')
-        event_query = EventReport.query
+        data = request.json
+        query = data.get('query', '')
+        chat_history = data.get('chat_history', [])
 
-        # Process the query using the chat processor
-        event_query, explanation = process_natural_language_query(query, event_query)
-        events = event_query.limit(5).all()
-        response = generate_response_summary(events, explanation)
+        # Get response using RAG approach
+        response, relevant_events = get_chat_response(query, chat_history)
 
         # Format events for display
         event_list = []
-        for event in events:
+        for event in relevant_events:
             event_list.append({
                 'id': event.id,
                 'title': event.title,
@@ -184,6 +192,16 @@ def chat_query():
             'response': 'Sorry, I encountered an error processing your query.',
             'events': []
         }), 500
+
+# Route to update embeddings (should be protected in production)
+@app.route('/update_embeddings', methods=['POST'])
+def update_embeddings():
+    try:
+        update_all_embeddings()
+        return jsonify({'status': 'success', 'message': 'Embeddings updated successfully'})
+    except Exception as e:
+        logging.error(f"Error updating embeddings: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/scenario-builder')
 def scenario_builder():
@@ -221,14 +239,6 @@ def security_consultant():
     return render_template('security_consultant.html')
 
 # WebSocket event handlers
-@socketio.on('connect')
-def handle_connect():
-    """Handle client connection"""
-    logging.info('Client connected')
-    emit('receive_message', {
-        'message': 'Connected to Security Consultant. How can I assist you today?'
-    })
-
 @socketio.on('disconnect')
 def handle_disconnect():
     """Handle client disconnection"""
@@ -244,21 +254,14 @@ def handle_message(data):
     emit('typing')
 
     try:
-        # Process the message using the chat processor
-        event_query = EventReport.query
-        event_query, explanation = process_natural_language_query(message, event_query)
-        events = event_query.limit(3).all()
-
-        # Generate response based on the query and events
-        response = generate_response_summary(events, explanation)
-
-        # Send the response back to the client
+        # Process the message using the RAG chat processor
+        response, relevant_events = get_chat_response(message, [])
         emit('receive_message', {'message': response})
 
         # If relevant events were found, send their details
-        if events:
+        if relevant_events:
             event_summaries = []
-            for event in events:
+            for event in relevant_events:
                 summary = (f"Related Event: {event.title}\n"
                          f"Risk Level: {event.risk_level}\n"
                          f"Security Staff: {event.security_staff_count}\n"
@@ -319,4 +322,4 @@ def handle_quick_action(data):
     emit('receive_message', {'message': response})
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, use_reloader=True, log_output=True)
