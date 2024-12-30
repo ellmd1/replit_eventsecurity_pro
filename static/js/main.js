@@ -12,7 +12,9 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
 
             const queryInput = document.getElementById('queryInput');
-            const query = queryInput.value;
+            const query = queryInput.value.trim();
+
+            if (!query) return;
 
             // Add user message to chat
             addMessageToChat('user', query);
@@ -34,26 +36,55 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // If there are events in the response, display them
                 if (data.events && data.events.length > 0) {
-                    let eventsHtml = '<div class="mt-2"><strong>Found Events:</strong><ul class="list-unstyled">';
+                    let eventsHtml = `<div class="mt-2">
+                        <div class="text-muted small mb-2">Found ${data.events.length} relevant events:</div>
+                        <div class="d-flex flex-column gap-2">`;
+
                     data.events.forEach(event => {
                         eventsHtml += `
-                            <li class="mt-2">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <h6 class="card-title">${event.title}</h6>
-                                        <p class="card-text small">
-                                            <strong>Date:</strong> ${event.date}<br>
-                                            <strong>Location:</strong> ${event.location}<br>
-                                            <strong>Risk Level:</strong> ${event.risk_level}
-                                        </p>
-                                        <a href="/report/${event.id}" class="btn btn-sm btn-secondary">View Details</a>
-                                    </div>
+                            <div class="event-card p-3 rounded">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h6 class="mb-1">${event.title}</h6>
+                                    <span class="badge bg-${getRiskLevelClass(event.risk_level)}">
+                                        ${event.risk_level} Risk
+                                    </span>
                                 </div>
-                            </li>`;
+                                <div class="small text-muted mb-2">
+                                    <i data-feather="calendar" class="feather-sm me-1"></i> ${event.date}
+                                    <br>
+                                    <i data-feather="map-pin" class="feather-sm me-1"></i> ${event.location}
+                                    <br>
+                                    <i data-feather="users" class="feather-sm me-1"></i> ${event.attendance || 'Not recorded'} attendees
+                                </div>
+                                ${event.security_measures ? `
+                                    <div class="small mb-2">
+                                        <strong>Security Measures:</strong><br>
+                                        ${event.security_measures}
+                                    </div>
+                                ` : ''}
+                                ${event.incidents_reported ? `
+                                    <div class="small mb-2">
+                                        <strong>Incidents:</strong> ${event.incidents_reported}
+                                        ${event.incident_summary ? `<br>${event.incident_summary}` : ''}
+                                    </div>
+                                ` : ''}
+                                <div class="mt-2">
+                                    <a href="/report/${event.id}" class="btn btn-sm btn-secondary">
+                                        View Full Details
+                                    </a>
+                                </div>
+                            </div>`;
                     });
-                    eventsHtml += '</ul></div>';
+                    eventsHtml += '</div></div>';
                     addMessageToChat('assistant', eventsHtml, true);
                 }
+
+                // Initialize Feather icons for new content
+                feather.replace();
+
+                // Focus input for next message
+                queryInput.focus();
+
             } catch (error) {
                 console.error('Error:', error);
                 addMessageToChat('assistant', 'Sorry, I encountered an error processing your query.');
@@ -106,10 +137,10 @@ document.addEventListener('DOMContentLoaded', function() {
 // Helper function to add messages to chat
 function addMessageToChat(role, content, isHTML = false) {
     const messageDiv = document.createElement('div');
-    messageDiv.className = `chat-message mb-2 ${role === 'user' ? 'text-end' : ''}`;
+    messageDiv.className = `chat-message ${role}`;
 
     const messageContent = document.createElement('div');
-    messageContent.className = `d-inline-block p-2 rounded ${role === 'user' ? 'bg-primary' : 'bg-secondary'}`;
+    messageContent.className = `message-content rounded p-3`;
 
     if (isHTML) {
         messageContent.innerHTML = content;
@@ -122,8 +153,16 @@ function addMessageToChat(role, content, isHTML = false) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Function to toggle chat visibility
-function toggleChat() {
-    const chatbox = document.getElementById('chatbox');
-    chatbox.style.display = chatbox.style.display === 'none' ? 'block' : 'none';
+// Helper function to get Bootstrap color class based on risk level
+function getRiskLevelClass(riskLevel) {
+    switch (riskLevel) {
+        case 'High':
+            return 'danger';
+        case 'Medium':
+            return 'warning';
+        case 'Low':
+            return 'success';
+        default:
+            return 'secondary';
+    }
 }

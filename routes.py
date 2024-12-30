@@ -4,6 +4,7 @@ from models import EventReport, AccessLog, EventScenario
 from datetime import datetime, timedelta
 import logging
 from sqlalchemy import or_, func, extract, and_
+from chat_processor import process_natural_language_query, generate_response_summary
 
 @app.route('/')
 def dashboard():
@@ -145,9 +146,13 @@ def chat_query():
     try:
         query = request.json.get('query', '')
         event_query = EventReport.query
+
+        # Process the query using the chat processor
         event_query, explanation = process_natural_language_query(query, event_query)
         events = event_query.limit(5).all()
         response = generate_response_summary(events, explanation)
+
+        # Format events for display
         event_list = []
         for event in events:
             event_list.append({
@@ -156,9 +161,13 @@ def chat_query():
                 'date': event.date.strftime('%Y-%m-%d'),
                 'location': event.location,
                 'risk_level': event.risk_level,
-                'incident_type': event.incident_type,
-                'attendance': event.attendance
+                'venue_type': event.venue_type,
+                'attendance': event.attendance,
+                'security_measures': event.security_measures[:150] if event.security_measures else None,
+                'incidents_reported': event.incidents_reported,
+                'incident_summary': event.incident_summary[:150] if event.incident_summary else None
             })
+
         return jsonify({
             'status': 'success',
             'response': response,
