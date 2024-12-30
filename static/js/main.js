@@ -121,9 +121,3 @@ function addMessageToChat(role, content, isHTML = false) {
     chatMessages.appendChild(messageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
-
-// Function to toggle chat visibility
-function toggleChat() {
-    const chatbox = document.getElementById('chatbox');
-    chatbox.style.display = chatbox.style.display === 'none' ? 'block' : 'none';
-}

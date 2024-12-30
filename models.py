@@ -30,6 +30,7 @@ class AccessLog(db.Model):
     similar_event_details = db.Column(db.Text)
 
 class ChatHistory(db.Model):
+    __tablename__ = 'chat_history'
     id = db.Column(db.Integer, primary_key=True)
     query = db.Column(db.Text, nullable=False)
     response = db.Column(db.Text, nullable=False)

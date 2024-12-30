@@ -121,14 +121,31 @@ def view_access_logs():
 
 @app.route('/chat')
 def chat_interface():
-    # Get chat history, ordered by most recent first
-    chat_history = db.session.query(ChatHistory).order_by(ChatHistory.timestamp.desc()).limit(50).all()
-    return render_template('chat.html', chat_history=chat_history)
+    try:
+        # Get chat history, ordered by most recent first
+        chat_history = db.session.query(ChatHistory).order_by(ChatHistory.timestamp.desc()).limit(50).all()
+        return render_template('chat.html', chat_history=chat_history)
+    except Exception as e:
+        logging.error(f"Error in chat interface: {str(e)}")
+        return render_template('chat.html', chat_history=[], error="Unable to load chat history")
 
 @app.route('/chat_query', methods=['POST'])
 def chat_query():
     try:
+        if not request.is_json:
+            return jsonify({
+                'status': 'error',
+                'response': 'Invalid request format',
+                'events': []
+            }), 400
+
         query = request.json.get('query', '')
+        if not query:
+            return jsonify({
+                'status': 'error',
+                'response': 'Query cannot be empty',
+                'events': []
+            }), 400
 
         # Initialize base query
         event_query = EventReport.query
@@ -173,6 +190,7 @@ def chat_query():
 
     except Exception as e:
         logging.error(f"Error processing chat query: {str(e)}")
+        db.session.rollback()
         return jsonify({
             'status': 'error',
             'response': 'Sorry, I encountered an error processing your query.',
