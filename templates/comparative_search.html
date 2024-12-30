@@ -16,11 +16,9 @@
                     <label class="form-label">Event Type</label>
                     <select name="event_type" class="form-select">
                         <option value="">All Types</option>
-                        <option value="Concert" {% if request.args.get('event_type') == 'Concert' %}selected{% endif %}>Concert</option>
-                        <option value="Sports" {% if request.args.get('event_type') == 'Sports' %}selected{% endif %}>Sports Event</option>
-                        <option value="Festival" {% if request.args.get('event_type') == 'Festival' %}selected{% endif %}>Festival</option>
-                        <option value="Conference" {% if request.args.get('event_type') == 'Conference' %}selected{% endif %}>Conference</option>
-                        <option value="Exhibition" {% if request.args.get('event_type') == 'Exhibition' %}selected{% endif %}>Exhibition</option>
+                        {% for type in event_types %}
+                        <option value="{{ type }}" {% if request.args.get('event_type') == type %}selected{% endif %}>{{ type }}</option>
+                        {% endfor %}
                     </select>
                 </div>
             </div>
@@ -39,9 +37,9 @@
                     <label class="form-label">Venue Type</label>
                     <select name="venue_type" class="form-select">
                         <option value="">All Venues</option>
-                        <option value="indoor" {% if request.args.get('venue_type') == 'indoor' %}selected{% endif %}>Indoor</option>
-                        <option value="outdoor" {% if request.args.get('venue_type') == 'outdoor' %}selected{% endif %}>Outdoor</option>
-                        <option value="mixed" {% if request.args.get('venue_type') == 'mixed' %}selected{% endif %}>Mixed (Indoor/Outdoor)</option>
+                        {% for type in venue_types %}
+                        <option value="{{ type }}" {% if request.args.get('venue_type') == type %}selected{% endif %}>{{ type }}</option>
+                        {% endfor %}
                     </select>
                 </div>
             </div>

@@ -3,7 +3,7 @@ from app import app, db
 from models import EventReport, AccessLog
 from datetime import datetime
 import logging
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 
 @app.route('/')
 def index():
@@ -14,10 +14,10 @@ def index():
 
     if search_query:
         query = query.filter(
-            (EventReport.title.ilike(f'%{search_query}%')) |
-            (EventReport.description.ilike(f'%{search_query}%')) |
-            (EventReport.lessons_learned.ilike(f'%{search_query}%')) |
-            (EventReport.recommendations.ilike(f'%{search_query}%'))
+            or_(EventReport.title.ilike(f'%{search_query}%'),
+                EventReport.description.ilike(f'%{search_query}%'),
+                EventReport.lessons_learned.ilike(f'%{search_query}%'),
+                EventReport.recommendations.ilike(f'%{search_query}%'))
         )
 
     if risk_level:
@@ -39,6 +39,22 @@ def comparative_search():
     attendance_range = request.args.get('attendance_range', '')
     venue_type = request.args.get('venue_type', '')
 
+    # Get unique venue types from the database
+    venue_types = db.session.query(
+        EventReport.venue_type
+    ).filter(
+        EventReport.venue_type.isnot(None)
+    ).distinct().order_by(EventReport.venue_type).all()
+    venue_types = [vt[0] for vt in venue_types]
+
+    # Get unique event types from the database
+    event_types = db.session.query(
+        EventReport.incident_type
+    ).filter(
+        EventReport.incident_type.isnot(None)
+    ).distinct().order_by(EventReport.incident_type).all()
+    event_types = [et[0] for et in event_types]
+
     query = EventReport.query
 
     # Apply filters based on search parameters
@@ -47,6 +63,9 @@ def comparative_search():
 
     if event_type:
         query = query.filter(EventReport.incident_type.ilike(f'%{event_type}%'))
+
+    if venue_type:
+        query = query.filter(EventReport.venue_type == venue_type)
 
     # Handle attendance ranges
     if attendance_range:
@@ -62,7 +81,10 @@ def comparative_search():
     # Sort by date descending and get all matching events
     similar_events = query.order_by(EventReport.date.desc()).all() if any([location, event_type, attendance_range, venue_type]) else []
 
-    return render_template('comparative_search.html', similar_events=similar_events)
+    return render_template('comparative_search.html', 
+                         similar_events=similar_events,
+                         venue_types=venue_types,
+                         event_types=event_types)
 
 @app.route('/report/<int:report_id>')
 def view_report(report_id):
