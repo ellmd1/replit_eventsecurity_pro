@@ -22,7 +22,13 @@ def index():
     if risk_level:
         query = query.filter(EventReport.risk_level == risk_level)
 
-    reports = query.order_by(EventReport.date.desc()).all()
+    # If no search or filter is applied, show only the latest 5 reports
+    if not search_query and not risk_level:
+        reports = query.order_by(EventReport.date.desc()).limit(5).all()
+    else:
+        # When searching or filtering, show all matching reports
+        reports = query.order_by(EventReport.date.desc()).all()
+
     return render_template('index.html', reports=reports)
 
 @app.route('/report/<int:report_id>')
