@@ -10,6 +10,7 @@ class EventReport(db.Model):
     risk_level = db.Column(db.String(50), nullable=False)
     incident_type = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    venue_type = db.Column(db.String(50))  # Added venue_type field
 
     # New fields for detailed risk assessment
     attendance = db.Column(db.Integer)
@@ -26,5 +27,5 @@ class AccessLog(db.Model):
     accessed_at = db.Column(db.DateTime, default=datetime.utcnow)
     purpose = db.Column(db.String(200))
     assessor_name = db.Column(db.String(100), nullable=False)
-    assessment_context = db.Column(db.String(200))  # e.g., "Planning similar event", "Post-incident review"
-    similar_event_details = db.Column(db.Text)  # Details about the event being planned
+    assessment_context = db.Column(db.String(200))
+    similar_event_details = db.Column(db.Text)
