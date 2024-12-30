@@ -2,6 +2,7 @@ import os
 import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from sqlalchemy.orm import DeclarativeBase
 
 # Configure logging
@@ -21,10 +22,16 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,
 }
 
-# Initialize the database
+# Initialize extensions
 db.init_app(app)
+migrate = Migrate(app, db)
 
 with app.app_context():
-    import models
-    import routes
-    db.create_all()
+    try:
+        import models
+        import routes
+        db.create_all()
+        logging.info("Database tables created successfully")
+    except Exception as e:
+        logging.error(f"Error creating database tables: {str(e)}")
+        raise

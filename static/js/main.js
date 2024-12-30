@@ -5,14 +5,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Chat functionality
     const chatForm = document.getElementById('chatForm');
     const chatMessages = document.getElementById('chatMessages');
-    const chatbox = document.getElementById('chatbox');
+    const queryInput = document.getElementById('queryInput');
 
     if (chatForm) {
         chatForm.addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const queryInput = document.getElementById('queryInput');
-            const query = queryInput.value;
+            const query = queryInput.value.trim();
+            if (!query) return;
 
             // Add user message to chat
             addMessageToChat('user', query);
@@ -29,7 +29,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const data = await response.json();
 
-                // Add response to chat
+                if (data.status === 'error') {
+                    addMessageToChat('assistant', data.response || 'Sorry, something went wrong.');
+                    return;
+                }
+
+                // Add AI response to chat
                 addMessageToChat('assistant', data.response);
 
                 // If there are events in the response, display them
@@ -54,6 +59,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     eventsHtml += '</ul></div>';
                     addMessageToChat('assistant', eventsHtml, true);
                 }
+
+                // Scroll to bottom
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
             } catch (error) {
                 console.error('Error:', error);
                 addMessageToChat('assistant', 'Sorry, I encountered an error processing your query.');
@@ -106,18 +115,25 @@ document.addEventListener('DOMContentLoaded', function() {
 // Helper function to add messages to chat
 function addMessageToChat(role, content, isHTML = false) {
     const messageDiv = document.createElement('div');
-    messageDiv.className = `chat-message mb-2 ${role === 'user' ? 'text-end' : ''}`;
+    messageDiv.className = 'chat-message mb-3';
 
-    const messageContent = document.createElement('div');
-    messageContent.className = `d-inline-block p-2 rounded ${role === 'user' ? 'bg-primary' : 'bg-secondary'}`;
+    const innerDiv = document.createElement('div');
+    innerDiv.className = `d-flex ${role === 'user' ? 'justify-content-end' : ''} mb-2`;
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = `p-2 ${role === 'user' ? 'bg-primary' : 'bg-secondary'} rounded`;
 
     if (isHTML) {
-        messageContent.innerHTML = content;
+        contentDiv.innerHTML = content;
     } else {
-        messageContent.textContent = content;
+        contentDiv.textContent = content;
     }
 
-    messageDiv.appendChild(messageContent);
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    innerDiv.appendChild(contentDiv);
+    messageDiv.appendChild(innerDiv);
+
+    if (chatMessages) {
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 }

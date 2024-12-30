@@ -1,4 +1,5 @@
 import os
+import json
 import logging
 from openai import OpenAI
 from datetime import datetime
@@ -24,17 +25,17 @@ def process_natural_language_query(query: str, db_query):
         - location (any text)
 
         Respond with JSON in this format:
-        {
-            "filters": {
+        {{
+            "filters": {{
                 "risk_level": string or null,
                 "venue_type": string or null,
                 "incident_type": string or null,
                 "attendance_range": string or null,
                 "date_filter": string or null,
                 "location": string or null
-            },
+            }},
             "explanation": "Brief explanation of how you interpreted the query"
-        }"""
+        }}"""
 
         # Get AI response
         response = client.chat.completions.create(
@@ -44,7 +45,7 @@ def process_natural_language_query(query: str, db_query):
         )
 
         # Parse AI response
-        result = response.choices[0].message.content
+        result = json.loads(response.choices[0].message.content)
         logging.debug(f"AI interpretation: {result}")
 
         # Apply filters based on AI interpretation
