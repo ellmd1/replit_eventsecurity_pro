@@ -6,6 +6,19 @@
     <title>Risk Assessment Tool</title>
     <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.css" rel="stylesheet">
+    <style>
+        #chatbox {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            z-index: 1000;
+        }
+        .chat-messages {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -33,6 +46,23 @@
     <main class="container my-4">
         {% block content %}{% endblock %}
     </main>
+
+    <!-- Chat Interface -->
+    <div id="chatbox" class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Event Database Chat</h6>
+            <button type="button" class="btn-close" aria-label="Close" onclick="toggleChat()"></button>
+        </div>
+        <div class="card-body">
+            <div class="chat-messages mb-3" id="chatMessages">
+                <!-- Messages will be inserted here -->
+            </div>
+            <form id="chatForm" class="d-flex gap-2">
+                <input type="text" class="form-control" id="queryInput" placeholder="Ask about events..." required>
+                <button type="submit" class="btn btn-primary">Send</button>
+            </form>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
