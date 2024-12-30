@@ -3,10 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Risk Assessment Tool</title>
+    <title>Security Event Management Platform</title>
     <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.css" rel="stylesheet">
     <style>
+        .navbar {
+            border-bottom: 1px solid var(--bs-border-color);
+            padding: 1rem 0;
+        }
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .nav-link {
+            font-weight: 500;
+        }
+        .nav-link.active {
+            color: var(--bs-primary) !important;
+        }
+        .footer {
+            margin-top: 4rem;
+            padding: 2rem 0;
+            background: var(--bs-dark);
+            border-top: 1px solid var(--bs-border-color);
+        }
+        .main-content {
+            min-height: calc(100vh - 280px);
+            padding: 2rem 0;
+        }
+        .card {
+            border: 1px solid var(--bs-border-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
         .chat-messages {
             background: var(--bs-dark);
             border-radius: 0.25rem;
@@ -34,47 +65,94 @@
             background: var(--bs-secondary);
             color: white;
         }
+        .badge {
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="/">Risk Assessment Tool</a>
+            <a class="navbar-brand" href="/">
+                <i data-feather="shield" class="text-primary"></i>
+                SecureEvent Pro
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="/browse">Browse Reports</a>
+                        <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}">
+                            <i data-feather="home" class="feather-sm"></i>
+                            Dashboard
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/comparative-search">Compare Events</a>
+                        <a class="nav-link {{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">
+                            <i data-feather="file-text" class="feather-sm"></i>
+                            Reports
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/chat">Chat Assistant</a>
+                        <a class="nav-link {{ 'active' if request.endpoint == 'comparative_search' }}" href="{{ url_for('comparative_search') }}">
+                            <i data-feather="search" class="feather-sm"></i>
+                            Compare Events
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/scenario-builder">Scenario Builder</a>
+                        <a class="nav-link {{ 'active' if request.endpoint == 'chat' }}" href="{{ url_for('chat') }}">
+                            <i data-feather="message-square" class="feather-sm"></i>
+                            AI Assistant
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/access_logs">Access Logs</a>
+                        <a class="nav-link {{ 'active' if request.endpoint == 'scenario_builder' }}" href="{{ url_for('scenario_builder') }}">
+                            <i data-feather="layout" class="feather-sm"></i>
+                            Scenario Builder
+                        </a>
                     </li>
                 </ul>
+                <div class="d-flex align-items-center gap-3">
+                    <a href="{{ url_for('view_access_logs') }}" class="btn btn-outline-light btn-sm">
+                        <i data-feather="clock" class="feather-sm"></i>
+                        Access Logs
+                    </a>
+                </div>
             </div>
         </div>
     </nav>
 
-    <main class="container my-4">
-        {% block content %}{% endblock %}
+    <main class="main-content">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
     </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-primary mb-3">SecureEvent Pro</h5>
+                    <p class="text-muted mb-0">
+                        Advanced risk assessment and security management platform for public event safety professionals.
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="text-muted mb-0">
+                        © 2024 SecureEvent Pro. All rights reserved.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            feather.replace();
+            feather.replace({ class: 'feather-sm' });
         });
     </script>
 </body>
