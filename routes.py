@@ -1,10 +1,14 @@
 from flask import render_template, request, redirect, url_for, jsonify
+from flask_socketio import SocketIO, emit
 from app import app, db
 from models import EventReport, AccessLog, EventScenario
 from datetime import datetime, timedelta
 import logging
 from sqlalchemy import or_, func, extract, and_
 from chat_processor import process_natural_language_query, generate_response_summary
+
+# Initialize SocketIO
+socketio = SocketIO(app)
 
 @app.route('/')
 def dashboard():
@@ -210,3 +214,109 @@ def calculate_scenario_risk(elements):
     elif medium_count > 0:
         return 'Medium'
     return 'Low'
+
+@app.route('/security-consultant')
+def security_consultant():
+    """Route for the real-time security consultant chat interface"""
+    return render_template('security_consultant.html')
+
+# WebSocket event handlers
+@socketio.on('connect')
+def handle_connect():
+    """Handle client connection"""
+    logging.info('Client connected')
+    emit('receive_message', {
+        'message': 'Connected to Security Consultant. How can I assist you today?'
+    })
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Handle client disconnection"""
+    logging.info('Client disconnected')
+
+@socketio.on('send_message')
+def handle_message(data):
+    """Handle incoming messages"""
+    message = data.get('message', '')
+    logging.info(f'Received message: {message}')
+
+    # Emit typing indicator
+    emit('typing')
+
+    try:
+        # Process the message using the chat processor
+        event_query = EventReport.query
+        event_query, explanation = process_natural_language_query(message, event_query)
+        events = event_query.limit(3).all()
+
+        # Generate response based on the query and events
+        response = generate_response_summary(events, explanation)
+
+        # Send the response back to the client
+        emit('receive_message', {'message': response})
+
+        # If relevant events were found, send their details
+        if events:
+            event_summaries = []
+            for event in events:
+                summary = (f"Related Event: {event.title}\n"
+                         f"Risk Level: {event.risk_level}\n"
+                         f"Security Staff: {event.security_staff_count}\n"
+                         f"Incidents: {event.incidents_reported}")
+                event_summaries.append(summary)
+
+            emit('receive_message', {
+                'message': "\n\n".join(event_summaries)
+            })
+
+    except Exception as e:
+        logging.error(f"Error processing message: {str(e)}")
+        emit('receive_message', {
+            'message': 'I apologize, but I encountered an error processing your request. Please try rephrasing your question.'
+        })
+
+@socketio.on('quick_action')
+def handle_quick_action(data):
+    """Handle quick action button clicks"""
+    action = data.get('action')
+
+    responses = {
+        'risk_assessment': (
+            "I'll help you assess security risks for your event. "
+            "Please provide the following details:\n"
+            "1. Expected attendance\n"
+            "2. Venue type\n"
+            "3. Event duration\n"
+            "4. Any specific concerns"
+        ),
+        'emergency_plan': (
+            "Let's create an emergency response plan. "
+            "I'll need to know:\n"
+            "1. Venue layout\n"
+            "2. Number of exits\n"
+            "3. Maximum capacity\n"
+            "4. Available medical facilities"
+        ),
+        'staff_planning': (
+            "I'll help you plan security staffing. "
+            "Please share:\n"
+            "1. Event type\n"
+            "2. Expected attendance\n"
+            "3. Venue size\n"
+            "4. Duration of the event"
+        ),
+        'venue_analysis': (
+            "Let's analyze your venue's security setup. "
+            "Please provide:\n"
+            "1. Venue type\n"
+            "2. Total square footage\n"
+            "3. Number of entry/exit points\n"
+            "4. Existing security measures"
+        )
+    }
+
+    response = responses.get(action, "I'll help you with that. What specific information do you need?")
+    emit('receive_message', {'message': response})
+
+if __name__ == '__main__':
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)

@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">Security Consultant Chat</h4>
+                        <span id="connectionStatus" class="badge bg-warning">Connecting...</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chat-container">
+                        <div class="chat-messages mb-3" id="chatMessages" style="height: 400px; overflow-y: auto;">
+                            <!-- System welcome message -->
+                            <div class="chat-message system">
+                                <div class="message-content bg-dark text-white rounded p-2 mb-2">
+                                    Welcome to the Security Consultant Chat! Our AI consultant is here to help you with:
+                                    <ul class="mb-0 mt-2">
+                                        <li>Real-time security risk assessment</li>
+                                        <li>Emergency response planning</li>
+                                        <li>Security staff deployment strategies</li>
+                                        <li>Crowd management techniques</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <form id="chatForm" class="chat-input">
+                            <div class="input-group">
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="messageInput" 
+                                       placeholder="Type your security-related question..." 
+                                       autocomplete="off"
+                                       required>
+                                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
+                                    <i data-feather="send"></i>
+                                    Send
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="quick-actions mt-4">
+                        <h6 class="text-muted mb-3">Quick Actions</h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="action-btn btn btn-outline-secondary btn-sm" 
+                                    data-action="risk_assessment">
+                                <i data-feather="alert-triangle"></i>
+                                Request Risk Assessment
+                            </button>
+                            <button class="action-btn btn btn-outline-secondary btn-sm" 
+                                    data-action="emergency_plan">
+                                <i data-feather="shield"></i>
+                                Create Emergency Plan
+                            </button>
+                            <button class="action-btn btn btn-outline-secondary btn-sm" 
+                                    data-action="staff_planning">
+                                <i data-feather="users"></i>
+                                Staff Planning
+                            </button>
+                            <button class="action-btn btn btn-outline-secondary btn-sm" 
+                                    data-action="venue_analysis">
+                                <i data-feather="map"></i>
+                                Venue Security Analysis
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.chat-container {
+    position: relative;
+}
+
+.chat-message {
+    margin-bottom: 1rem;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.chat-message.user {
+    text-align: right;
+}
+
+.chat-message .message-content {
+    display: inline-block;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    max-width: 80%;
+}
+
+.chat-message.user .message-content {
+    background: var(--bs-primary);
+    color: white;
+    text-align: left;
+}
+
+.chat-message.assistant .message-content {
+    background: var(--bs-secondary);
+    color: white;
+}
+
+.chat-message.system .message-content {
+    background: var(--bs-dark);
+    color: white;
+    width: 100%;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+#connectionStatus {
+    transition: background-color 0.3s ease;
+}
+
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    color: var(--bs-gray-600);
+}
+
+.typing-indicator span {
+    width: 4px;
+    height: 4px;
+    background: currentColor;
+    border-radius: 50%;
+    animation: typing 1s infinite;
+}
+
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const socket = io();
+    const chatMessages = document.getElementById('chatMessages');
+    const chatForm = document.getElementById('chatForm');
+    const messageInput = document.getElementById('messageInput');
+    const connectionStatus = document.getElementById('connectionStatus');
+    
+    // Connection status handling
+    socket.on('connect', () => {
+        connectionStatus.textContent = 'Connected';
+        connectionStatus.classList.remove('bg-warning', 'bg-danger');
+        connectionStatus.classList.add('bg-success');
+    });
+
+    socket.on('disconnect', () => {
+        connectionStatus.textContent = 'Disconnected';
+        connectionStatus.classList.remove('bg-success', 'bg-warning');
+        connectionStatus.classList.add('bg-danger');
+    });
+
+    // Message handling
+    chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const message = messageInput.value.trim();
+        if (message) {
+            addMessage('user', message);
+            socket.emit('send_message', { message: message });
+            messageInput.value = '';
+        }
+    });
+
+    socket.on('receive_message', (data) => {
+        addMessage('assistant', data.message);
+        feather.replace();
+    });
+
+    socket.on('typing', () => {
+        showTypingIndicator();
+    });
+
+    // Quick action buttons
+    document.querySelectorAll('.action-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const action = button.dataset.action;
+            socket.emit('quick_action', { action: action });
+            addMessage('system', `Requesting ${action.replace('_', ' ')}...`);
+        });
+    });
+
+    // Helper functions
+    function addMessage(role, content) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${role}`;
+        
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content rounded';
+        messageContent.textContent = content;
+        
+        messageDiv.appendChild(messageContent);
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function showTypingIndicator() {
+        const indicator = document.createElement('div');
+        indicator.className = 'typing-indicator';
+        indicator.innerHTML = `
+            <small>AI is typing</small>
+            <span></span>
+            <span></span>
+            <span></span>
+        `;
+        chatMessages.appendChild(indicator);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // Remove typing indicator after 2 seconds
+        setTimeout(() => {
+            if (indicator.parentNode === chatMessages) {
+                chatMessages.removeChild(indicator);
+            }
+        }, 2000);
+    }
+});
+</script>
+{% endblock %}
