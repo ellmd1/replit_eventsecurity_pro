@@ -9,7 +9,12 @@ eventlet.monkey_patch()
 
 logger.info("Importing Flask app and dependencies")
 from app import app
-from socket_init import socketio
+from socket_init import init_socket
+
+# Initialize SocketIO after app is created
+socketio = init_socket(app)
+
+# Import routes after socketio is initialized
 import routes  # noqa: F401
 
 if __name__ == "__main__":
