@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Event Scenario Builder</h2>
+            <p class="text-muted">Drag and drop elements to create your event security scenario</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Elements</h5>
+                </div>
+                <div class="card-body">
+                    <div id="elementPalette">
+                        <div class="element-item mb-2" draggable="true" data-type="venue">
+                            <i data-feather="home"></i> Venue
+                        </div>
+                        <div class="element-item mb-2" draggable="true" data-type="entrance">
+                            <i data-feather="log-in"></i> Entrance/Exit
+                        </div>
+                        <div class="element-item mb-2" draggable="true" data-type="security">
+                            <i data-feather="shield"></i> Security Point
+                        </div>
+                        <div class="element-item mb-2" draggable="true" data-type="crowd">
+                            <i data-feather="users"></i> Crowd Zone
+                        </div>
+                        <div class="element-item mb-2" draggable="true" data-type="emergency">
+                            <i data-feather="alert-triangle"></i> Emergency Point
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Properties</h5>
+                </div>
+                <div class="card-body">
+                    <form id="elementProperties" class="d-none">
+                        <div class="mb-3">
+                            <label class="form-label">Label</label>
+                            <input type="text" class="form-control" id="elementLabel">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="elementDescription" rows="2"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Risk Level</label>
+                            <select class="form-select" id="elementRiskLevel">
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Scenario Canvas</h5>
+                    <div>
+                        <button class="btn btn-secondary" id="clearCanvas">Clear</button>
+                        <button class="btn btn-primary" id="saveScenario">Save Scenario</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="scenarioCanvas" class="scenario-canvas">
+                        <!-- Elements will be added here dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.scenario-canvas {
+    background: var(--bs-dark);
+    border: 1px solid var(--bs-gray-700);
+    border-radius: 4px;
+    height: 600px;
+    position: relative;
+    overflow: hidden;
+}
+
+.element-item {
+    background: var(--bs-gray-700);
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    cursor: move;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.element-item:hover {
+    background: var(--bs-gray-600);
+}
+
+.canvas-element {
+    position: absolute;
+    background: var(--bs-gray-700);
+    border: 2px solid var(--bs-primary);
+    border-radius: 4px;
+    padding: 1rem;
+    min-width: 100px;
+    cursor: move;
+    user-select: none;
+}
+
+.canvas-element.selected {
+    border-color: var(--bs-info);
+    box-shadow: 0 0 0 2px var(--bs-info);
+}
+
+.canvas-element[data-risk="High"] {
+    border-color: var(--bs-danger);
+}
+
+.canvas-element[data-risk="Medium"] {
+    border-color: var(--bs-warning);
+}
+
+.canvas-element[data-risk="Low"] {
+    border-color: var(--bs-success);
+}
+</style>
+{% endblock %}
