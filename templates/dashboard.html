@@ -73,21 +73,31 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [{
                 data: [riskData.High, riskData.Medium, riskData.Low],
                 backgroundColor: [
-                    'var(--bs-danger)',
-                    'var(--bs-warning)',
-                    'var(--bs-success)'
-                ]
+                    '#dc3545',  // Bootstrap danger red
+                    '#ffc107',  // Bootstrap warning yellow
+                    '#198754'   // Bootstrap success green
+                ],
+                borderColor: [
+                    '#dc3545',
+                    '#ffc107',
+                    '#198754'
+                ],
+                borderWidth: 1
             }]
         },
         options: {
             responsive: true,
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    position: 'bottom',
+                    labels: {
+                        color: '#fff'  // White text for labels
+                    }
                 },
                 title: {
                     display: true,
-                    text: 'Current Risk Distribution'
+                    text: 'Current Risk Distribution',
+                    color: '#fff'  // White text for title
                 }
             }
         }
