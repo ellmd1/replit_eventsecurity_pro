@@ -122,7 +122,7 @@ def view_access_logs():
 @app.route('/chat')
 def chat_interface():
     # Get chat history, ordered by most recent first
-    chat_history = ChatHistory.query.order_by(ChatHistory.timestamp.desc()).limit(50).all()
+    chat_history = db.session.query(ChatHistory).order_by(ChatHistory.timestamp.desc()).limit(50).all()
     return render_template('chat.html', chat_history=chat_history)
 
 @app.route('/chat_query', methods=['POST'])
