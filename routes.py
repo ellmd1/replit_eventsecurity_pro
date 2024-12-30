@@ -1,6 +1,6 @@
 from flask import render_template, request, redirect, url_for, jsonify
 from app import app, db
-from models import EventReport, AccessLog
+from models import EventReport, AccessLog, EventScenario # Added EventScenario import
 from datetime import datetime
 import logging
 from sqlalchemy import or_, func, extract
@@ -164,3 +164,35 @@ def chat_query():
             'response': 'Sorry, I encountered an error processing your query.',
             'events': []
         }), 500
+
+@app.route('/scenario-builder')
+def scenario_builder():
+    return render_template('scenario_builder.html')
+
+@app.route('/save_scenario', methods=['POST'])
+def save_scenario():
+    try:
+        data = request.json
+        scenario = EventScenario(
+            title=data['title'],
+            elements=data['elements'],
+            estimated_risk_level=calculate_scenario_risk(data['elements'])
+        )
+        db.session.add(scenario)
+        db.session.commit()
+        return jsonify({'status': 'success', 'id': scenario.id})
+    except Exception as e:
+        logging.error(f"Error saving scenario: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+def calculate_scenario_risk(elements):
+    """Calculate overall risk level based on element risk levels"""
+    risk_levels = [element['riskLevel'] for element in elements]
+    high_count = risk_levels.count('High')
+    medium_count = risk_levels.count('Medium')
+
+    if high_count > 0:
+        return 'High'
+    elif medium_count > 0:
+        return 'Medium'
+    return 'Low'
