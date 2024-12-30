@@ -1,10 +1,9 @@
 from flask import render_template, request, redirect, url_for, jsonify
 from app import app, db
-from models import EventReport, AccessLog, EventScenario
+from models import EventReport, AccessLog, EventScenario, AssessmentTemplate
 from datetime import datetime, timedelta
 import logging
 from sqlalchemy import or_, func, extract, and_
-from chat_processor import process_natural_language_query, generate_response_summary
 
 @app.route('/')
 def dashboard():
@@ -183,7 +182,11 @@ def chat_query():
 
 @app.route('/scenario-builder')
 def scenario_builder():
-    return render_template('scenario_builder.html')
+    template_id = request.args.get('template_id')
+    template = None
+    if template_id:
+        template = AssessmentTemplate.query.get(template_id)
+    return render_template('scenario_builder.html', template=template)
 
 @app.route('/save_scenario', methods=['POST'])
 def save_scenario():
@@ -210,3 +213,61 @@ def calculate_scenario_risk(elements):
     elif medium_count > 0:
         return 'Medium'
     return 'Low'
+
+@app.route('/templates')
+def list_templates():
+    templates = AssessmentTemplate.query.order_by(AssessmentTemplate.created_at.desc()).all()
+    return render_template('templates/list.html', templates=templates)
+
+@app.route('/templates/new', methods=['GET', 'POST'])
+def create_template():
+    if request.method == 'POST':
+        try:
+            template = AssessmentTemplate(
+                title=request.form['title'],
+                description=request.form['description'],
+                template_type=request.form['template_type'],
+                min_capacity=int(request.form.get('min_capacity', 0)),
+                max_capacity=int(request.form.get('max_capacity', 0)),
+                configuration=request.json.get('configuration', {}),
+                security_requirements=request.json.get('security_requirements', []),
+                risk_factors=request.json.get('risk_factors', []),
+                mitigation_strategies=request.json.get('mitigation_strategies', [])
+            )
+            db.session.add(template)
+            db.session.commit()
+            return jsonify({'status': 'success', 'id': template.id})
+        except Exception as e:
+            logging.error(f"Error creating template: {str(e)}")
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    return render_template('templates/create.html')
+
+@app.route('/templates/<int:template_id>')
+def view_template(template_id):
+    template = AssessmentTemplate.query.get_or_404(template_id)
+    return render_template('templates/view.html', template=template)
+
+@app.route('/templates/<int:template_id>/edit', methods=['GET', 'POST'])
+def edit_template(template_id):
+    template = AssessmentTemplate.query.get_or_404(template_id)
+    if request.method == 'POST':
+        try:
+            template.title = request.form['title']
+            template.description = request.form['description']
+            template.template_type = request.form['template_type']
+            template.min_capacity = int(request.form.get('min_capacity', 0))
+            template.max_capacity = int(request.form.get('max_capacity', 0))
+            template.configuration = request.json.get('configuration', {})
+            template.security_requirements = request.json.get('security_requirements', [])
+            template.risk_factors = request.json.get('risk_factors', [])
+            template.mitigation_strategies = request.json.get('mitigation_strategies', [])
+            template.updated_at = datetime.utcnow()
+
+            db.session.commit()
+            return jsonify({'status': 'success'})
+        except Exception as e:
+            logging.error(f"Error updating template: {str(e)}")
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    return render_template('templates/edit.html', template=template)
