@@ -1,9 +1,9 @@
 import os
 import logging
+import json
 from openai import OpenAI
 from datetime import datetime
-from sqlalchemy import extract, or_
-from models import EventReport
+from sqlalchemy import extract
 
 # Initialize OpenAI client
 # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
@@ -26,12 +26,12 @@ def process_natural_language_query(query: str, db_query):
         Respond with JSON in this format:
         {
             "filters": {
-                "risk_level": string or null,
-                "venue_type": string or null,
-                "incident_type": string or null,
-                "attendance_range": string or null,
-                "date_filter": string or null,
-                "location": string or null
+                "risk_level": "string or null",
+                "venue_type": "string or null",
+                "incident_type": "string or null",
+                "attendance_range": "string or null",
+                "date_filter": "string or null",
+                "location": "string or null"
             },
             "explanation": "Brief explanation of how you interpreted the query"
         }"""
@@ -44,45 +44,45 @@ def process_natural_language_query(query: str, db_query):
         )
 
         # Parse AI response
-        result = response.choices[0].message.content
+        result = json.loads(response.choices[0].message.content)
         logging.debug(f"AI interpretation: {result}")
 
         # Apply filters based on AI interpretation
         filters = result.get('filters', {})
         for filter_name, value in filters.items():
-            if not value:
+            if not value or value == "null":
                 continue
 
             if filter_name == 'risk_level' and value in ['High', 'Medium', 'Low']:
-                db_query = db_query.filter(EventReport.risk_level == value)
+                db_query = db_query.filter_by(risk_level=value)
 
             elif filter_name == 'venue_type':
-                db_query = db_query.filter(EventReport.venue_type.ilike(f'%{value}%'))
+                db_query = db_query.filter(db_query.whereclause.model.venue_type.ilike(f'%{value}%'))
 
             elif filter_name == 'incident_type':
-                db_query = db_query.filter(EventReport.incident_type.ilike(f'%{value}%'))
+                db_query = db_query.filter(db_query.whereclause.model.incident_type.ilike(f'%{value}%'))
 
             elif filter_name == 'attendance_range':
                 if value == 'small':
-                    db_query = db_query.filter(EventReport.attendance < 1000)
+                    db_query = db_query.filter(db_query.whereclause.model.attendance < 1000)
                 elif value == 'medium':
-                    db_query = db_query.filter(EventReport.attendance.between(1000, 5000))
+                    db_query = db_query.filter(db_query.whereclause.model.attendance.between(1000, 5000))
                 elif value == 'large':
-                    db_query = db_query.filter(EventReport.attendance.between(5000, 15000))
+                    db_query = db_query.filter(db_query.whereclause.model.attendance.between(5000, 15000))
                 elif value == 'very large':
-                    db_query = db_query.filter(EventReport.attendance > 15000)
+                    db_query = db_query.filter(db_query.whereclause.model.attendance > 15000)
 
             elif filter_name == 'date_filter':
                 current_year = datetime.now().year
                 if value == 'this year':
-                    db_query = db_query.filter(extract('year', EventReport.date) == current_year)
+                    db_query = db_query.filter(extract('year', db_query.whereclause.model.date) == current_year)
                 elif value == 'last year':
-                    db_query = db_query.filter(extract('year', EventReport.date) == current_year - 1)
+                    db_query = db_query.filter(extract('year', db_query.whereclause.model.date) == current_year - 1)
                 elif value == 'recent':
-                    db_query = db_query.order_by(EventReport.date.desc())
+                    db_query = db_query.order_by(db_query.whereclause.model.date.desc())
 
             elif filter_name == 'location':
-                db_query = db_query.filter(EventReport.location.ilike(f'%{value}%'))
+                db_query = db_query.filter(db_query.whereclause.model.location.ilike(f'%{value}%'))
 
         return db_query, result.get('explanation', 'Query processed successfully')
 

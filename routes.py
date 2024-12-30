@@ -3,7 +3,7 @@ from app import app, db
 from models import EventReport, AccessLog
 from datetime import datetime
 import logging
-from sqlalchemy import or_, func, extract, case
+from sqlalchemy import or_, func, extract
 from chat_processor import process_natural_language_query, generate_response_summary
 
 @app.route('/')
