@@ -1,23 +1,18 @@
 from flask import render_template, request, redirect, url_for, jsonify
 from app import app, db
-from models import EventReport, AccessLog, EventScenario # Added EventScenario import
-from datetime import datetime
+from models import EventReport, AccessLog, EventScenario
+from datetime import datetime, timedelta
 import logging
-from sqlalchemy import or_, func, extract
-from chat_processor import process_natural_language_query, generate_response_summary
+from sqlalchemy import or_, func, extract, and_
 
 @app.route('/')
 def dashboard():
-    # Get 5 upcoming events ordered by date
     upcoming_events = EventReport.query.order_by(EventReport.date.desc()).limit(5).all()
-
-    # Calculate risk levels distribution for chart
     risk_levels = {
         'High': len([e for e in upcoming_events if e.risk_level == 'High']),
         'Medium': len([e for e in upcoming_events if e.risk_level == 'Medium']),
         'Low': len([e for e in upcoming_events if e.risk_level == 'Low'])
     }
-
     return render_template('dashboard.html', 
                          upcoming_events=upcoming_events,
                          risk_levels=risk_levels)
@@ -26,9 +21,7 @@ def dashboard():
 def index():
     search_query = request.args.get('search', '')
     risk_level = request.args.get('risk_level', '')
-
     query = EventReport.query
-
     if search_query:
         query = query.filter(
             or_(EventReport.title.ilike(f'%{search_query}%'),
@@ -36,17 +29,13 @@ def index():
                 EventReport.lessons_learned.ilike(f'%{search_query}%'),
                 EventReport.recommendations.ilike(f'%{search_query}%'))
         )
-
     if risk_level:
         query = query.filter(EventReport.risk_level == risk_level)
-
-    # Only get the 5 most recent reports
     reports = query.order_by(EventReport.date.desc()).limit(5).all()
     return render_template('index.html', reports=reports)
 
 @app.route('/comparative-search')
 def comparative_search():
-    # Only show results if there are search parameters
     if not any(request.args.values()):
         return render_template('comparative_search.html', 
                              venue_types=get_venue_types(),
@@ -57,6 +46,8 @@ def comparative_search():
     event_type = request.args.get('event_type', '')
     attendance_range = request.args.get('attendance_range', '')
     venue_type = request.args.get('venue_type', '')
+    risk_level = request.args.get('risk_level', '')
+    date_range = request.args.get('date_range', '')
 
     query = EventReport.query
 
@@ -66,6 +57,9 @@ def comparative_search():
         query = query.filter(EventReport.incident_type == event_type)
     if venue_type:
         query = query.filter(EventReport.venue_type == venue_type)
+    if risk_level:
+        query = query.filter(EventReport.risk_level == risk_level)
+
     if attendance_range:
         if attendance_range == 'small':
             query = query.filter(EventReport.attendance < 1000)
@@ -76,7 +70,23 @@ def comparative_search():
         elif attendance_range == 'xlarge':
             query = query.filter(EventReport.attendance > 15000)
 
-    similar_events = query.order_by(EventReport.date.desc()).all()
+    if date_range:
+        today = datetime.utcnow()
+        if date_range == 'recent':
+            thirty_days_ago = today - timedelta(days=30)
+            query = query.filter(EventReport.date >= thirty_days_ago)
+        elif date_range == 'past_3m':
+            three_months_ago = today - timedelta(days=90)
+            query = query.filter(EventReport.date >= three_months_ago)
+        elif date_range == 'past_6m':
+            six_months_ago = today - timedelta(days=180)
+            query = query.filter(EventReport.date >= six_months_ago)
+        elif date_range == 'past_year':
+            one_year_ago = today - timedelta(days=365)
+            query = query.filter(EventReport.date >= one_year_ago)
+
+    similar_events = query.order_by(EventReport.date.desc()).limit(3).all()
+
     return render_template('comparative_search.html',
                          similar_events=similar_events,
                          venue_types=get_venue_types(),
@@ -138,7 +148,6 @@ def chat_query():
         event_query, explanation = process_natural_language_query(query, event_query)
         events = event_query.limit(5).all()
         response = generate_response_summary(events, explanation)
-
         event_list = []
         for event in events:
             event_list.append({
@@ -150,13 +159,11 @@ def chat_query():
                 'incident_type': event.incident_type,
                 'attendance': event.attendance
             })
-
         return jsonify({
             'status': 'success',
             'response': response,
             'events': event_list
         })
-
     except Exception as e:
         logging.error(f"Error processing chat query: {str(e)}")
         return jsonify({
@@ -186,11 +193,9 @@ def save_scenario():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 def calculate_scenario_risk(elements):
-    """Calculate overall risk level based on element risk levels"""
     risk_levels = [element['riskLevel'] for element in elements]
     high_count = risk_levels.count('High')
     medium_count = risk_levels.count('Medium')
-
     if high_count > 0:
         return 'High'
     elif medium_count > 0:
