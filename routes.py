@@ -1,6 +1,6 @@
 from flask import render_template, request, redirect, url_for, jsonify
 from app import app, db
-from models import EventReport, AccessLog
+from models import EventReport, AccessLog, ChatHistory
 from datetime import datetime
 import logging
 from sqlalchemy import or_, func, extract, case
@@ -119,6 +119,12 @@ def view_access_logs():
     logs = AccessLog.query.order_by(AccessLog.accessed_at.desc()).all()
     return render_template('access_log.html', logs=logs)
 
+@app.route('/chat')
+def chat_interface():
+    # Get chat history, ordered by most recent first
+    chat_history = ChatHistory.query.order_by(ChatHistory.timestamp.desc()).limit(50).all()
+    return render_template('chat.html', chat_history=chat_history)
+
 @app.route('/chat_query', methods=['POST'])
 def chat_query():
     try:
@@ -135,6 +141,16 @@ def chat_query():
 
         # Generate natural language response
         response = generate_response_summary(events, explanation)
+
+        # Store chat history
+        chat_history = ChatHistory(
+            query=query,
+            response=response,
+            events_found=len(events),
+            search_explanation=explanation
+        )
+        db.session.add(chat_history)
+        db.session.commit()
 
         # Format event list for JSON response
         event_list = []
