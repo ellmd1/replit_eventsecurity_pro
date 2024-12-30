@@ -10,8 +10,9 @@ class EventReport(db.Model):
     risk_level = db.Column(db.String(50), nullable=False)
     incident_type = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    venue_type = db.Column(db.String(50))
+    venue_type = db.Column(db.String(50))  # Added venue_type field
 
+    # New fields for detailed risk assessment
     attendance = db.Column(db.Integer)
     security_measures = db.Column(db.Text)
     incident_response = db.Column(db.Text)
@@ -28,12 +29,3 @@ class AccessLog(db.Model):
     assessor_name = db.Column(db.String(100), nullable=False)
     assessment_context = db.Column(db.String(200))
     similar_event_details = db.Column(db.Text)
-
-class ChatHistory(db.Model):
-    __tablename__ = 'chat_history'
-    id = db.Column(db.Integer, primary_key=True)
-    query = db.Column(db.Text, nullable=False)
-    response = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    events_found = db.Column(db.Integer)  # Number of events found
-    search_explanation = db.Column(db.Text)  # AI's interpretation of the query
