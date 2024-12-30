@@ -49,43 +49,6 @@
                 <p>{{ report.recommendations or 'Not recorded' }}</p>
             </div>
         </div>
-
-        <div class="card mt-4">
-            <div class="card-body">
-                <h6>Log Access</h6>
-                <form id="accessLogForm" data-report-id="{{ report.id }}">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Assessor Name</label>
-                                <input type="text" class="form-control" name="assessorName" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Assessment Context</label>
-                                <select class="form-select" name="assessmentContext" required>
-                                    <option value="">Select context...</option>
-                                    <option value="Planning similar event">Planning similar event</option>
-                                    <option value="Post-incident review">Post-incident review</option>
-                                    <option value="General research">General research</option>
-                                    <option value="Training preparation">Training preparation</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Purpose of Access</label>
-                        <textarea class="form-control" name="purpose" required rows="2"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Similar Event Details (if applicable)</label>
-                        <textarea class="form-control" name="similarEventDetails" rows="3"></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Log Access</button>
-                </form>
-            </div>
-        </div>
     </div>
 </div>
 {% endblock %}
