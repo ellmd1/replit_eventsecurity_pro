@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Create Assessment Template</h5>
+                </div>
+                <div class="card-body">
+                    <form id="templateForm" method="POST">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Template Title</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="template_type" class="form-label">Template Type</label>
+                                    <select class="form-select" id="template_type" name="template_type" required>
+                                        <option value="">Select type...</option>
+                                        <option value="outdoor_event">Outdoor Event</option>
+                                        <option value="indoor_venue">Indoor Venue</option>
+                                        <option value="mixed_use">Mixed Use</option>
+                                        <option value="stadium">Stadium</option>
+                                        <option value="conference">Conference</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Capacity Range</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="min_capacity" name="min_capacity" 
+                                               placeholder="Min" required>
+                                        <span class="input-group-text">to</span>
+                                        <input type="number" class="form-control" id="max_capacity" name="max_capacity" 
+                                               placeholder="Max" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Security Requirements</label>
+                            <div id="securityRequirements">
+                                <div class="d-flex gap-2 mb-2">
+                                    <input type="text" class="form-control" placeholder="Add security requirement">
+                                    <button type="button" class="btn btn-outline-primary" onclick="addSecurityRequirement(this)">
+                                        <i data-feather="plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Risk Factors</label>
+                            <div id="riskFactors">
+                                <div class="risk-factor mb-2">
+                                    <div class="d-flex gap-2">
+                                        <input type="text" class="form-control" placeholder="Risk factor description">
+                                        <select class="form-select" style="width: 120px;">
+                                            <option value="1">Low</option>
+                                            <option value="2">Medium</option>
+                                            <option value="3">High</option>
+                                        </select>
+                                        <button type="button" class="btn btn-outline-primary" onclick="addRiskFactor(this)">
+                                            <i data-feather="plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Mitigation Strategies</label>
+                            <div id="mitigationStrategies">
+                                <div class="d-flex gap-2 mb-2">
+                                    <input type="text" class="form-control" placeholder="Add mitigation strategy">
+                                    <button type="button" class="btn btn-outline-primary" onclick="addMitigationStrategy(this)">
+                                        <i data-feather="plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('list_templates') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Create Template</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function addSecurityRequirement(btn) {
+    const input = btn.previousElementSibling;
+    if (!input.value) return;
+    
+    const container = document.getElementById('securityRequirements');
+    const requirement = document.createElement('div');
+    requirement.className = 'd-flex gap-2 mb-2 align-items-center';
+    requirement.innerHTML = `
+        <span class="flex-grow-1">${input.value}</span>
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()">
+            <i data-feather="x"></i>
+        </button>
+    `;
+    
+    container.insertBefore(requirement, input.parentElement);
+    input.value = '';
+    feather.replace();
+}
+
+function addRiskFactor(btn) {
+    const container = document.getElementById('riskFactors');
+    const factorDiv = btn.closest('.risk-factor');
+    const description = factorDiv.querySelector('input').value;
+    const severity = factorDiv.querySelector('select').value;
+    
+    if (!description) return;
+    
+    const factor = document.createElement('div');
+    factor.className = 'risk-factor mb-2';
+    factor.innerHTML = `
+        <div class="d-flex gap-2 align-items-center">
+            <span class="flex-grow-1">${description}</span>
+            <span class="badge bg-${severity == '3' ? 'danger' : severity == '2' ? 'warning' : 'success'}">
+                ${severity == '3' ? 'High' : severity == '2' ? 'Medium' : 'Low'}
+            </span>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.parentElement.remove()">
+                <i data-feather="x"></i>
+            </button>
+        </div>
+    `;
+    
+    container.insertBefore(factor, factorDiv);
+    factorDiv.querySelector('input').value = '';
+    factorDiv.querySelector('select').value = '1';
+    feather.replace();
+}
+
+function addMitigationStrategy(btn) {
+    const input = btn.previousElementSibling;
+    if (!input.value) return;
+    
+    const container = document.getElementById('mitigationStrategies');
+    const strategy = document.createElement('div');
+    strategy.className = 'd-flex gap-2 mb-2 align-items-center';
+    strategy.innerHTML = `
+        <span class="flex-grow-1">${input.value}</span>
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()">
+            <i data-feather="x"></i>
+        </button>
+    `;
+    
+    container.insertBefore(strategy, input.parentElement);
+    input.value = '';
+    feather.replace();
+}
+
+document.getElementById('templateForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // Collect form data
+    const formData = new FormData(this);
+    
+    // Collect security requirements
+    const securityRequirements = [];
+    document.querySelectorAll('#securityRequirements > div:not(:last-child)').forEach(div => {
+        securityRequirements.push(div.querySelector('span').textContent);
+    });
+    
+    // Collect risk factors
+    const riskFactors = [];
+    document.querySelectorAll('#riskFactors > div:not(:last-child)').forEach(div => {
+        const description = div.querySelector('span').textContent;
+        const severity = div.querySelector('.badge').textContent === 'High' ? 3 : 
+                        div.querySelector('.badge').textContent === 'Medium' ? 2 : 1;
+        riskFactors.push({ description, severity });
+    });
+    
+    // Collect mitigation strategies
+    const mitigationStrategies = [];
+    document.querySelectorAll('#mitigationStrategies > div:not(:last-child)').forEach(div => {
+        mitigationStrategies.push(div.querySelector('span').textContent);
+    });
+    
+    // Add collected data to form data
+    formData.append('security_requirements', JSON.stringify(securityRequirements));
+    formData.append('risk_factors', JSON.stringify(riskFactors));
+    formData.append('mitigation_strategies', JSON.stringify(mitigationStrategies));
+    
+    try {
+        const response = await fetch(this.action, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        if (result.status === 'success') {
+            window.location.href = "{{ url_for('list_templates') }}";
+        } else {
+            alert('Error creating template: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error creating template');
+    }
+});
+</script>
+{% endblock %}
