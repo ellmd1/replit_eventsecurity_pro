@@ -3,7 +3,7 @@ from app import app, db
 from models import EventReport, AccessLog
 from datetime import datetime
 import logging
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, extract, case
 
 @app.route('/')
 def index():
@@ -117,3 +117,82 @@ def log_access():
 def view_access_logs():
     logs = AccessLog.query.order_by(AccessLog.accessed_at.desc()).all()
     return render_template('access_log.html', logs=logs)
+
+@app.route('/chat_query', methods=['POST'])
+def chat_query():
+    try:
+        query = request.json.get('query', '').lower()
+
+        # Initialize base query
+        event_query = EventReport.query
+
+        # Process natural language query
+        if 'high risk' in query or 'highest risk' in query:
+            event_query = event_query.filter(EventReport.risk_level == 'High')
+        elif 'medium risk' in query or 'moderate risk' in query:
+            event_query = event_query.filter(EventReport.risk_level == 'Medium')
+        elif 'low risk' in query or 'lowest risk' in query:
+            event_query = event_query.filter(EventReport.risk_level == 'Low')
+
+        if 'recent' in query or 'latest' in query:
+            event_query = event_query.order_by(EventReport.date.desc())
+
+        if 'this year' in query:
+            current_year = datetime.now().year
+            event_query = event_query.filter(extract('year', EventReport.date) == current_year)
+
+        # Search for specific venue types
+        venue_types = ['stadium', 'arena', 'convention center', 'outdoor', 'indoor']
+        for venue_type in venue_types:
+            if venue_type in query:
+                event_query = event_query.filter(EventReport.venue_type.ilike(f'%{venue_type}%'))
+
+        # Search for specific event types
+        if 'concert' in query:
+            event_query = event_query.filter(EventReport.incident_type.ilike('%concert%'))
+        elif 'sport' in query:
+            event_query = event_query.filter(EventReport.incident_type.ilike('%sport%'))
+        elif 'festival' in query:
+            event_query = event_query.filter(EventReport.incident_type.ilike('%festival%'))
+
+        # Handle attendance queries
+        if 'large' in query and 'attendance' in query:
+            event_query = event_query.filter(EventReport.attendance > 5000)
+        elif 'small' in query and 'attendance' in query:
+            event_query = event_query.filter(EventReport.attendance < 1000)
+
+        # Get results
+        events = event_query.limit(5).all()
+
+        # Format response
+        event_list = []
+        for event in events:
+            event_list.append({
+                'id': event.id,
+                'title': event.title,
+                'date': event.date.strftime('%Y-%m-%d'),
+                'location': event.location,
+                'risk_level': event.risk_level,
+                'incident_type': event.incident_type,
+                'attendance': event.attendance
+            })
+
+        # Generate response message
+        if events:
+            response = f"I found {len(events)} relevant events based on your query."
+        else:
+            response = "I couldn't find any events matching your criteria. Try a different query?"
+
+        return jsonify({
+            'status': 'success',
+            'response': response,
+            'events': event_list
+        })
+
+    except Exception as e:
+        logging.error(f"Error processing chat query: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'response': 'Sorry, I encountered an error processing your query.',
+            'events': []
+        }), 500
