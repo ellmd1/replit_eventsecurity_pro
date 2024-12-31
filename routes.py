@@ -1,14 +1,20 @@
+import logging
 from flask import render_template, request, redirect, url_for, jsonify, g, session
 from app import app, db
 from models import EventReport, ActivityLog, EventScenario, AssessmentTemplate
 from datetime import datetime, timedelta
-import logging
 from sqlalchemy import or_, func, extract, and_
 import uuid
 from vector_store import vector_store
 from chat_processor import process_natural_language_query, generate_response_summary
 
 # Configure logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 logging.basicConfig(level=logging.DEBUG)
 
 def get_or_create_session_id():
@@ -193,7 +199,14 @@ def view_access_logs():
 def chat():
     log = start_activity_tracking('chat')
     g.activity_log = log
-    return render_template('chat.html')
+    logger.debug("Attempting to render chat.html template")
+    try:
+        rendered = render_template('chat.html')
+        logger.debug("Successfully rendered chat.html template")
+        return rendered
+    except Exception as e:
+        logger.error(f"Failed to render chat.html template: {str(e)}", exc_info=True)
+        raise
 
 @app.route('/chat_query', methods=['POST'])
 def chat_query():

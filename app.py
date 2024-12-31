@@ -19,7 +19,8 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 app = Flask(__name__, 
            static_url_path='/static',
-           static_folder='static')
+           static_folder='static',
+           template_folder='templates')
 
 # Enable CORS with specific configuration for Replit
 CORS(app, 
