@@ -1,9 +1,9 @@
 import os
 import logging
 import json
-from openai import OpenAI
 from datetime import datetime
 from sqlalchemy import extract
+from openai import OpenAI
 from vector_store import vector_store
 from models import ActivityLog, db
 

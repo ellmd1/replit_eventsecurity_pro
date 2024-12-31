@@ -24,7 +24,19 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 # Initialize the database
 db.init_app(app)
 
+def init_vector_store():
+    """Initialize vector store after app context is available"""
+    with app.app_context():
+        from vector_store import vector_store
+        try:
+            vector_store.index_all_reports()
+            logging.info("Successfully initialized vector store with existing reports")
+        except Exception as e:
+            logging.error(f"Failed to initialize vector store: {e}")
+
+# Initialize everything within app context
 with app.app_context():
     import models
     import routes
     db.create_all()
+    init_vector_store()
