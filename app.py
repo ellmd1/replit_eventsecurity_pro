@@ -1,9 +1,8 @@
 import os
 import logging
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.sql import text
 from flask_cors import CORS
 
 # Configure logging
@@ -13,57 +12,31 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Initialize Flask
+app = Flask(__name__)
+
+# Basic Configuration
+app.config.update(
+    SECRET_KEY=os.environ.get("FLASK_SECRET_KEY", "development_key"),
+    SQLALCHEMY_DATABASE_URI=os.environ.get("DATABASE_URL"),
+    SQLALCHEMY_ENGINE_OPTIONS={
+        "pool_recycle": 300,
+        "pool_pre_ping": True
+    },
+    TEMPLATES_AUTO_RELOAD=True,
+    STATIC_FOLDER="static",
+    TEMPLATE_FOLDER="templates"
+)
+
+# Initialize database
 class Base(DeclarativeBase):
     pass
 
 db = SQLAlchemy(model_class=Base)
-app = Flask(__name__, 
-           static_url_path='/static',
-           static_folder='static',
-           template_folder='templates')
-
-# Configuration
-app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
-
-# Add static file configuration
-app.config["STATIC_FOLDER"] = "static"
-app.config["TEMPLATES_AUTO_RELOAD"] = True
-app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
-
-# Initialize the database
 db.init_app(app)
-
-# Import models and create tables
-with app.app_context():
-    import models  # noqa: F401
-    db.create_all()
-    logger.info("Database tables created successfully")
-
-# Import routes - this needs to happen after db initialization
-import routes  # noqa: F401
-logger.info("Routes imported successfully")
 
 # Enable CORS
 CORS(app)
-
-# Test routes
-@app.route('/ping')
-def ping():
-    """Simple health check endpoint"""
-    logger.debug("Ping endpoint accessed")
-    return jsonify({"status": "ok", "message": "pong"})
-
-@app.route('/')
-def home():
-    """Root endpoint"""
-    logger.debug("Root endpoint accessed")
-    return jsonify({"status": "ok", "message": "Event Safety Platform API"})
 
 # Error handlers
 @app.errorhandler(404)
@@ -93,6 +66,20 @@ def add_security_headers(response):
     })
     return response
 
+# Initialize database and routes
+with app.app_context():
+    try:
+        # Import models and create tables
+        import models
+        db.create_all()
+        logger.info("Database tables created successfully")
+
+        # Import routes
+        import routes
+        logger.info("Routes imported successfully")
+    except Exception as e:
+        logger.error(f"Error during initialization: {str(e)}")
+        raise
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
