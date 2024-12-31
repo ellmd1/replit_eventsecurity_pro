@@ -25,6 +25,9 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
 }
+# Add static file configuration
+app.config["STATIC_FOLDER"] = "static"
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 # Initialize the database
 db.init_app(app)
@@ -54,32 +57,6 @@ def verify_database():
         logger.error(f"Database verification failed: {str(e)}", exc_info=True)
         return False
 
-def init_database():
-    """Initialize database tables"""
-    try:
-        with app.app_context():
-            import models
-            db.create_all()
-            logger.info("Database tables created successfully")
-            return True
-    except Exception as e:
-        logger.error(f"Database initialization failed: {str(e)}", exc_info=True)
-        return False
-
-def init_vector_store():
-    """Initialize vector store"""
-    try:
-        with app.app_context():
-            from vector_store import vector_store
-            if not vector_store.initialize_store():
-                logger.error("Vector store initialization failed")
-                return False
-            logger.info("Vector store initialized successfully")
-            return True
-    except Exception as e:
-        logger.error(f"Vector store initialization failed: {str(e)}", exc_info=True)
-        return False
-
 # Initialize all components
 with app.app_context():
     try:
@@ -89,19 +66,13 @@ with app.app_context():
             raise Exception("Database verification failed")
 
         # Then initialize database tables
-        if not init_database():
-            logger.error("Database initialization failed")
-            raise Exception("Database initialization failed")
+        import models  # noqa: F401
+        db.create_all()
+        logger.info("Database tables created successfully")
 
         # Import routes after database is ready
         import routes
         logger.info("Routes imported successfully")
-
-        # Finally initialize vector store (non-critical)
-        if not init_vector_store():
-            logger.warning("Vector store initialization failed - some features may be limited")
-        else:
-            logger.info("Vector store initialization successful")
 
         logger.info("Application initialization completed successfully")
     except Exception as e:

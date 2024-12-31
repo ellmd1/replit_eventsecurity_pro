@@ -11,18 +11,18 @@ logger = logging.getLogger(__name__)
 
 from app import app
 
-# Enable CORS for all routes
+# Enable CORS for all routes with specific origins
 CORS(app, resources={
     r"/*": {
-        "origins": "*",
-        "allow_headers": "*",
-        "expose_headers": "*"
+        "origins": ["https://*.repl.co", "https://*.replit.dev"],
+        "supports_credentials": True
     }
 })
 
 if __name__ == "__main__":
     try:
         logger.info("Starting Flask application...")
+        # Use 0.0.0.0 to make it accessible externally
         app.run(host="0.0.0.0", port=5000, debug=True)
     except Exception as e:
         logger.error(f"Failed to start Flask application: {str(e)}", exc_info=True)
