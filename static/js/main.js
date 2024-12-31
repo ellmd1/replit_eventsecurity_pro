@@ -2,77 +2,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Feather icons
     feather.replace();
 
-    // Add text selection popup menu
-    document.addEventListener('mouseup', function(e) {
-        const selectedText = window.getSelection().toString().trim();
-        // Remove any existing popup
-        const existingPopup = document.querySelector('.selection-popup');
-        if (existingPopup) {
-            existingPopup.remove();
-        }
-        
-        if (selectedText && selectedText.length > 0) {
-            const popup = document.createElement('div');
-            popup.className = 'selection-popup';
-            popup.innerHTML = `
-                <button class="popup-btn">
-                    <i data-feather="clipboard"></i> Copy to Decision Log
-                </button>
-            `;
-            
-            // Position popup near selection
-            const selection = window.getSelection();
-            const range = selection.getRangeAt(0);
-            const rect = range.getBoundingClientRect();
-            
-            popup.style.position = 'absolute';
-            popup.style.left = rect.left + window.scrollX + 'px';
-            popup.style.top = rect.bottom + window.scrollY + 'px';
-            
-            document.body.appendChild(popup);
-            feather.replace();
-            
-            // Handle popup button click
-            popup.querySelector('.popup-btn').addEventListener('click', function() {
-                addToDecisionLog(selectedText);
-                popup.remove();
-            });
-            
-            // Remove popup when clicking elsewhere
-            document.addEventListener('mousedown', function cleanup(e) {
-                if (!popup.contains(e.target)) {
-                    popup.remove();
-                    document.removeEventListener('mousedown', cleanup);
-                }
-            });
-        }
-    });
-            contextMenu.className = 'context-menu';
-            contextMenu.innerHTML = `
-                <div class="context-menu-item" data-action="copy-to-log">
-                    <i data-feather="clipboard"></i> Copy to Decision Log
-                </div>
-            `;
-            
-            contextMenu.style.left = e.pageX + 'px';
-            contextMenu.style.top = e.pageY + 'px';
-            document.body.appendChild(contextMenu);
-            feather.replace();
-
-            // Handle menu item click
-            contextMenu.querySelector('[data-action="copy-to-log"]').addEventListener('click', function() {
-                addToDecisionLog(selectedText);
-                contextMenu.remove();
-            });
-
-            // Remove menu when clicking elsewhere
-            document.addEventListener('click', function cleanup() {
-                contextMenu.remove();
-                document.removeEventListener('click', cleanup);
-            });
-        }
-    });
-
     // Chat functionality
     const chatForm = document.getElementById('chatForm');
     const chatMessages = document.getElementById('chatMessages');
@@ -203,38 +132,4 @@ function getRiskLevelClass(riskLevel) {
         default:
             return 'secondary';
     }
-}
-// Add text to decision log
-function addToDecisionLog(text) {
-    fetch('/add_decision', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            decision_type: 'text_selection',
-            details: text
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            showNotification('Added to decision log');
-        } else {
-            showNotification('Error adding to log');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Error adding to log');
-    });
-}
-
-// Show notification
-function showNotification(message) {
-    const notification = document.createElement('div');
-    notification.className = 'notification';
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 2000);
 }
