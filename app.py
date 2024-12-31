@@ -30,44 +30,48 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 db.init_app(app)
 
 def verify_database():
-    """Verify database connection and create extension if needed"""
+    """Verify database connection and vector extension availability"""
     try:
         with app.app_context():
             # Test database connection
             db.session.execute(text("SELECT 1"))
-            logger.info("Database connection successful")
+            logger.info("Database connection verified")
 
-            # Check if vector extension exists
+            # Verify vector extension availability
             result = db.session.execute(text(
-                "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')"
+                "SELECT * FROM pg_available_extensions WHERE name = 'vector'"
             ))
-            vector_exists = result.scalar()
+            if not result.fetchone():
+                raise Exception("Vector extension is not available in the database")
 
-            if not vector_exists:
-                logger.info("Creating vector extension...")
-                db.session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-                db.session.commit()
-                logger.info("Vector extension created successfully")
-            else:
-                logger.info("Vector extension already exists")
-
+            logger.info("Vector extension availability verified")
             return True
     except Exception as e:
         logger.error(f"Database verification failed: {str(e)}", exc_info=True)
         return False
 
 def init_database():
-    """Initialize database tables"""
+    """Initialize database tables and extensions"""
     try:
         with app.app_context():
-            # Import models first
-            import models
+            # Begin transaction
+            db.session.execute(text("BEGIN"))
+            try:
+                # Create vector extension if not exists
+                db.session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
 
-            # Create all tables
-            db.create_all()
-            logger.info("Database tables created successfully")
+                # Import models and create tables
+                import models
+                db.create_all()
 
-            return True
+                # Commit transaction
+                db.session.commit()
+                logger.info("Database initialized successfully")
+                return True
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Failed during database initialization: {str(e)}")
+                raise
     except Exception as e:
         logger.error(f"Database initialization failed: {str(e)}", exc_info=True)
         return False
@@ -78,9 +82,9 @@ def init_vector_store():
         with app.app_context():
             from vector_store import vector_store
 
-            # Initialize store tables
-            vector_store.initialize_store()
-            logger.info("Vector store initialized successfully")
+            # Initialize store with proper error handling
+            if not vector_store.initialize_store():
+                raise Exception("Vector store initialization returned False")
 
             # Index existing documents if any
             import models
@@ -90,7 +94,6 @@ def init_vector_store():
                 vector_store.index_all_reports()
             else:
                 logger.info("No documents to index")
-
             return True
     except Exception as e:
         logger.error(f"Vector store initialization failed: {str(e)}", exc_info=True)
@@ -99,22 +102,26 @@ def init_vector_store():
 # Initialize all components with proper error handling
 with app.app_context():
     try:
-        # Verify database first
+        # Verify database and extension availability first
         if not verify_database():
-            logger.error("Database verification failed - continuing with limited functionality")
+            raise Exception("Database verification failed")
+        logger.info("Database verification successful")
 
-        # Initialize database
+        # Initialize database and create tables
         if not init_database():
-            logger.error("Database initialization failed - continuing with limited functionality")
+            raise Exception("Database initialization failed")
+        logger.info("Database initialization successful")
 
         # Import routes after database is ready
         import routes
+        logger.info("Routes imported successfully")
 
         # Initialize vector store last
         if not init_vector_store():
-            logger.error("Vector store initialization failed - continuing with limited functionality")
+            raise Exception("Vector store initialization failed")
+        logger.info("Vector store initialization successful")
 
-        logger.info("Application initialization completed successfully")
+        logger.info("Application initialization completed")
     except Exception as e:
         logger.error(f"Application initialization failed: {str(e)}", exc_info=True)
-        logger.warning("Continuing with limited functionality")
+        raise
