@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask
+from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 
@@ -25,11 +25,36 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 # Initialize extensions
 db.init_app(app)
 
+# Basic routes
+@app.route('/')
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
+
+@app.route('/index')
+def index():
+    return render_template('index.html')
+
+@app.route('/chat')
+def chat():
+    return render_template('chat.html')
+
+@app.route('/scenario-builder')
+def scenario_builder():
+    return render_template('scenario_builder.html')
+
+@app.route('/comparative_search')
+def comparative_search():
+    return render_template('comparative_search.html')
+
+@app.route('/view_access_logs')
+def view_access_logs():
+    return render_template('access_log.html')
+
 try:
     with app.app_context():
         # Import models here to avoid circular imports
         import models  # noqa: F401
-        import routes  # noqa: F401
 
         # Create database tables
         db.create_all()
