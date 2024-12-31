@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import text
@@ -17,7 +17,9 @@ class Base(DeclarativeBase):
     pass
 
 db = SQLAlchemy(model_class=Base)
-app = Flask(__name__)
+app = Flask(__name__, 
+           static_url_path='/static',
+           static_folder='static')
 
 # Enable CORS
 CORS(app, 
@@ -60,6 +62,11 @@ def not_found_error(error):
 def internal_error(error):
     db.session.rollback()
     return jsonify({"error": "Internal server error"}), 500
+
+# Explicit route for serving static files
+@app.route('/static/<path:path>')
+def serve_static(path):
+    return send_from_directory('static', path)
 
 def verify_database():
     """Verify database connection and vector extension availability"""
