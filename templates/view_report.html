@@ -30,6 +30,78 @@
 
         <div class="row mt-4">
             <div class="col-md-12">
+                <h6>Risk Assessments</h6>
+                <div class="table-responsive">
+                    {% if report.risk_assessments %}
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Assessment Date</th>
+                                <th>Overall Risk Level</th>
+                                <th>Risk Factors</th>
+                                <th>Mitigation Measures</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for assessment in report.risk_assessments %}
+                            <tr>
+                                <td>{{ assessment.assessment_date.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'danger' if assessment.overall_risk_level == 'High' else 'warning' if assessment.overall_risk_level == 'Medium' else 'success' }}">
+                                        {{ assessment.overall_risk_level }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if assessment.risk_factors %}
+                                    <ul class="list-unstyled mb-0">
+                                        {% for factor in assessment.risk_factors %}
+                                        <li>
+                                            <span class="badge bg-{{ 'danger' if factor.severity * factor.likelihood >= 7 else 'warning' if factor.severity * factor.likelihood >= 4 else 'success' }} me-2">
+                                                Score: {{ factor.severity * factor.likelihood }}
+                                            </span>
+                                            {{ factor.description }}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% else %}
+                                    No risk factors recorded
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if assessment.mitigation_measures %}
+                                    <ul class="list-unstyled mb-0">
+                                        {% for measure in assessment.mitigation_measures %}
+                                        <li>
+                                            <i data-feather="check-circle" class="text-success me-2"></i>
+                                            {{ measure }}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% else %}
+                                    No mitigation measures recorded
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if assessment.status == 'Active' else 'secondary' }}">
+                                        {{ assessment.status }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="alert alert-info">
+                        No risk assessments have been recorded for this event.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-12">
                 <h6>Security Overview</h6>
                 <div class="table-responsive">
                     <table class="table table-bordered">

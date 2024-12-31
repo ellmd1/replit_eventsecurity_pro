@@ -26,6 +26,35 @@ class EventReport(db.Model):
     activity_logs = db.relationship('ActivityLog', backref='event_report', lazy=True)
     security_decisions = db.relationship('SecurityDecision', backref='event_report', lazy=True)
     estimated_risk_level = db.Column(db.String(50))
+    risk_assessments = db.relationship('RiskAssessment', backref='event_report', lazy=True)
+
+class RiskAssessment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=False)
+    assessment_date = db.Column(db.DateTime, default=datetime.utcnow)
+    risk_factors = db.Column(db.JSON, default=list)
+    overall_risk_level = db.Column(db.String(50), nullable=False)
+    assessor_notes = db.Column(db.Text)
+    mitigation_measures = db.Column(db.JSON, default=list)
+    residual_risk_level = db.Column(db.String(50))
+    review_date = db.Column(db.DateTime)
+    status = db.Column(db.String(50), default='Active')
+
+    def calculate_overall_risk(self):
+        if not self.risk_factors:
+            return 'Low'
+
+        total_score = 0
+        for factor in self.risk_factors:
+            if isinstance(factor, dict) and 'severity' in factor and 'likelihood' in factor:
+                total_score += factor['severity'] * factor['likelihood']
+
+        avg_score = total_score / len(self.risk_factors)
+        if avg_score >= 7:
+            return 'High'
+        elif avg_score >= 4:
+            return 'Medium'
+        return 'Low'
 
 class ActivityLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
