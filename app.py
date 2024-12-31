@@ -22,9 +22,6 @@ app = Flask(__name__,
            static_folder='static',
            template_folder='templates')
 
-# Simplify CORS configuration for debugging
-CORS(app)
-
 # Configuration
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
@@ -32,6 +29,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
 }
+
 # Add static file configuration
 app.config["STATIC_FOLDER"] = "static"
 app.config["TEMPLATES_AUTO_RELOAD"] = True
@@ -41,20 +39,45 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
 # Initialize the database
 db.init_app(app)
 
+# Import models and create tables
+with app.app_context():
+    import models  # noqa: F401
+    db.create_all()
+    logger.info("Database tables created successfully")
+
+# Import routes - this needs to happen after db initialization but before other middleware
+import routes  # noqa: F401
+logger.info("Routes imported successfully")
+
+# Simplify CORS configuration for debugging
+CORS(app)
+
 # Request logging middleware
 @app.before_request
 def log_request_info():
     logger.debug('Headers: %s', dict(request.headers))
     logger.debug('Body: %s', request.get_data())
     logger.debug('URL: %s', request.url)
+    logger.debug('Method: %s', request.method)
+    logger.debug('Endpoint: %s', request.endpoint)
 
 @app.after_request
 def add_security_headers(response):
-    # Temporarily relaxed security headers for debugging
     response.headers['Content-Security-Policy'] = "default-src * 'unsafe-inline' 'unsafe-eval'; img-src * data:; style-src * 'unsafe-inline';"
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     return response
+
+# Basic test routes
+@app.route('/ping')
+def ping():
+    logger.debug("Ping route accessed")
+    return "pong"
+
+@app.route('/')
+def root():
+    logger.debug("Root route accessed")
+    return "Welcome to the Event Safety Platform"
 
 # Error handlers
 @app.errorhandler(404)
@@ -67,68 +90,3 @@ def internal_error(error):
     logger.error(f"500 Error: {str(error)}")
     db.session.rollback()
     return jsonify({"error": "Internal server error"}), 500
-
-# Explicit route for serving static files with better error handling
-@app.route('/static/<path:path>')
-def serve_static(path):
-    try:
-        logger.debug(f"Attempting to serve static file: {path}")
-        response = send_from_directory('static', path)
-        logger.debug(f"Successfully served static file: {path}")
-        return response
-    except Exception as e:
-        logger.error(f"Failed to serve static file {path}: {str(e)}")
-        return jsonify({"error": "File not found"}), 404
-
-# A simple test route for debugging
-@app.route('/ping')
-def ping():
-    logger.debug("Ping route accessed")
-    return "pong"
-
-def verify_database():
-    """Verify database connection and vector extension availability"""
-    try:
-        with app.app_context():
-            # Test database connection
-            db.session.execute(text("SELECT 1"))
-            logger.info("Database connection verified")
-
-            # Check if vector extension is available
-            result = db.session.execute(text(
-                "SELECT extname FROM pg_extension WHERE extname = 'vector'"
-            ))
-            if not result.fetchone():
-                logger.info("Vector extension not found, attempting to create...")
-                db.session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-                db.session.commit()
-                logger.info("Vector extension created successfully")
-            else:
-                logger.info("Vector extension is already installed")
-
-            return True
-    except Exception as e:
-        logger.error(f"Database verification failed: {str(e)}", exc_info=True)
-        return False
-
-# Initialize all components
-with app.app_context():
-    try:
-        # First verify and setup database
-        if not verify_database():
-            logger.error("Database verification failed")
-            raise Exception("Database verification failed")
-
-        # Then initialize database tables
-        import models  # noqa: F401
-        db.create_all()
-        logger.info("Database tables created successfully")
-
-        # Import routes after database is ready
-        import routes
-        logger.info("Routes imported successfully")
-
-        logger.info("Application initialization completed successfully")
-    except Exception as e:
-        logger.error(f"Critical error during application initialization: {str(e)}", exc_info=True)
-        raise
