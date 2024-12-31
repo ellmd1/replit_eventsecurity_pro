@@ -328,3 +328,14 @@ def get_event_types():
         EventReport.incident_type.isnot(None)
     ).distinct().order_by(EventReport.incident_type).all()
     return [t[0] for t in types if t[0]]
+@app.route('/add_decision', methods=['POST'])
+def add_decision():
+    try:
+        data = request.json
+        log = ActivityLog.query.filter_by(session_id=get_or_create_session_id()).first()
+        if log:
+            log.add_decision(data['decision_type'], data['details'])
+            db.session.commit()
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500

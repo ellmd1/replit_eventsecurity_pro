@@ -2,6 +2,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Feather icons
     feather.replace();
 
+    // Add right-click context menu
+    document.addEventListener('contextmenu', function(e) {
+        const selectedText = window.getSelection().toString().trim();
+        if (selectedText) {
+            e.preventDefault();
+            
+            const contextMenu = document.createElement('div');
+            contextMenu.className = 'context-menu';
+            contextMenu.innerHTML = `
+                <div class="context-menu-item" data-action="copy-to-log">
+                    <i data-feather="clipboard"></i> Copy to Decision Log
+                </div>
+            `;
+            
+            contextMenu.style.left = e.pageX + 'px';
+            contextMenu.style.top = e.pageY + 'px';
+            document.body.appendChild(contextMenu);
+            feather.replace();
+
+            // Handle menu item click
+            contextMenu.querySelector('[data-action="copy-to-log"]').addEventListener('click', function() {
+                addToDecisionLog(selectedText);
+                contextMenu.remove();
+            });
+
+            // Remove menu when clicking elsewhere
+            document.addEventListener('click', function cleanup() {
+                contextMenu.remove();
+                document.removeEventListener('click', cleanup);
+            });
+        }
+    });
+
     // Chat functionality
     const chatForm = document.getElementById('chatForm');
     const chatMessages = document.getElementById('chatMessages');
@@ -132,4 +165,32 @@ function getRiskLevelClass(riskLevel) {
         default:
             return 'secondary';
     }
+}
+// Add text to decision log
+function addToDecisionLog(text) {
+    fetch('/add_decision', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            decision_type: 'text_selection',
+            details: text
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showNotification('Added to decision log');
+        }
+    });
+}
+
+// Show notification
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    setTimeout(() => notification.remove(), 2000);
 }
