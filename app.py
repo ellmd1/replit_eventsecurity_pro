@@ -13,71 +13,47 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-class Base(DeclarativeBase):
-    pass
-
-db = SQLAlchemy(model_class=Base)
+# Create the Flask application first
 app = Flask(__name__, 
            static_url_path='/static',
            static_folder='static',
            template_folder='templates')
 
-# Configuration
-app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
+# Basic Configuration
+app.config.update(
+    SECRET_KEY=os.environ.get("FLASK_SECRET_KEY", "development_key"),
+    SQLALCHEMY_DATABASE_URI=os.environ.get("DATABASE_URL"),
+    SQLALCHEMY_ENGINE_OPTIONS={
+        "pool_recycle": 300,
+        "pool_pre_ping": True
+    },
+    TEMPLATES_AUTO_RELOAD=True,
+    SEND_FILE_MAX_AGE_DEFAULT=0,
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024  # 16MB max file size
+)
 
-# Add static file configuration
-app.config["STATIC_FOLDER"] = "static"
-app.config["TEMPLATES_AUTO_RELOAD"] = True
-app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
+# Initialize extensions
+class Base(DeclarativeBase):
+    pass
 
-# Initialize the database
+db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 
-# Import models and create tables
-with app.app_context():
-    import models  # noqa: F401
-    db.create_all()
-    logger.info("Database tables created successfully")
-
-# Import routes - this needs to happen after db initialization but before other middleware
-import routes  # noqa: F401
-logger.info("Routes imported successfully")
-
-# Simplify CORS configuration for debugging
+# Enable CORS after app creation
 CORS(app)
 
-# Request logging middleware
-@app.before_request
-def log_request_info():
-    logger.debug('Headers: %s', dict(request.headers))
-    logger.debug('Body: %s', request.get_data())
-    logger.debug('URL: %s', request.url)
-    logger.debug('Method: %s', request.method)
-    logger.debug('Endpoint: %s', request.endpoint)
-
-@app.after_request
-def add_security_headers(response):
-    response.headers['Content-Security-Policy'] = "default-src * 'unsafe-inline' 'unsafe-eval'; img-src * data:; style-src * 'unsafe-inline';"
-    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    return response
-
-# Basic test routes
+# Test routes
 @app.route('/ping')
 def ping():
-    logger.debug("Ping route accessed")
-    return "pong"
+    """Simple health check endpoint"""
+    logger.debug("Ping endpoint accessed")
+    return jsonify({"status": "ok", "message": "pong"})
 
 @app.route('/')
-def root():
-    logger.debug("Root route accessed")
-    return "Welcome to the Event Safety Platform"
+def home():
+    """Root endpoint"""
+    logger.debug("Root endpoint accessed")
+    return jsonify({"status": "ok", "message": "Event Safety Platform API"})
 
 # Error handlers
 @app.errorhandler(404)
@@ -90,3 +66,37 @@ def internal_error(error):
     logger.error(f"500 Error: {str(error)}")
     db.session.rollback()
     return jsonify({"error": "Internal server error"}), 500
+
+# Request logging
+@app.before_request
+def log_request_info():
+    logger.debug('Headers: %s', dict(request.headers))
+    logger.debug('Body: %s', request.get_data())
+    logger.debug('URL: %s', request.url)
+
+@app.after_request
+def add_security_headers(response):
+    response.headers.update({
+        'Content-Security-Policy': "default-src * 'unsafe-inline' 'unsafe-eval'; img-src * data:; style-src * 'unsafe-inline';",
+        'X-Frame-Options': 'SAMEORIGIN',
+        'X-Content-Type-Options': 'nosniff'
+    })
+    return response
+
+# Create tables within app context
+with app.app_context():
+    try:
+        # Import models and create tables
+        import models
+        db.create_all()
+        logger.info("Database tables created successfully")
+
+        # Import routes after database initialization
+        import routes
+        logger.info("Routes imported successfully")
+    except Exception as e:
+        logger.error(f"Error during initialization: {str(e)}")
+        raise
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)

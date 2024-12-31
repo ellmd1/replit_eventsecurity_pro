@@ -1,7 +1,7 @@
 import os
 import logging
 
-# Configure logging with more details
+# Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -13,7 +13,6 @@ from app import app
 if __name__ == "__main__":
     try:
         logger.info("Starting Flask application...")
-        # Use 0.0.0.0 to make it accessible externally
         app.run(host="0.0.0.0", port=5000, debug=True)
     except Exception as e:
         logger.error(f"Failed to start Flask application: {str(e)}", exc_info=True)
