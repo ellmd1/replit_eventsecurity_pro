@@ -6,6 +6,7 @@ from sqlalchemy.orm import DeclarativeBase
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 class Base(DeclarativeBase):
     pass
@@ -21,10 +22,18 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,
 }
 
-# Initialize the database
+# Initialize extensions
 db.init_app(app)
 
-with app.app_context():
-    import models
-    import routes
-    db.create_all()
+try:
+    with app.app_context():
+        # Import models here to avoid circular imports
+        import models  # noqa: F401
+        import routes  # noqa: F401
+
+        # Create database tables
+        db.create_all()
+        logger.info("Database tables created successfully")
+except Exception as e:
+    logger.error(f"Error initializing application: {str(e)}")
+    raise
