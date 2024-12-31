@@ -13,33 +13,43 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Create the Flask application first
+class Base(DeclarativeBase):
+    pass
+
+db = SQLAlchemy(model_class=Base)
 app = Flask(__name__, 
            static_url_path='/static',
            static_folder='static',
            template_folder='templates')
 
-# Basic Configuration
-app.config.update(
-    SECRET_KEY=os.environ.get("FLASK_SECRET_KEY", "development_key"),
-    SQLALCHEMY_DATABASE_URI=os.environ.get("DATABASE_URL"),
-    SQLALCHEMY_ENGINE_OPTIONS={
-        "pool_recycle": 300,
-        "pool_pre_ping": True
-    },
-    TEMPLATES_AUTO_RELOAD=True,
-    SEND_FILE_MAX_AGE_DEFAULT=0,
-    MAX_CONTENT_LENGTH=16 * 1024 * 1024  # 16MB max file size
-)
+# Configuration
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_recycle": 300,
+    "pool_pre_ping": True,
+}
 
-# Initialize extensions
-class Base(DeclarativeBase):
-    pass
+# Add static file configuration
+app.config["STATIC_FOLDER"] = "static"
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
 
-db = SQLAlchemy(model_class=Base)
+# Initialize the database
 db.init_app(app)
 
-# Enable CORS after app creation
+# Import models and create tables
+with app.app_context():
+    import models  # noqa: F401
+    db.create_all()
+    logger.info("Database tables created successfully")
+
+# Import routes - this needs to happen after db initialization
+import routes  # noqa: F401
+logger.info("Routes imported successfully")
+
+# Enable CORS
 CORS(app)
 
 # Test routes
@@ -83,20 +93,6 @@ def add_security_headers(response):
     })
     return response
 
-# Create tables within app context
-with app.app_context():
-    try:
-        # Import models and create tables
-        import models
-        db.create_all()
-        logger.info("Database tables created successfully")
-
-        # Import routes after database initialization
-        import routes
-        logger.info("Routes imported successfully")
-    except Exception as e:
-        logger.error(f"Error during initialization: {str(e)}")
-        raise
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
