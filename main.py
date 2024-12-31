@@ -1,5 +1,6 @@
 import os
 import logging
+from flask_cors import CORS
 
 # Configure logging with more details
 logging.basicConfig(
@@ -9,6 +10,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from app import app
+
+# Enable CORS for all routes
+CORS(app, resources={
+    r"/*": {
+        "origins": "*",
+        "allow_headers": "*",
+        "expose_headers": "*"
+    }
+})
 
 if __name__ == "__main__":
     try:
