@@ -1,32 +1,93 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h4 class="mb-4">Access Logs</h4>
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">Information Logs</h4>
+        <div class="text-muted">
+            Tracking all system interactions and user activities
+        </div>
+    </div>
 
-<div class="table-responsive">
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th>Date/Time</th>
-                <th>Report Title</th>
-                <th>Assessor</th>
-                <th>Purpose</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for log in logs %}
-            <tr>
-                <td>{{ log.accessed_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                <td>
-                    <a href="{{ url_for('view_report', report_id=log.event_report.id) }}">
-                        {{ log.event_report.title }}
-                    </a>
-                </td>
-                <td>{{ log.assessor_name }}</td>
-                <td>{{ log.purpose }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Start Time</th>
+                    <th>Activity Type</th>
+                    <th>Duration</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.started_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>
+                        <span class="badge bg-{{ 'primary' if log.activity_type == 'view_report' else 'info' if log.activity_type == 'search' else 'secondary' }}">
+                            {{ log.activity_type|replace('_', ' ')|title }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if log.duration_seconds %}
+                            {{ log.duration_seconds }} seconds
+                        {% else %}
+                            In progress
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if log.event_report %}
+                            <div class="mb-2">
+                                <a href="{{ url_for('view_report', report_id=log.event_report.id) }}" class="text-decoration-none">
+                                    <i data-feather="file-text" class="feather-sm me-1"></i>
+                                    {{ log.event_report.title }}
+                                </a>
+                            </div>
+                            {% if log.interaction_details %}
+                                <div class="small text-muted">
+                                    {% if log.interaction_details.document_date %}
+                                        <span class="me-2">
+                                            <i data-feather="calendar" class="feather-sm me-1"></i>
+                                            {{ log.interaction_details.document_date }}
+                                        </span>
+                                    {% endif %}
+                                    {% if log.interaction_details.risk_level %}
+                                        <span class="me-2">
+                                            <i data-feather="alert-triangle" class="feather-sm me-1"></i>
+                                            Risk: {{ log.interaction_details.risk_level }}
+                                        </span>
+                                    {% endif %}
+                                    {% if log.interaction_details.location %}
+                                        <span>
+                                            <i data-feather="map-pin" class="feather-sm me-1"></i>
+                                            {{ log.interaction_details.location }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        {% endif %}
+
+                        {% if log.search_query %}
+                            <div class="small text-muted">
+                                <i data-feather="search" class="feather-sm me-1"></i>
+                                Search: "{{ log.search_query }}"
+                            </div>
+                        {% endif %}
+
+                        {% if log.filters_applied %}
+                            <div class="small text-muted">
+                                <i data-feather="filter" class="feather-sm me-1"></i>
+                                Filters: 
+                                {% for key, value in log.filters_applied.items() %}
+                                    {{ key }}: {{ value }}{{ ", " if not loop.last }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}

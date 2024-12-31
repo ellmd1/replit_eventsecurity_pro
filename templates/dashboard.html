@@ -2,60 +2,153 @@
 
 {% block content %}
 <div class="container">
-    <div class="row">
+    <!-- Hero Section -->
+    <div class="row align-items-center mb-5">
+        <div class="col-md-8">
+            <h1 class="display-4 mb-3">Welcome to SecureEvent Pro</h1>
+            <p class="lead text-muted">
+                Your comprehensive platform for event security management and risk assessment.
+                Make data-driven decisions to ensure safer public events.
+            </p>
+            <div class="d-flex gap-3">
+                <a href="{{ url_for('index') }}" class="btn btn-primary">
+                    <i data-feather="file-text" class="feather-sm"></i>
+                    Browse Reports
+                </a>
+                <a href="{{ url_for('chat') }}" class="btn btn-outline-secondary">
+                    <i data-feather="message-square" class="feather-sm"></i>
+                    Ask AI Assistant
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- National Threat Level -->
+    <div class="row mb-4">
         <div class="col-md-12">
-            <h2 class="mb-4">Risk Assessment Dashboard</h2>
-            <div class="card mb-4">
+            <div class="card bg-dark">
                 <div class="card-body">
-                    <h5 class="card-title mb-3">Upcoming Events</h5>
-                    <div class="row">
-                        {% for event in upcoming_events %}
-                        <div class="col">
-                            <div class="card h-100">
-                                <div class="card-body">
-                                    <h6 class="card-title">{{ event.title }}</h6>
-                                    <p class="card-text small mb-2">
-                                        <i data-feather="calendar" class="feather-sm"></i> {{ event.date.strftime('%Y-%m-%d') }}<br>
-                                        <i data-feather="map-pin" class="feather-sm"></i> {{ event.location }}<br>
-                                        <i data-feather="users" class="feather-sm"></i> {{ event.attendance }} attendees<br>
-                                        <i data-feather="home" class="feather-sm"></i> {{ event.venue_type }}
-                                    </p>
-                                    <span class="badge bg-{{ 'danger' if event.risk_level == 'High' else 'warning' if event.risk_level == 'Medium' else 'success' }}">
-                                        {{ event.risk_level }} Risk
-                                    </span>
-                                </div>
-                            </div>
+                    <h5 class="card-title text-white mb-3">Current National Threat Level</h5>
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-warning p-3 me-3">
+                            <i data-feather="alert-triangle" class="text-dark"></i>
                         </div>
-                        {% endfor %}
+                        <div>
+                            <h3 class="text-warning mb-1">SUBSTANTIAL</h3>
+                            <p class="text-white-50 mb-0">An attack is likely</p>
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Risk Exposure Overview</h5>
-                            <div style="max-width: 300px; margin: 0 auto;">
-                                <canvas id="riskChart"></canvas>
+    <!-- Risk Overview Card -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-dark">
+                    <h5 class="card-title mb-0">Risk Assessment Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <canvas id="riskChart" style="max-width: 100%; height: 200px;"></canvas>
+                        </div>
+                        <div class="col-md-8">
+                            <h6 class="mb-3">Upcoming Events</h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Event</th>
+                                            <th>Date</th>
+                                            <th>Location</th>
+                                            <th>Risk Level</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for event in upcoming_events %}
+                                        <tr>
+                                            <td>{{ event.title }}</td>
+                                            <td>{{ event.date.strftime('%Y-%m-%d') }}</td>
+                                            <td>{{ event.location }}</td>
+                                            <td>
+                                                <span class="badge bg-{{ 'danger' if event.risk_level == 'High' else 'warning' if event.risk_level == 'Medium' else 'success' }}">
+                                                    {{ event.risk_level }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('view_report', report_id=event.id) }}" class="btn btn-sm btn-secondary">
+                                                    View Details
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Quick Actions</h5>
-                            <div class="list-group">
-                                <a href="{{ url_for('comparative_search') }}" class="list-group-item list-group-item-action">
-                                    <i data-feather="search"></i> Compare Events
-                                </a>
-                                <a href="{{ url_for('chat') }}" class="list-group-item list-group-item-action">
-                                    <i data-feather="message-square"></i> Chat Assistant
-                                </a>
-                            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions Grid -->
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                            <i data-feather="search" class="text-primary"></i>
                         </div>
+                        <h5 class="card-title mb-0">Compare Events</h5>
                     </div>
+                    <p class="card-text text-muted">
+                        Compare security measures and outcomes across different events to identify patterns and best practices.
+                    </p>
+                    <a href="{{ url_for('comparative_search') }}" class="btn btn-outline-primary">
+                        Start Comparison
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                            <i data-feather="message-square" class="text-success"></i>
+                        </div>
+                        <h5 class="card-title mb-0">AI Assistant</h5>
+                    </div>
+                    <p class="card-text text-muted">
+                        Get instant insights and recommendations from our AI-powered security assistant.
+                    </p>
+                    <a href="{{ url_for('chat') }}" class="btn btn-outline-success">
+                        Chat Now
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
+                            <i data-feather="check-square" class="text-info"></i>
+                        </div>
+                        <h5 class="card-title mb-0">Security Decisions</h5>
+                    </div>
+                    <p class="card-text text-muted">
+                        Track and analyze security-related decisions and their outcomes across events.
+                    </p>
+                    <a href="{{ url_for('decision_log') }}" class="btn btn-outline-info">
+                        View Decisions
+                    </a>
                 </div>
             </div>
         </div>
@@ -79,29 +172,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     '#ffc107',  // Bootstrap warning yellow
                     '#198754'   // Bootstrap success green
                 ],
-                borderColor: [
-                    '#dc3545',
-                    '#ffc107',
-                    '#198754'
-                ],
-                borderWidth: 1
+                borderWidth: 0
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
                     position: 'bottom',
                     labels: {
-                        color: '#fff'  // White text for labels
+                        color: '#fff',
+                        padding: 10,
+                        usePointStyle: true
                     }
                 },
                 title: {
                     display: true,
-                    text: 'Current Risk Distribution',
-                    color: '#fff'  // White text for title
+                    text: 'Risk Level Distribution',
+                    color: '#fff',
+                    font: {
+                        size: 14
+                    }
                 }
-            }
+            },
+            cutout: '70%'
         }
     });
 });

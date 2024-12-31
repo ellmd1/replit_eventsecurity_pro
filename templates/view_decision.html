@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('decision_log') }}">Decision Log</a></li>
+                    <li class="breadcrumb-item active">Decision Details</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Decision Details</h4>
+            {% if decision.event_report %}
+            <a href="{{ url_for('view_report', report_id=decision.event_report.id) }}" class="btn btn-outline-primary">
+                View Related Event
+            </a>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5>Basic Information</h5>
+                    <dl class="row">
+                        <dt class="col-sm-4">Decision Type</dt>
+                        <dd class="col-sm-8">{{ decision.decision_type }}</dd>
+
+                        <dt class="col-sm-4">Impact Level</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge bg-{{ 'danger' if decision.impact_level == 'High' 
+                                               else 'warning' if decision.impact_level == 'Medium' 
+                                               else 'success' }}">
+                                {{ decision.impact_level }}
+                            </span>
+                        </dd>
+
+                        <dt class="col-sm-4">Created</dt>
+                        <dd class="col-sm-8">{{ decision.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+
+                        <dt class="col-sm-4">Implementation Date</dt>
+                        <dd class="col-sm-8">
+                            {{ decision.implementation_date.strftime('%Y-%m-%d') if decision.implementation_date else 'Not set' }}
+                        </dd>
+
+                        <dt class="col-sm-4">Status</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge bg-{{ 'success' if decision.status == 'Implemented' 
+                                               else 'warning' if decision.status == 'In Progress'
+                                               else 'secondary' }}">
+                                {{ decision.status }}
+                            </span>
+                        </dd>
+                    </dl>
+                </div>
+                <div class="col-md-6">
+                    <h5>Description</h5>
+                    <p class="mb-4">{{ decision.description }}</p>
+
+                    {% if decision.expected_outcome %}
+                    <h5>Expected Outcome</h5>
+                    <p>{{ decision.expected_outcome }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if decision.actual_outcome or decision.lessons_learned %}
+            <div class="row mb-4">
+                <div class="col">
+                    <h5>Results & Lessons</h5>
+                    {% if decision.actual_outcome %}
+                    <div class="mb-3">
+                        <h6>Actual Outcome</h6>
+                        <p>{{ decision.actual_outcome }}</p>
+                        {% if decision.effectiveness_rating %}
+                        <div class="d-flex align-items-center">
+                            <span class="me-2">Effectiveness:</span>
+                            <div class="progress" style="width: 200px;">
+                                <div class="progress-bar" role="progressbar" 
+                                     style="width: {{ decision.effectiveness_rating * 20 }}%;"
+                                     aria-valuenow="{{ decision.effectiveness_rating }}" 
+                                     aria-valuemin="0" aria-valuemax="5">
+                                    {{ decision.effectiveness_rating }}/5
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if decision.lessons_learned %}
+                    <div>
+                        <h6>Lessons Learned</h6>
+                        <p>{{ decision.lessons_learned }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if not decision.actual_outcome %}
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5>Update Outcome</h5>
+                    <form action="{{ url_for('update_decision', decision_id=decision.id) }}" method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Actual Outcome</label>
+                            <textarea name="outcome" class="form-control" rows="3" required></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Outcome Type</label>
+                                    <select name="outcome_type" class="form-select" required>
+                                        <option value="Positive">Positive</option>
+                                        <option value="Mixed">Mixed</option>
+                                        <option value="Negative">Negative</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Effectiveness (1-5)</label>
+                                    <select name="effectiveness" class="form-select" required>
+                                        <option value="5">5 - Highly Effective</option>
+                                        <option value="4">4 - Very Effective</option>
+                                        <option value="3">3 - Moderately Effective</option>
+                                        <option value="2">2 - Slightly Effective</option>
+                                        <option value="1">1 - Not Effective</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update Outcome</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if not decision.lessons_learned %}
+            <div class="card bg-light mt-4">
+                <div class="card-body">
+                    <h5>Add Lessons Learned</h5>
+                    <form action="{{ url_for('update_decision', decision_id=decision.id) }}" method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Lessons Learned</label>
+                            <textarea name="lesson" class="form-control" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Lesson</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if related_decisions %}
+            <div class="mt-4">
+                <h5>Related Decisions</h5>
+                <div class="list-group">
+                    {% for related in related_decisions %}
+                    <a href="{{ url_for('view_decision', decision_id=related.id) }}" 
+                       class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ related.decision_type }}</h6>
+                            <small>{{ related.created_at.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                        <p class="mb-1">{{ related.description[:150] }}...</p>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
