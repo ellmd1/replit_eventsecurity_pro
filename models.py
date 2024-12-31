@@ -23,19 +23,60 @@ class EventReport(db.Model):
     security_protocols = db.Column(db.Text)
     emergency_response_plan = db.Column(db.Text)
     post_event_analysis = db.Column(db.Text)
-    access_logs = db.relationship('AccessLog', backref='event_report', lazy=True)
+    activity_logs = db.relationship('ActivityLog', backref='event_report', lazy=True)
     scenarios = db.relationship('EventScenario', backref='event_report', lazy=True)
     estimated_risk_level = db.Column(db.String(50))
     templates = db.relationship('AssessmentTemplate', backref='event_report', lazy=True)
 
-class AccessLog(db.Model):
+class ActivityLog(db.Model):
+    """Enhanced logging system for tracking all user interactions"""
     id = db.Column(db.Integer, primary_key=True)
-    event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=False)
-    accessed_at = db.Column(db.DateTime, default=datetime.utcnow)
-    purpose = db.Column(db.String(200))
-    assessor_name = db.Column(db.String(100), nullable=False)
-    assessment_context = db.Column(db.String(200))
-    similar_event_details = db.Column(db.Text)
+    event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=True)
+    activity_type = db.Column(db.String(50), nullable=False)  # view, search, compare, template_use
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    ended_at = db.Column(db.DateTime)
+    duration_seconds = db.Column(db.Integer)
+
+    # User context
+    user_identifier = db.Column(db.String(100))  # IP or session ID for anonymous tracking
+    session_id = db.Column(db.String(100))
+
+    # Activity details
+    search_query = db.Column(db.String(500))  # Store search terms used
+    filters_applied = db.Column(db.JSON, default=dict)  # Store any filters used
+    interaction_details = db.Column(db.JSON, default=dict)  # Store specific actions taken
+
+    # Analysis context
+    related_resources = db.Column(db.JSON, default=list)  # Other reports/templates viewed in session
+    user_decisions = db.Column(db.JSON, default=list)  # Track decisions made during analysis
+    notes = db.Column(db.Text)  # Additional context or observations
+
+    def calculate_duration(self):
+        if self.ended_at and self.started_at:
+            self.duration_seconds = int((self.ended_at - self.started_at).total_seconds())
+        return self.duration_seconds
+
+    def end_activity(self):
+        self.ended_at = datetime.utcnow()
+        self.calculate_duration()
+
+    def add_decision(self, decision_type, details):
+        if not self.user_decisions:
+            self.user_decisions = []
+        self.user_decisions.append({
+            'type': decision_type,
+            'details': details,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
+    def add_related_resource(self, resource_type, resource_id):
+        if not self.related_resources:
+            self.related_resources = []
+        self.related_resources.append({
+            'type': resource_type,
+            'id': resource_id,
+            'timestamp': datetime.utcnow().isoformat()
+        })
 
 class EventScenario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
