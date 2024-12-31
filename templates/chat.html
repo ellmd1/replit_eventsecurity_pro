@@ -1,17 +1,29 @@
-{% extends "base.html" %}
-
-{% block content %}
-<div class="card">
-    <div class="card-header">
-        <h4>Security Event Assistant</h4>
-    </div>
-    <div class="card-body">
-        <div class="alert alert-info">
-            Welcome to the Security Event Assistant. This is a basic test page.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Event Assistant - Debug</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css?v=1" rel="stylesheet" crossorigin="anonymous">
+    <script>console.log('Chat page loaded');</script>
+</head>
+<body class="bg-dark text-light">
+    <div class="container py-5">
+        <div class="card bg-dark">
+            <div class="card-header">
+                <h4>Security Event Assistant - Debug Page</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    If you can see this message, the basic page is working.
+                </div>
+            </div>
         </div>
     </div>
-</div>
-{% endblock %}
-
-{% block extra_scripts %}
-{% endblock %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Chat page DOM loaded');
+        });
+    </script>
+</body>
+</html>
