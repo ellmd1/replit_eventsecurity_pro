@@ -3,11 +3,10 @@ import logging
 import json
 from datetime import datetime
 from typing import List, Dict, Any
-
+import numpy as np
 from langchain_openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sqlalchemy import create_engine, text
-import numpy as np
 from app import db
 from models import EventReport
 
@@ -29,37 +28,44 @@ class VectorStore:
         try:
             logger.info("Initializing vector store...")
             with self.engine.connect() as conn:
-                # Create vector extension
+                # First ensure vector extension is installed
                 conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
                 conn.commit()
+                logger.info("Vector extension initialized")
 
-                # Create embeddings table with vector support
-                conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS document_embeddings (
+                # Drop existing table if exists
+                conn.execute(text("DROP TABLE IF EXISTS document_embeddings"))
+                conn.commit()
+
+                # Create table with vector extension support
+                create_table_sql = """
+                    CREATE TABLE document_embeddings (
                         id SERIAL PRIMARY KEY,
                         content TEXT NOT NULL,
                         embedding vector(1536),
-                        metadata JSONB DEFAULT '{}'::jsonb,
+                        metadata JSONB,
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                     )
-                """))
+                """
+                conn.execute(text(create_table_sql))
                 conn.commit()
+                logger.info("Created document_embeddings table")
 
-                # Create similarity search index
-                conn.execute(text("""
-                    CREATE INDEX IF NOT EXISTS embeddings_vector_idx 
-                    ON document_embeddings 
+                # Create vector similarity index
+                create_index_sql = """
+                    CREATE INDEX ON document_embeddings 
                     USING ivfflat (embedding vector_cosine_ops)
                     WITH (lists = 100)
-                """))
+                """
+                conn.execute(text(create_index_sql))
                 conn.commit()
+                logger.info("Created vector similarity index")
 
-                logger.info("Vector store tables and indices created successfully")
                 return True
 
         except Exception as e:
             logger.error(f"Failed to initialize vector store: {str(e)}", exc_info=True)
-            raise
+            return False
 
     def add_document(self, content: str, metadata: Dict[str, Any] = None):
         """Add a document to the vector store"""
@@ -69,30 +75,35 @@ class VectorStore:
         try:
             # Generate embedding
             embedding = self.create_embedding(content)
-            embedding_array = np.array(embedding).astype(float)
+            embedding_arr = np.array(embedding).astype(float).tolist()
 
-            # Format embedding for PostgreSQL
-            embedding_list = [float(x) for x in embedding_array]
-
-            # Prepare parameters as dictionary
-            params = {
-                "content": content,
-                "embedding": embedding_list,
-                "metadata": json.dumps(metadata)
-            }
-
-            # Insert into database
+            # Insert using parameterized query
             with self.engine.connect() as conn:
-                conn.execute(
-                    text("""
-                        INSERT INTO document_embeddings (content, embedding, metadata)
-                        VALUES (:content, :embedding::vector, :metadata::jsonb)
-                    """),
-                    params
-                )
+                # Create the vector literal directly in SQL
+                sql = text("""
+                    INSERT INTO document_embeddings (content, embedding, metadata)
+                    VALUES (:content, array_to_vector(:embedding), :metadata)
+                """)
+
+                # Create vector conversion function if it doesn't exist
+                conn.execute(text("""
+                    CREATE OR REPLACE FUNCTION array_to_vector(float8[])
+                    RETURNS vector
+                    AS $$ SELECT $1::vector $$
+                    LANGUAGE SQL
+                    IMMUTABLE
+                    PARALLEL SAFE;
+                """))
                 conn.commit()
 
-            logger.info(f"Document added successfully: {metadata.get('id', 'unknown')}")
+                # Execute insert with parameters
+                conn.execute(sql, {
+                    'content': content,
+                    'embedding': embedding_arr,
+                    'metadata': json.dumps(metadata)
+                })
+                conn.commit()
+                logger.info(f"Document added successfully: {metadata.get('id', 'unknown')}")
 
         except Exception as e:
             logger.error(f"Failed to add document: {str(e)}", exc_info=True)
@@ -103,30 +114,25 @@ class VectorStore:
         try:
             # Generate query embedding
             query_embedding = self.create_embedding(query)
-            query_array = np.array(query_embedding).astype(float)
-            query_list = [float(x) for x in query_array]
+            query_arr = np.array(query_embedding).astype(float).tolist()
 
-            # Prepare parameters
-            params = {
-                "embedding": query_list,
-                "limit": limit
-            }
-
-            # Execute similarity search
+            # Execute search
             with self.engine.connect() as conn:
-                result = conn.execute(
-                    text("""
-                        SELECT 
-                            content,
-                            metadata,
-                            1 - (embedding <=> :embedding::vector) as similarity
-                        FROM document_embeddings
-                        WHERE embedding IS NOT NULL
-                        ORDER BY embedding <=> :embedding::vector
-                        LIMIT :limit
-                    """),
-                    params
-                )
+                sql = text("""
+                    SELECT 
+                        content,
+                        metadata,
+                        1 - (embedding <=> array_to_vector(:embedding)) as similarity
+                    FROM document_embeddings
+                    WHERE embedding IS NOT NULL
+                    ORDER BY embedding <=> array_to_vector(:embedding)
+                    LIMIT :limit
+                """)
+
+                result = conn.execute(sql, {
+                    'embedding': query_arr,
+                    'limit': limit
+                })
 
                 return [{
                     'content': row.content,
@@ -141,8 +147,8 @@ class VectorStore:
     def create_embedding(self, text: str) -> List[float]:
         """Create an embedding vector for text"""
         try:
-            logger.debug(f"Generating embedding for text: {text[:100]}...")
-            return self.embeddings.embed_query(text)
+            embeddings = self.embeddings.embed_query(text)
+            return embeddings
         except Exception as e:
             logger.error(f"Failed to create embedding: {str(e)}", exc_info=True)
             raise
@@ -152,15 +158,15 @@ class VectorStore:
         try:
             # Prepare document content
             content = f"""
-Title: {report.title or ''}
-Description: {report.description or ''}
-Location: {report.location or ''}
-Risk Level: {report.risk_level or ''}
-Venue Type: {report.venue_type or ''}
-Security Measures: {report.security_measures or ''}
-Incident Summary: {report.incident_summary or ''}
-Lessons Learned: {report.lessons_learned or ''}
-Recommendations: {report.recommendations or ''}
+            Title: {report.title or ''}
+            Description: {report.description or ''}
+            Location: {report.location or ''}
+            Risk Level: {report.risk_level or ''}
+            Venue Type: {report.venue_type or ''}
+            Security Measures: {report.security_measures or ''}
+            Incident Summary: {report.incident_summary or ''}
+            Lessons Learned: {report.lessons_learned or ''}
+            Recommendations: {report.recommendations or ''}
             """.strip()
 
             # Prepare metadata
