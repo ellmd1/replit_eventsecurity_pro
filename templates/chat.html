@@ -110,4 +110,149 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 </style>
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Chat interface initializing...');
+
+    // Initialize chat components
+    const chatForm = document.getElementById('chatForm');
+    const chatMessages = document.getElementById('chatMessages');
+    const queryInput = document.getElementById('queryInput');
+
+    // Example prompts functionality
+    document.querySelectorAll('.example-prompt').forEach(button => {
+        button.addEventListener('click', function() {
+            queryInput.value = this.textContent.trim();
+            queryInput.focus();
+        });
+    });
+
+    if (chatForm) {
+        chatForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            console.log('Form submitted');
+
+            const query = queryInput.value.trim();
+            if (!query) return;
+
+            try {
+                // Add user message to chat
+                addMessageToChat('user', query);
+                queryInput.value = '';
+
+                const response = await fetch('/chat_query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+
+                const data = await response.json();
+                console.log('Response received:', data);
+
+                // Add response to chat
+                addMessageToChat('assistant', data.response);
+
+                // If there are events, display them
+                if (data.events && data.events.length > 0) {
+                    let eventsHtml = `<div class="mt-2">
+                        <div class="text-muted small mb-2">Found ${data.events.length} relevant events:</div>
+                        <div class="d-flex flex-column gap-2">`;
+
+                    data.events.forEach(event => {
+                        eventsHtml += `
+                            <div class="event-card p-3 rounded">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h6 class="mb-1">${event.title}</h6>
+                                    <span class="badge bg-${getRiskLevelClass(event.risk_level)}">
+                                        ${event.risk_level} Risk
+                                    </span>
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    <i data-feather="calendar" class="feather-sm me-1"></i> ${event.date}
+                                    <br>
+                                    <i data-feather="map-pin" class="feather-sm me-1"></i> ${event.location}
+                                    <br>
+                                    <i data-feather="users" class="feather-sm me-1"></i> ${event.attendance || 'Not recorded'} attendees
+                                </div>
+                                ${event.security_measures ? `
+                                    <div class="small mb-2">
+                                        <strong>Security Measures:</strong><br>
+                                        ${event.security_measures}
+                                    </div>
+                                ` : ''}
+                                ${event.incidents_reported ? `
+                                    <div class="small mb-2">
+                                        <strong>Incidents:</strong> ${event.incidents_reported}
+                                        ${event.incident_summary ? `<br>${event.incident_summary}` : ''}
+                                    </div>
+                                ` : ''}
+                                <div class="mt-2">
+                                    <a href="/report/${event.id}" class="btn btn-sm btn-secondary">
+                                        View Full Details
+                                    </a>
+                                </div>
+                            </div>`;
+                    });
+                    eventsHtml += '</div></div>';
+                    addMessageToChat('assistant', eventsHtml, true);
+                }
+
+                // Re-initialize Feather icons for new content
+                if (typeof feather !== 'undefined') {
+                    feather.replace();
+                }
+
+                // Focus input for next message
+                queryInput.focus();
+
+            } catch (error) {
+                console.error('Error in chat processing:', error);
+                addMessageToChat('assistant', 'Sorry, I encountered an error processing your query.');
+            }
+        });
+    } else {
+        console.error('Chat form not found');
+    }
+
+    // Helper function to add messages to chat
+    function addMessageToChat(role, content, isHTML = false) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${role}`;
+
+        const messageContent = document.createElement('div');
+        messageContent.className = `message-content rounded p-3`;
+
+        if (isHTML) {
+            messageContent.innerHTML = content;
+        } else {
+            messageContent.textContent = content;
+        }
+
+        messageDiv.appendChild(messageContent);
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Helper function to get Bootstrap color class based on risk level
+    function getRiskLevelClass(riskLevel) {
+        switch (riskLevel) {
+            case 'High':
+                return 'danger';
+            case 'Medium':
+                return 'warning';
+            case 'Low':
+                return 'success';
+            default:
+                return 'secondary';
+        }
+    }
+
+    console.log('Chat interface initialized successfully');
+});
+</script>
+{% endblock %}
 {% endblock %}
