@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add right-click context menu
     document.addEventListener('contextmenu', function(e) {
         const selectedText = window.getSelection().toString().trim();
-        if (selectedText) {
+        if (selectedText && selectedText.length > 0) {
             e.preventDefault();
             
             const contextMenu = document.createElement('div');
@@ -182,7 +182,13 @@ function addToDecisionLog(text) {
     .then(data => {
         if (data.status === 'success') {
             showNotification('Added to decision log');
+        } else {
+            showNotification('Error adding to log');
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error adding to log');
     });
 }
 
