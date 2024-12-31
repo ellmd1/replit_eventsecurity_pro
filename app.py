@@ -22,14 +22,8 @@ app = Flask(__name__,
            static_folder='static',
            template_folder='templates')
 
-# Enable CORS with specific configuration for Replit
-CORS(app, 
-     resources={r"/*": {
-         "origins": ["*", "https://*.repl.co", "https://*.replit.com"],
-         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
-         "expose_headers": ["Content-Range", "X-Content-Range"]
-     }},
-     supports_credentials=True)
+# Simplify CORS configuration for debugging
+CORS(app)
 
 # Configuration
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
@@ -56,22 +50,10 @@ def log_request_info():
 
 @app.after_request
 def add_security_headers(response):
-    # Allow iframe embedding from Replit domains
-    response.headers['Content-Security-Policy'] = (
-        "default-src 'self' https://*.repl.co https://*.replit.com; "
-        "img-src 'self' data: https: blob:; "
-        "style-src 'self' 'unsafe-inline' https:; "
-        "script-src 'self' 'unsafe-inline' https:; "
-        "connect-src 'self' https:; "
-        "frame-ancestors 'self' https://*.repl.co https://*.replit.com"
-    )
-    response.headers['X-Frame-Options'] = 'ALLOW-FROM https://*.repl.co https://*.replit.com'
+    # Temporarily relaxed security headers for debugging
+    response.headers['Content-Security-Policy'] = "default-src * 'unsafe-inline' 'unsafe-eval'; img-src * data:; style-src * 'unsafe-inline';"
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-Content-Type-Options'] = 'nosniff'
-    # CORS headers
-    response.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
-    response.headers['Access-Control-Allow-Credentials'] = 'true'
     return response
 
 # Error handlers
@@ -97,6 +79,12 @@ def serve_static(path):
     except Exception as e:
         logger.error(f"Failed to serve static file {path}: {str(e)}")
         return jsonify({"error": "File not found"}), 404
+
+# A simple test route for debugging
+@app.route('/ping')
+def ping():
+    logger.debug("Ping route accessed")
+    return "pong"
 
 def verify_database():
     """Verify database connection and vector extension availability"""
