@@ -1,6 +1,6 @@
 from flask import render_template, request, redirect, url_for, jsonify, g, session
 from app import app, db
-from models import EventReport, ActivityLog, EventScenario, AssessmentTemplate
+from models import EventReport, ActivityLog, SecurityDecision
 from datetime import datetime, timedelta
 import logging
 from sqlalchemy import or_, func, extract, and_
@@ -44,18 +44,105 @@ def dashboard():
     g.activity_log = log
 
     upcoming_events = EventReport.query.order_by(EventReport.date.desc()).limit(5).all()
+    recent_decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).limit(5).all()
+
     risk_levels = {
         'High': len([e for e in upcoming_events if e.risk_level == 'High']),
         'Medium': len([e for e in upcoming_events if e.risk_level == 'Medium']),
         'Low': len([e for e in upcoming_events if e.risk_level == 'Low'])
     }
 
-    log.interaction_details = {'viewed_events_count': len(upcoming_events)}
+    log.interaction_details = {
+        'viewed_events_count': len(upcoming_events),
+        'viewed_decisions_count': len(recent_decisions)
+    }
     db.session.commit()
 
     return render_template('dashboard.html', 
                          upcoming_events=upcoming_events,
+                         recent_decisions=recent_decisions,
                          risk_levels=risk_levels)
+
+@app.route('/decisions')
+def decision_log():
+    log = start_activity_tracking('view_decision_log')
+    g.activity_log = log
+
+    impact_level = request.args.get('impact')
+    query = SecurityDecision.query
+
+    if impact_level:
+        query = query.filter(SecurityDecision.impact_level == impact_level.capitalize())
+
+    decisions = query.order_by(SecurityDecision.created_at.desc()).all()
+    events = EventReport.query.order_by(EventReport.date.desc()).all()
+
+    log.interaction_details = {
+        'filter_applied': impact_level,
+        'results_count': len(decisions)
+    }
+    db.session.commit()
+
+    return render_template('decision_log.html', 
+                         decisions=decisions,
+                         events=events)
+
+@app.route('/decision/<int:decision_id>')
+def view_decision(decision_id):
+    decision = SecurityDecision.query.get_or_404(decision_id)
+    log = start_activity_tracking('view_decision_details', 
+                                decision.event_report_id if decision.event_report else None)
+    g.activity_log = log
+
+    related_decisions = []
+    if decision.related_decisions:
+        related_ids = [rd['decision_id'] for rd in decision.related_decisions]
+        related_decisions = SecurityDecision.query.filter(SecurityDecision.id.in_(related_ids)).all()
+
+    return render_template('view_decision.html', 
+                         decision=decision,
+                         related_decisions=related_decisions)
+
+@app.route('/log_decision', methods=['POST'])
+def log_decision():
+    try:
+        decision = SecurityDecision(
+            event_report_id=request.form.get('event_report_id'),
+            decision_type=request.form['decision_type'],
+            description=request.form['description'],
+            impact_level=request.form['impact_level'],
+            implementation_date=datetime.strptime(request.form['implementation_date'], '%Y-%m-%d') 
+                              if request.form.get('implementation_date') else None,
+            expected_outcome=request.form.get('expected_outcome')
+        )
+        db.session.add(decision)
+        db.session.commit()
+
+        return redirect(url_for('decision_log'))
+    except Exception as e:
+        logging.error(f"Error logging decision: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/update_decision/<int:decision_id>', methods=['POST'])
+def update_decision(decision_id):
+    try:
+        decision = SecurityDecision.query.get_or_404(decision_id)
+
+        if 'outcome' in request.form:
+            decision.update_outcome(
+                request.form['outcome'],
+                request.form['outcome_type'],
+                int(request.form['effectiveness'])
+            )
+
+        if 'lesson' in request.form:
+            decision.add_lesson_learned(request.form['lesson'])
+
+        db.session.commit()
+        return redirect(url_for('view_decision', decision_id=decision_id))
+    except Exception as e:
+        logging.error(f"Error updating decision: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/browse')
 def index():
@@ -165,19 +252,6 @@ def comparative_search():
                          venue_types=get_venue_types(),
                          event_types=get_event_types())
 
-@app.route('/scenario-builder')
-def scenario_builder():
-    log = start_activity_tracking('scenario_builder')
-    g.activity_log = log
-
-    template_id = request.args.get('template_id')
-    template = None
-    if template_id:
-        template = AssessmentTemplate.query.get(template_id)
-        log.interaction_details = {'template_id': template_id}
-        db.session.commit()
-
-    return render_template('scenario_builder.html', template=template)
 
 @app.route('/access_logs')
 def view_access_logs():
@@ -228,32 +302,6 @@ def chat_query():
             'response': 'Sorry, I encountered an error processing your query.',
             'events': []
         }), 500
-
-@app.route('/save_scenario', methods=['POST'])
-def save_scenario():
-    try:
-        data = request.json
-        scenario = EventScenario(
-            title=data['title'],
-            elements=data['elements'],
-            estimated_risk_level=calculate_scenario_risk(data['elements'])
-        )
-        db.session.add(scenario)
-        db.session.commit()
-        return jsonify({'status': 'success', 'id': scenario.id})
-    except Exception as e:
-        logging.error(f"Error saving scenario: {str(e)}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-def calculate_scenario_risk(elements):
-    risk_levels = [element['riskLevel'] for element in elements]
-    high_count = risk_levels.count('High')
-    medium_count = risk_levels.count('Medium')
-    if high_count > 0:
-        return 'High'
-    elif medium_count > 0:
-        return 'Medium'
-    return 'Low'
 
 @app.route('/templates')
 def list_templates():

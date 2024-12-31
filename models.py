@@ -24,32 +24,24 @@ class EventReport(db.Model):
     emergency_response_plan = db.Column(db.Text)
     post_event_analysis = db.Column(db.Text)
     activity_logs = db.relationship('ActivityLog', backref='event_report', lazy=True)
-    scenarios = db.relationship('EventScenario', backref='event_report', lazy=True)
+    security_decisions = db.relationship('SecurityDecision', backref='event_report', lazy=True)
     estimated_risk_level = db.Column(db.String(50))
-    templates = db.relationship('AssessmentTemplate', backref='event_report', lazy=True)
 
 class ActivityLog(db.Model):
-    """Enhanced logging system for tracking all user interactions"""
     id = db.Column(db.Integer, primary_key=True)
     event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=True)
-    activity_type = db.Column(db.String(50), nullable=False)  # view, search, compare, template_use
+    activity_type = db.Column(db.String(50), nullable=False)
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
     ended_at = db.Column(db.DateTime)
     duration_seconds = db.Column(db.Integer)
-
-    # User context
-    user_identifier = db.Column(db.String(100))  # IP or session ID for anonymous tracking
+    user_identifier = db.Column(db.String(100))
     session_id = db.Column(db.String(100))
-
-    # Activity details
-    search_query = db.Column(db.String(500))  # Store search terms used
-    filters_applied = db.Column(db.JSON, default=dict)  # Store any filters used
-    interaction_details = db.Column(db.JSON, default=dict)  # Store specific actions taken
-
-    # Analysis context
-    related_resources = db.Column(db.JSON, default=list)  # Other reports/templates viewed in session
-    user_decisions = db.Column(db.JSON, default=list)  # Track decisions made during analysis
-    notes = db.Column(db.Text)  # Additional context or observations
+    search_query = db.Column(db.String(500))
+    filters_applied = db.Column(db.JSON, default=dict)
+    interaction_details = db.Column(db.JSON, default=dict)
+    related_resources = db.Column(db.JSON, default=list)
+    user_decisions = db.Column(db.JSON, default=list)
+    notes = db.Column(db.Text)
 
     def calculate_duration(self):
         if self.ended_at and self.started_at:
@@ -77,16 +69,6 @@ class ActivityLog(db.Model):
             'id': resource_id,
             'timestamp': datetime.utcnow().isoformat()
         })
-
-class EventScenario(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'))
-    elements = db.Column(db.JSON, nullable=False, default=list)
-    connections = db.Column(db.JSON, nullable=False, default=list)
-    estimated_risk_level = db.Column(db.String(50))
 
 class AssessmentTemplate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -119,3 +101,38 @@ class AssessmentTemplate(db.Model):
         elif avg_score >= 4:
             return 'Medium'
         return 'Low'
+
+class SecurityDecision(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=True)
+    decision_type = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    impact_level = db.Column(db.String(20), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    implementation_date = db.Column(db.DateTime)
+    expected_outcome = db.Column(db.Text)
+    actual_outcome = db.Column(db.Text)
+    outcome_type = db.Column(db.String(20))
+    status = db.Column(db.String(20), default='Pending')
+    effectiveness_rating = db.Column(db.Integer)
+    lessons_learned = db.Column(db.Text)
+    related_decisions = db.Column(db.JSON, default=list)
+    supporting_documents = db.Column(db.JSON, default=list)
+
+    def update_outcome(self, outcome_text, outcome_type, effectiveness):
+        self.actual_outcome = outcome_text
+        self.outcome_type = outcome_type
+        self.effectiveness_rating = effectiveness
+        self.status = 'Implemented'
+
+    def add_lesson_learned(self, lesson):
+        self.lessons_learned = lesson
+
+    def link_related_decision(self, decision_id, relationship_type):
+        if not self.related_decisions:
+            self.related_decisions = []
+        self.related_decisions.append({
+            'decision_id': decision_id,
+            'relationship_type': relationship_type,
+            'added_at': datetime.utcnow().isoformat()
+        })
