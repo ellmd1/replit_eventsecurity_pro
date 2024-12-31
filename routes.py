@@ -1,5 +1,6 @@
 import logging
 import os
+import traceback
 from flask import render_template, request, redirect, url_for, jsonify, g, session
 from app import app, db
 from models import EventReport, ActivityLog, EventScenario, AssessmentTemplate
@@ -16,7 +17,72 @@ handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-logging.basicConfig(level=logging.DEBUG)
+
+@app.route('/chat')
+def chat():
+    try:
+        # Log environment and configuration
+        logger.debug("=== Starting chat route handler ===")
+        logger.debug(f"App instance path: {app.instance_path}")
+        logger.debug(f"App root path: {app.root_path}")
+        logger.debug(f"Template folder path: {app.template_folder}")
+        logger.debug(f"Template folder exists: {os.path.exists(app.template_folder)}")
+
+        templates = os.listdir(app.template_folder)
+        logger.debug(f"Available templates: {templates}")
+        logger.debug(f"chat.html exists: {'chat.html' in templates}")
+
+        # Verify template inheritance
+        logger.debug(f"base.html exists: {'base.html' in templates}")
+
+        # Log Jinja environment
+        logger.debug(f"Jinja loader: {app.jinja_loader}")
+        logger.debug(f"Jinja environment: {app.jinja_env}")
+
+        # Try rendering with debug info
+        logger.debug("Attempting to render chat.html template")
+        rendered = render_template('chat.html')
+        logger.debug("Successfully rendered chat.html template")
+        logger.debug(f"Rendered content length: {len(rendered)}")
+
+        return rendered
+
+    except Exception as e:
+        logger.error("=== Template rendering error ===")
+        logger.error(f"Error type: {type(e)}")
+        logger.error(f"Error message: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+
+        # Return a simple error page with debug information
+        error_html = f"""
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Debug Info</title>
+                <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+            </head>
+            <body class="bg-dark text-light">
+                <div class="container py-5">
+                    <h1>Template Debug Information</h1>
+                    <div class="alert alert-danger">
+                        <h4>Error Details:</h4>
+                        <pre>{str(e)}</pre>
+                    </div>
+                    <div class="card bg-dark">
+                        <div class="card-body">
+                            <h4>Environment Information:</h4>
+                            <ul>
+                                <li>Template Folder: {app.template_folder}</li>
+                                <li>Available Templates: {', '.join(os.listdir(app.template_folder))}</li>
+                                <li>App Root Path: {app.root_path}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+        return error_html, 500
 
 def get_or_create_session_id():
     if 'session_id' not in session:
@@ -195,31 +261,6 @@ def scenario_builder():
 def view_access_logs():
     logs = ActivityLog.query.order_by(ActivityLog.started_at.desc()).all()
     return render_template('access_log.html', logs=logs)
-
-@app.route('/chat')
-def chat():
-    try:
-        logger.debug("Starting chat route handler")
-        logger.debug("Template folder path: %s", app.template_folder)
-        logger.debug("Available templates: %s", os.listdir(app.template_folder))
-
-        # Try rendering with minimal context
-        logger.debug("Attempting to render chat.html template")
-        rendered = render_template('chat.html')
-        logger.debug("Successfully rendered chat.html template")
-
-        return rendered
-    except Exception as e:
-        logger.error(f"Failed to render chat.html template: {str(e)}", exc_info=True)
-        # Return a simple error page
-        return f"""
-        <html>
-            <body>
-                <h1>Error loading page</h1>
-                <p>Error details: {str(e)}</p>
-            </body>
-        </html>
-        """, 500
 
 @app.route('/chat_query', methods=['POST'])
 def chat_query():
