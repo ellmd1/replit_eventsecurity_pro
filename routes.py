@@ -18,6 +18,23 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+@app.route('/test')
+def test():
+    """A minimal test route to verify basic functionality"""
+    logger.debug("Test route accessed")
+    return """
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <title>Test Page</title>
+        </head>
+        <body>
+            <h1>Test Page</h1>
+            <p>If you can see this, basic Flask routing is working.</p>
+        </body>
+    </html>
+    """
+
 @app.route('/chat')
 def chat():
     try:
