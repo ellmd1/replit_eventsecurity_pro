@@ -1,34 +1,37 @@
-from flask import render_template, request, redirect, url_for, jsonify
+from flask import render_template, request, redirect, url_for, jsonify, flash
+from flask_login import login_required, current_user
 from app import app, db
-from models import EventReport, AccessLog, EventScenario # Added EventScenario import
+from models import EventReport, AccessLog, EventScenario
 from datetime import datetime
 import logging
-from sqlalchemy import or_, func, extract
+from sqlalchemy import or_, func
 from chat_processor import process_natural_language_query, generate_response_summary
 
-@app.route('/')
+@app.route('/dashboard')
+@login_required
 def dashboard():
     # Get 5 upcoming events ordered by date
-    upcoming_events = EventReport.query.order_by(EventReport.date.desc()).limit(5).all()
-    
+    upcoming_events = EventReport.query.filter_by(user_id=current_user.id).order_by(EventReport.date.desc()).limit(5).all()
+
     # Calculate risk levels distribution for chart
     risk_levels = {
         'High': len([e for e in upcoming_events if e.risk_level == 'High']),
         'Medium': len([e for e in upcoming_events if e.risk_level == 'Medium']),
         'Low': len([e for e in upcoming_events if e.risk_level == 'Low'])
     }
-    
+
     return render_template('dashboard.html', 
                          upcoming_events=upcoming_events,
                          risk_levels=risk_levels)
 
 @app.route('/browse')
-def index():
+@login_required
+def browse():
     search_query = request.args.get('search', '')
     risk_level = request.args.get('risk_level', '')
-    
-    query = EventReport.query
-    
+
+    query = EventReport.query.filter_by(user_id=current_user.id)
+
     if search_query:
         query = query.filter(
             or_(EventReport.title.ilike(f'%{search_query}%'),
@@ -36,30 +39,29 @@ def index():
                 EventReport.lessons_learned.ilike(f'%{search_query}%'),
                 EventReport.recommendations.ilike(f'%{search_query}%'))
         )
-    
+
     if risk_level:
         query = query.filter(EventReport.risk_level == risk_level)
-    
-    # Only get the 5 most recent reports
+
     reports = query.order_by(EventReport.date.desc()).limit(5).all()
     return render_template('index.html', reports=reports)
 
 @app.route('/comparative-search')
+@login_required
 def comparative_search():
-    # Only show results if there are search parameters
     if not any(request.args.values()):
         return render_template('comparative_search.html', 
                              venue_types=get_venue_types(),
                              event_types=get_event_types(),
                              similar_events=[])
-    
+
     location = request.args.get('location', '')
     event_type = request.args.get('event_type', '')
     attendance_range = request.args.get('attendance_range', '')
     venue_type = request.args.get('venue_type', '')
-    
+
     query = EventReport.query
-    
+
     if location:
         query = query.filter(EventReport.location.ilike(f'%{location}%'))
     if event_type:
@@ -75,7 +77,7 @@ def comparative_search():
             query = query.filter(EventReport.attendance.between(5000, 15000))
         elif attendance_range == 'xlarge':
             query = query.filter(EventReport.attendance > 15000)
-    
+
     similar_events = query.order_by(EventReport.date.desc()).all()
     return render_template('comparative_search.html',
                          similar_events=similar_events,
@@ -83,62 +85,43 @@ def comparative_search():
                          event_types=get_event_types())
 
 def get_venue_types():
-    types = db.session.query(
+    return db.session.query(
         EventReport.venue_type
     ).filter(
         EventReport.venue_type.isnot(None)
     ).distinct().order_by(EventReport.venue_type).all()
-    return [t[0] for t in types if t[0]]
 
 def get_event_types():
-    types = db.session.query(
+    return db.session.query(
         EventReport.incident_type
     ).filter(
         EventReport.incident_type.isnot(None)
     ).distinct().order_by(EventReport.incident_type).all()
-    return [t[0] for t in types if t[0]]
 
 @app.route('/report/<int:report_id>')
+@login_required
 def view_report(report_id):
     report = EventReport.query.get_or_404(report_id)
+    if report.user_id != current_user.id and current_user.role != 'admin':
+        flash('You do not have permission to view this report.', 'danger')
+        return redirect(url_for('dashboard'))
     return render_template('view_report.html', report=report)
 
-@app.route('/log_access', methods=['POST'])
-def log_access():
-    try:
-        data = request.json
-        access_log = AccessLog(
-            event_report_id=data['report_id'],
-            assessor_name=data['assessor_name'],
-            purpose=data['purpose'],
-            assessment_context=data['assessment_context'],
-            similar_event_details=data['similar_event_details']
-        )
-        db.session.add(access_log)
-        db.session.commit()
-        return jsonify({'status': 'success'})
-    except Exception as e:
-        logging.error(f"Error logging access: {str(e)}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/access_logs')
-def view_access_logs():
-    logs = AccessLog.query.order_by(AccessLog.accessed_at.desc()).all()
-    return render_template('access_log.html', logs=logs)
-
 @app.route('/chat')
+@login_required
 def chat():
     return render_template('chat.html')
 
 @app.route('/chat_query', methods=['POST'])
+@login_required
 def chat_query():
     try:
         query = request.json.get('query', '')
-        event_query = EventReport.query
+        event_query = EventReport.query.filter_by(user_id=current_user.id)
         event_query, explanation = process_natural_language_query(query, event_query)
         events = event_query.limit(5).all()
         response = generate_response_summary(events, explanation)
-        
+
         event_list = []
         for event in events:
             event_list.append({
@@ -150,13 +133,13 @@ def chat_query():
                 'incident_type': event.incident_type,
                 'attendance': event.attendance
             })
-        
+
         return jsonify({
             'status': 'success',
             'response': response,
             'events': event_list
         })
-        
+
     except Exception as e:
         logging.error(f"Error processing chat query: {str(e)}")
         return jsonify({
@@ -166,17 +149,21 @@ def chat_query():
         }), 500
 
 @app.route('/scenario-builder')
+@login_required
 def scenario_builder():
     return render_template('scenario_builder.html')
 
 @app.route('/save_scenario', methods=['POST'])
+@login_required
 def save_scenario():
     try:
         data = request.json
         scenario = EventScenario(
             title=data['title'],
+            description=data.get('description', ''),
             elements=data['elements'],
-            estimated_risk_level=calculate_scenario_risk(data['elements'])
+            estimated_risk_level=calculate_scenario_risk(data['elements']),
+            user_id=current_user.id
         )
         db.session.add(scenario)
         db.session.commit()
@@ -198,9 +185,15 @@ def calculate_scenario_risk(elements):
     return 'Low'
 
 @app.route('/report-comparison/<int:report1_id>/<int:report2_id>')
+@login_required
 def compare_reports(report1_id, report2_id):
     report1 = EventReport.query.get_or_404(report1_id)
     report2 = EventReport.query.get_or_404(report2_id)
+
+    # Check permissions
+    if not (report1.user_id == current_user.id and report2.user_id == current_user.id) and current_user.role != 'admin':
+        flash('You do not have permission to compare these reports.', 'danger')
+        return redirect(url_for('dashboard'))
 
     # Calculate similarities and differences
     comparison = {
@@ -231,3 +224,29 @@ def calculate_percentage_difference(val1, val2):
         return round(abs(val1 - val2) / avg * 100, 1)
     except ZeroDivisionError:
         return 0
+
+@app.route('/log_access', methods=['POST'])
+@login_required
+def log_access():
+    try:
+        data = request.json
+        access_log = AccessLog(
+            event_report_id=data['report_id'],
+            assessor_name=data['assessor_name'],
+            purpose=data['purpose'],
+            assessment_context=data['assessment_context'],
+            similar_event_details=data['similar_event_details'],
+            user_id=current_user.id
+        )
+        db.session.add(access_log)
+        db.session.commit()
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        logging.error(f"Error logging access: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/access_logs')
+@login_required
+def view_access_logs():
+    logs = AccessLog.query.filter_by(user_id=current_user.id).order_by(AccessLog.accessed_at.desc()).all()
+    return render_template('access_log.html', logs=logs)
