@@ -55,6 +55,7 @@ class VectorStore:
                 conn.commit()
 
                 logger.info("Vector store tables and indices created successfully")
+                return True
 
         except Exception as e:
             logger.error(f"Failed to initialize vector store: {str(e)}", exc_info=True)
@@ -73,20 +74,22 @@ class VectorStore:
             # Format embedding for PostgreSQL
             embedding_list = [float(x) for x in embedding_array]
 
-            # Use SQLAlchemy style parameter binding
+            # Prepare parameters as dictionary
+            params = {
+                "content": content,
+                "embedding": embedding_list,
+                "metadata": json.dumps(metadata)
+            }
+
+            # Insert into database
             with self.engine.connect() as conn:
-                stmt = text("""
-                    INSERT INTO document_embeddings (content, embedding, metadata)
-                    VALUES (:content, :embedding::vector, :metadata::jsonb)
-                """)
-
-                params = {
-                    'content': content,
-                    'embedding': f"[{','.join(str(x) for x in embedding_list)}]",
-                    'metadata': json.dumps(metadata)
-                }
-
-                conn.execute(stmt, params)
+                conn.execute(
+                    text("""
+                        INSERT INTO document_embeddings (content, embedding, metadata)
+                        VALUES (:content, :embedding::vector, :metadata::jsonb)
+                    """),
+                    params
+                )
                 conn.commit()
 
             logger.info(f"Document added successfully: {metadata.get('id', 'unknown')}")
@@ -101,27 +104,29 @@ class VectorStore:
             # Generate query embedding
             query_embedding = self.create_embedding(query)
             query_array = np.array(query_embedding).astype(float)
-
-            # Format query embedding for PostgreSQL
             query_list = [float(x) for x in query_array]
 
-            # Execute similarity search with SQLAlchemy style parameter binding
-            with self.engine.connect() as conn:
-                stmt = text("""
-                    SELECT 
-                        content,
-                        metadata,
-                        1 - (embedding <=> :embedding::vector) as similarity
-                    FROM document_embeddings
-                    WHERE embedding IS NOT NULL
-                    ORDER BY embedding <=> :embedding::vector
-                    LIMIT :limit
-                """)
+            # Prepare parameters
+            params = {
+                "embedding": query_list,
+                "limit": limit
+            }
 
-                result = conn.execute(stmt, {
-                    'embedding': f"[{','.join(str(x) for x in query_list)}]",
-                    'limit': limit
-                })
+            # Execute similarity search
+            with self.engine.connect() as conn:
+                result = conn.execute(
+                    text("""
+                        SELECT 
+                            content,
+                            metadata,
+                            1 - (embedding <=> :embedding::vector) as similarity
+                        FROM document_embeddings
+                        WHERE embedding IS NOT NULL
+                        ORDER BY embedding <=> :embedding::vector
+                        LIMIT :limit
+                    """),
+                    params
+                )
 
                 return [{
                     'content': row.content,
