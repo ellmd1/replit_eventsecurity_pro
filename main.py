@@ -11,13 +11,12 @@ logger = logging.getLogger(__name__)
 
 from app import app
 
-# Enable CORS for all routes with specific origins
-CORS(app, resources={
-    r"/*": {
-        "origins": ["https://*.repl.co", "https://*.replit.dev"],
-        "supports_credentials": True
-    }
-})
+# Enable CORS with a more permissive configuration for development
+CORS(app,
+     resources={r"/*": {"origins": "*"}},
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "OPTIONS"])
 
 if __name__ == "__main__":
     try:

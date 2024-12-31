@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask
+from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.sql import text
@@ -28,9 +28,21 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 # Add static file configuration
 app.config["STATIC_FOLDER"] = "static"
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
 
 # Initialize the database
 db.init_app(app)
+
+# Error handlers
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify({"error": "Not found"}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return jsonify({"error": "Internal server error"}), 500
 
 def verify_database():
     """Verify database connection and vector extension availability"""
