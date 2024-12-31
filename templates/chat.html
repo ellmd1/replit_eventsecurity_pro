@@ -4,157 +4,19 @@
 <div class="container">
     <div class="row">
         <div class="col-md-12">
-            <h4 class="mb-4">Security Event Assistant</h4>
+            <h4 class="mb-4">Event Database Chat</h4>
             <div class="card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span>Chat with AI Assistant</span>
-                        <small class="text-muted">Ask about events, security measures, and risk assessments</small>
-                    </div>
-                </div>
                 <div class="card-body">
                     <div class="chat-messages mb-3" id="chatMessages" style="height: 400px; overflow-y: auto;">
-                        <!-- System welcome message -->
-                        <div class="chat-message assistant">
-                            <div class="message-content bg-secondary text-white rounded p-2 mb-2">
-                                Welcome! I can help you analyze security events and assess risks. Try asking questions like:
-                                <ul class="mb-0 mt-2">
-                                    <li>What are the most common security measures used in high-risk events?</li>
-                                    <li>Show me events with valuable lessons learned from security incidents</li>
-                                    <li>Compare security staffing levels between different venue types</li>
-                                </ul>
-                            </div>
-                        </div>
+                        <!-- Messages will be inserted here -->
                     </div>
                     <form id="chatForm" class="d-flex gap-2">
-                        <input type="text" 
-                               class="form-control" 
-                               id="queryInput" 
-                               placeholder="Ask about security measures, risk assessments, or past incidents..." 
-                               required
-                               autocomplete="off">
-                        <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
-                            <i data-feather="send"></i>
-                            Send
-                        </button>
+                        <input type="text" class="form-control" id="queryInput" placeholder="Ask about events (e.g., 'Show me high risk events from this year')" required>
+                        <button type="submit" class="btn btn-primary">Send</button>
                     </form>
-
-                    <!-- Example prompts section -->
-                    <div class="mt-4">
-                        <h6 class="text-muted mb-3">Example Questions:</h6>
-                        <div class="row g-2">
-                            <div class="col-md-4">
-                                <div class="card bg-dark h-100">
-                                    <div class="card-body">
-                                        <h6 class="card-title">
-                                            <i data-feather="shield" class="text-primary me-2"></i>
-                                            Security Analysis
-                                        </h6>
-                                        <div class="d-flex flex-column gap-2">
-                                            <button type="button" class="example-prompt btn btn-outline-secondary btn-sm text-start">
-                                                Show events with comprehensive security protocols
-                                            </button>
-                                            <button type="button" class="example-prompt btn btn-outline-secondary btn-sm text-start">
-                                                List venues with most security staff deployed
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card bg-dark h-100">
-                                    <div class="card-body">
-                                        <h6 class="card-title">
-                                            <i data-feather="alert-triangle" class="text-warning me-2"></i>
-                                            Risk Assessment
-                                        </h6>
-                                        <div class="d-flex flex-column gap-2">
-                                            <button type="button" class="example-prompt btn btn-outline-secondary btn-sm text-start">
-                                                Compare risk levels between indoor and outdoor events
-                                            </button>
-                                            <button type="button" class="example-prompt btn btn-outline-secondary btn-sm text-start">
-                                                Analyze high-risk events from last month
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card bg-dark h-100">
-                                    <div class="card-body">
-                                        <h6 class="card-title">
-                                            <i data-feather="book-open" class="text-info me-2"></i>
-                                            Insights & Learning
-                                        </h6>
-                                        <div class="d-flex flex-column gap-2">
-                                            <button type="button" class="example-prompt btn btn-outline-secondary btn-sm text-start">
-                                                What are the key lessons learned from recent incidents?
-                                            </button>
-                                            <button type="button" class="example-prompt btn btn-outline-secondary btn-sm text-start">
-                                                Show successful emergency response examples
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-.chat-message {
-    margin-bottom: 1rem;
-}
-
-.chat-message.user {
-    text-align: right;
-}
-
-.chat-message .message-content {
-    display: inline-block;
-    max-width: 80%;
-}
-
-.chat-message.user .message-content {
-    background: var(--bs-primary);
-    color: white;
-    text-align: left;
-}
-
-.chat-message.assistant .message-content {
-    background: var(--bs-secondary);
-    color: white;
-}
-
-.chat-message .event-card {
-    background: var(--bs-dark);
-    border: 1px solid var(--bs-gray-700);
-    margin-top: 0.5rem;
-}
-
-.chat-message .event-card:hover {
-    border-color: var(--bs-primary);
-}
-
-.example-prompt {
-    transition: all 0.2s ease;
-}
-
-.example-prompt:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.card {
-    border: 1px solid var(--bs-gray-700);
-}
-
-.bg-dark {
-    background: var(--bs-dark) !important;
-}
-</style>
 {% endblock %}

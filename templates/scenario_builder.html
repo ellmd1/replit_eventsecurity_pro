@@ -67,82 +67,18 @@
         <div class="col-md-9">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        {% if template %}
-                            Using Template: {{ template.title }}
-                        {% else %}
-                            Scenario Canvas
-                        {% endif %}
-                    </h5>
-                    <div class="d-flex gap-2">
-                        <a href="{{ url_for('list_templates') }}" class="btn btn-outline-secondary">
-                            <i data-feather="list"></i>
-                            Browse Templates
-                        </a>
-                        <button class="btn btn-secondary" id="clearCanvas">
-                            <i data-feather="trash-2"></i>
-                            Clear
-                        </button>
-                        <button class="btn btn-primary" id="saveScenario">
-                            <i data-feather="save"></i>
-                            Save Scenario
-                        </button>
+                    <h5 class="mb-0">Scenario Canvas</h5>
+                    <div>
+                        <button class="btn btn-secondary" id="clearCanvas">Clear</button>
+                        <button class="btn btn-primary" id="saveScenario">Save Scenario</button>
                     </div>
                 </div>
                 <div class="card-body">
-                    <div id="scenarioCanvas" class="scenario-canvas" 
-                         {% if template %}data-template-id="{{ template.id }}"{% endif %}>
+                    <div id="scenarioCanvas" class="scenario-canvas">
                         <!-- Elements will be added here dynamically -->
                     </div>
                 </div>
             </div>
-
-            {% if template %}
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h5 class="mb-0">Template Requirements</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <h6>Security Requirements</h6>
-                            <ul class="list-unstyled">
-                                {% for req in template.security_requirements %}
-                                <li class="mb-2">
-                                    <i data-feather="check-circle" class="text-success me-2"></i>
-                                    {{ req }}
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                        <div class="col-md-4">
-                            <h6>Risk Factors</h6>
-                            <ul class="list-unstyled">
-                                {% for factor in template.risk_factors %}
-                                <li class="mb-2">
-                                    <span class="badge bg-{{ 'danger' if factor.severity == 3 else 'warning' if factor.severity == 2 else 'success' }} me-2">
-                                        {{ 'High' if factor.severity == 3 else 'Medium' if factor.severity == 2 else 'Low' }}
-                                    </span>
-                                    {{ factor.description }}
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                        <div class="col-md-4">
-                            <h6>Mitigation Strategies</h6>
-                            <ul class="list-unstyled">
-                                {% for strategy in template.mitigation_strategies %}
-                                <li class="mb-2">
-                                    <i data-feather="shield" class="text-primary me-2"></i>
-                                    {{ strategy }}
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>

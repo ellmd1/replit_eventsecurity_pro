@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="card mb-4">
+<div class="card">
     <div class="card-header">
         <h4 class="mb-0">Find Similar Past Events</h4>
     </div>
@@ -43,27 +43,6 @@
                     </select>
                 </div>
             </div>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Risk Level</label>
-                    <select name="risk_level" class="form-select">
-                        <option value="">Any Risk Level</option>
-                        <option value="Low" {% if request.args.get('risk_level') == 'Low' %}selected{% endif %}>Low Risk</option>
-                        <option value="Medium" {% if request.args.get('risk_level') == 'Medium' %}selected{% endif %}>Medium Risk</option>
-                        <option value="High" {% if request.args.get('risk_level') == 'High' %}selected{% endif %}>High Risk</option>
-                    </select>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Date Range</label>
-                    <select name="date_range" class="form-select">
-                        <option value="">Any Time</option>
-                        <option value="recent" {% if request.args.get('date_range') == 'recent' %}selected{% endif %}>Last 30 Days</option>
-                        <option value="past_3m" {% if request.args.get('date_range') == 'past_3m' %}selected{% endif %}>Past 3 Months</option>
-                        <option value="past_6m" {% if request.args.get('date_range') == 'past_6m' %}selected{% endif %}>Past 6 Months</option>
-                        <option value="past_year" {% if request.args.get('date_range') == 'past_year' %}selected{% endif %}>Past Year</option>
-                    </select>
-                </div>
-            </div>
             <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                 <button type="button" class="btn btn-secondary" onclick="clearSearch()">Clear Search</button>
                 <button type="submit" class="btn btn-primary">Find Similar Events</button>
@@ -73,120 +52,39 @@
 </div>
 
 {% if similar_events %}
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0">Comparison Results</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>Criteria</th>
-                        {% for event in similar_events %}
-                        <th>{{ event.title }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <th>Date</th>
-                        {% for event in similar_events %}
-                        <td>{{ event.date.strftime('%Y-%m-%d') }}</td>
-                        {% endfor %}
-                    </tr>
-                    <tr>
-                        <th>Location</th>
-                        {% for event in similar_events %}
-                        <td>{{ event.location }}</td>
-                        {% endfor %}
-                    </tr>
-                    <tr>
-                        <th>Risk Level</th>
-                        {% for event in similar_events %}
-                        <td>
-                            <span class="badge bg-{{ 'danger' if event.risk_level == 'High' else 'warning' if event.risk_level == 'Medium' else 'success' }}">
-                                {{ event.risk_level }}
-                            </span>
-                        </td>
-                        {% endfor %}
-                    </tr>
-                    <tr>
-                        <th>Attendance</th>
-                        {% for event in similar_events %}
-                        <td>{{ event.attendance }}</td>
-                        {% endfor %}
-                    </tr>
-                    <tr>
-                        <th>Venue Type</th>
-                        {% for event in similar_events %}
-                        <td>{{ event.venue_type }}</td>
-                        {% endfor %}
-                    </tr>
-                    <tr>
-                        <th>Security Staff</th>
-                        {% for event in similar_events %}
-                        <td>
-                            Total: {{ event.security_staff_count }}<br>
-                            {% if event.security_staff_roles %}
-                            Roles:<br>
-                            <ul class="list-unstyled mb-0">
-                                {% for role, count in event.security_staff_roles.items() %}
-                                <li><small>{{ role }}: {{ count }}</small></li>
-                                {% endfor %}
-                            </ul>
-                            {% endif %}
-                        </td>
-                        {% endfor %}
-                    </tr>
-                    <tr>
-                        <th>Incidents</th>
-                        {% for event in similar_events %}
-                        <td>
-                            Count: {{ event.incidents_reported }}<br>
-                            {% if event.incident_summary %}
-                            <small>{{ event.incident_summary[:150] }}...</small>
-                            {% endif %}
-                        </td>
-                        {% endfor %}
-                    </tr>
-                    <tr>
-                        <th>Security Measures</th>
-                        {% for event in similar_events %}
-                        <td>
+<div class="mt-4">
+    <h5>Similar Past Events</h5>
+    <div class="row">
+        {% for event in similar_events %}
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ event.title }}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">{{ event.date.strftime('%Y-%m-%d') }}</h6>
+                    <p class="card-text">
+                        <strong>Location:</strong> {{ event.location }}<br>
+                        <strong>Attendance:</strong> {{ event.attendance }}<br>
+                        <strong>Risk Level:</strong> 
+                        <span class="badge bg-{{ 'danger' if event.risk_level == 'High' else 'warning' if event.risk_level == 'Medium' else 'success' }}">
+                            {{ event.risk_level }}
+                        </span>
+                    </p>
+                    <div class="mt-3">
+                        <strong>Key Security Insights:</strong>
+                        <ul class="list-unstyled">
                             {% if event.security_measures %}
-                            <small>{{ event.security_measures[:150] }}...</small>
-                            {% else %}
-                            Not recorded
+                            <li><small>🔒 {{ event.security_measures[:100] }}...</small></li>
                             {% endif %}
-                        </td>
-                        {% endfor %}
-                    </tr>
-                    <tr>
-                        <th>Lessons Learned</th>
-                        {% for event in similar_events %}
-                        <td>
                             {% if event.lessons_learned %}
-                            <small>{{ event.lessons_learned[:150] }}...</small>
-                            {% else %}
-                            Not recorded
+                            <li><small>📝 {{ event.lessons_learned[:100] }}...</small></li>
                             {% endif %}
-                        </td>
-                        {% endfor %}
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="mt-4">
-            <div class="d-flex justify-content-end gap-2">
-                {% for event in similar_events %}
-                <a href="{{ url_for('view_report', report_id=event.id) }}" class="btn btn-secondary btn-sm">
-                    View {{ event.title }} Details
-                </a>
-                {% endfor %}
+                        </ul>
+                    </div>
+                    <a href="{{ url_for('view_report', report_id=event.id) }}" class="btn btn-secondary btn-sm">View Full Report</a>
+                </div>
             </div>
         </div>
+        {% endfor %}
     </div>
 </div>
 {% endif %}
