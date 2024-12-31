@@ -5,9 +5,11 @@ from datetime import datetime, timedelta
 import logging
 from sqlalchemy import or_, func, extract, and_
 import uuid
-import vector_store # Assuming this is defined elsewhere and handles vector store interactions
-from chat_processor import process_natural_language_query, generate_response_summary # Assuming these functions are defined in chat_processor.py
+from vector_store import vector_store
+from chat_processor import process_natural_language_query, generate_response_summary
 
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 def get_or_create_session_id():
     if 'session_id' not in session:

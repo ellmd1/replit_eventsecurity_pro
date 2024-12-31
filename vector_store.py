@@ -1,4 +1,6 @@
 import os
+import logging
+import json
 from datetime import datetime
 from typing import List, Dict, Any
 
@@ -11,57 +13,107 @@ from models import EventReport, ActivityLog
 
 class VectorStore:
     def __init__(self):
-        self.embeddings = OpenAIEmbeddings()
+        self.embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get('OPENAI_API_KEY'))
         self.engine = create_engine(os.environ['DATABASE_URL'])
+        self.initialize_store()
+
+    def initialize_store(self):
+        """Initialize the vector store and ensure the table exists."""
+        try:
+            with self.engine.connect() as conn:
+                # Create vector extension if not exists
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+
+                # Create the embeddings table with proper vector type
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS document_embeddings (
+                        id SERIAL PRIMARY KEY,
+                        content TEXT NOT NULL,
+                        embedding vector(1536),
+                        metadata JSONB DEFAULT '{}'::jsonb,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+
+                # Create index for similarity search
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS document_embeddings_embedding_idx 
+                    ON document_embeddings 
+                    USING ivfflat (embedding vector_cosine_ops)
+                    WITH (lists = 100)
+                """))
+
+                conn.commit()
+                logging.info("Vector store initialized successfully")
+        except Exception as e:
+            logging.error(f"Failed to initialize vector store: {e}")
+            raise
 
     def create_embedding(self, text: str) -> List[float]:
         """Create an embedding for a given text."""
-        return self.embeddings.embed_query(text)
+        try:
+            embedding = self.embeddings.embed_query(text)
+            return embedding
+        except Exception as e:
+            logging.error(f"Failed to create embedding: {e}")
+            raise
 
-    def add_document(self, content: str, metadata: Dict[str, Any] = None):
+    def add_document(self, content: str, metadata: Dict[str, Any] = {}):
         """Add a document to the vector store."""
         try:
             embedding = self.create_embedding(content)
 
+            # Convert embedding to PostgreSQL array format
+            embedding_str = f"{{{','.join(map(str, embedding))}}}"
+
+            # Convert metadata to JSON string
+            metadata_json = json.dumps(metadata or {})
+
             with self.engine.connect() as conn:
                 query = text("""
                     INSERT INTO document_embeddings (content, embedding, metadata)
-                    VALUES (:content, :embedding, :metadata)
+                    VALUES (%(content)s, %(embedding)s, %(metadata)s)
                 """)
                 conn.execute(query, {
                     'content': content,
-                    'embedding': embedding,
-                    'metadata': metadata or {}
+                    'embedding': embedding_str,
+                    'metadata': metadata_json
                 })
                 conn.commit()
+                logging.info(f"Successfully added document: {metadata.get('report_id', 'unknown')}")
         except Exception as e:
-            raise Exception(f"Failed to add document: {e}")
+            logging.error(f"Failed to add document: {str(e)}")
+            raise
 
     def search_similar(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """Search for similar documents using cosine similarity."""
         try:
             query_embedding = self.create_embedding(query)
+            query_embedding_str = f"{{{','.join(map(str, query_embedding))}}}"
 
             with self.engine.connect() as conn:
                 query = text("""
-                    SELECT content, metadata, 
-                           1 - (embedding <=> :query_embedding::vector) as similarity
+                    SELECT content, metadata,
+                           1 - (embedding <=> %(embedding)s::vector) as similarity
                     FROM document_embeddings
-                    ORDER BY similarity DESC
-                    LIMIT :limit
+                    WHERE embedding IS NOT NULL
+                    ORDER BY embedding <=> %(embedding)s::vector
+                    LIMIT %(limit)s
                 """)
+
                 result = conn.execute(query, {
-                    'query_embedding': query_embedding,
+                    'embedding': query_embedding_str,
                     'limit': limit
                 })
 
                 return [{
                     'content': row.content,
-                    'metadata': row.metadata,
+                    'metadata': row.metadata if isinstance(row.metadata, dict) else json.loads(row.metadata),
                     'similarity': float(row.similarity)
                 } for row in result]
         except Exception as e:
-            raise Exception(f"Failed to search similar documents: {e}")
+            logging.error(f"Failed to search similar documents: {e}")
+            return []
 
     def index_event_report(self, report: EventReport):
         """Index an event report's content in the vector store."""
@@ -101,18 +153,27 @@ class VectorStore:
             # Add each chunk to vector store
             for chunk in chunks:
                 self.add_document(chunk, metadata)
+
+            logging.info(f"Successfully indexed report {report.id}")
         except Exception as e:
-            raise Exception(f"Failed to index event report: {e}")
+            logging.error(f"Failed to index event report {report.id}: {e}")
+            raise
 
     def index_all_reports(self):
         """Index all existing event reports."""
-        reports = EventReport.query.all()
-        for report in reports:
-            try:
-                self.index_event_report(report)
-            except Exception as e:
-                print(f"Failed to index report {report.id}: {e}")
-                continue
+        try:
+            reports = EventReport.query.all()
+            for report in reports:
+                try:
+                    self.index_event_report(report)
+                    logging.info(f"Indexed report {report.id}")
+                except Exception as e:
+                    logging.error(f"Failed to index report {report.id}: {e}")
+                    continue
+            logging.info("Completed indexing all reports")
+        except Exception as e:
+            logging.error(f"Failed to get reports for indexing: {e}")
+            raise
 
 # Create a singleton instance
 vector_store = VectorStore()
