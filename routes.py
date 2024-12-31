@@ -5,6 +5,9 @@ from datetime import datetime, timedelta
 import logging
 from sqlalchemy import or_, func, extract, and_
 import uuid
+import vector_store # Assuming this is defined elsewhere and handles vector store interactions
+from chat_processor import process_natural_language_query, generate_response_summary # Assuming these functions are defined in chat_processor.py
+
 
 def get_or_create_session_id():
     if 'session_id' not in session:
@@ -194,11 +197,28 @@ def chat():
 def chat_query():
     try:
         query = request.json.get('query', '')
+        session_id = get_or_create_session_id()
         event_query = EventReport.query
 
-        # Process query using natural language
-        events = event_query.limit(5).all()
-        response = f"Based on your query: '{query}', here are some relevant events."
+        # Process query using natural language and vector store
+        query_result, explanation = process_natural_language_query(
+            query, 
+            event_query, 
+            session_id
+        )
+        events = query_result.limit(5).all()
+
+        # Get relevant context from vector store for response generation
+        similar_docs = vector_store.search_similar(query, limit=2)
+        context = "\n".join([doc['content'] for doc in similar_docs])
+
+        # Generate natural language response
+        response = generate_response_summary(
+            events, 
+            explanation, 
+            search_context=context,
+            session_id=session_id
+        )
 
         # Format events for display
         event_list = []
