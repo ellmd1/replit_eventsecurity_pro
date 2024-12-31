@@ -112,13 +112,13 @@
                             Scenario Builder
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'view_access_logs' }}" href="{{ url_for('view_access_logs') }}">
+                            <i data-feather="activity" class="feather-sm"></i>
+                            Information Logs
+                        </a>
+                    </li>
                 </ul>
-                <div class="d-flex align-items-center gap-3">
-                    <a href="{{ url_for('view_access_logs') }}" class="btn btn-outline-light btn-sm">
-                        <i data-feather="clock" class="feather-sm"></i>
-                        Access Logs
-                    </a>
-                </div>
             </div>
         </div>
     </nav>
