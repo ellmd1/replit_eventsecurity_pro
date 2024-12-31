@@ -2,13 +2,51 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Feather icons
     feather.replace();
 
-    // Add right-click context menu
-    document.addEventListener('contextmenu', function(e) {
+    // Add text selection popup menu
+    document.addEventListener('mouseup', function(e) {
         const selectedText = window.getSelection().toString().trim();
+        // Remove any existing popup
+        const existingPopup = document.querySelector('.selection-popup');
+        if (existingPopup) {
+            existingPopup.remove();
+        }
+        
         if (selectedText && selectedText.length > 0) {
-            e.preventDefault();
+            const popup = document.createElement('div');
+            popup.className = 'selection-popup';
+            popup.innerHTML = `
+                <button class="popup-btn">
+                    <i data-feather="clipboard"></i> Copy to Decision Log
+                </button>
+            `;
             
-            const contextMenu = document.createElement('div');
+            // Position popup near selection
+            const selection = window.getSelection();
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            
+            popup.style.position = 'absolute';
+            popup.style.left = rect.left + window.scrollX + 'px';
+            popup.style.top = rect.bottom + window.scrollY + 'px';
+            
+            document.body.appendChild(popup);
+            feather.replace();
+            
+            // Handle popup button click
+            popup.querySelector('.popup-btn').addEventListener('click', function() {
+                addToDecisionLog(selectedText);
+                popup.remove();
+            });
+            
+            // Remove popup when clicking elsewhere
+            document.addEventListener('mousedown', function cleanup(e) {
+                if (!popup.contains(e.target)) {
+                    popup.remove();
+                    document.removeEventListener('mousedown', cleanup);
+                }
+            });
+        }
+    });
             contextMenu.className = 'context-menu';
             contextMenu.innerHTML = `
                 <div class="context-menu-item" data-action="copy-to-log">
