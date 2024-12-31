@@ -1,4 +1,5 @@
 import logging
+import os
 from flask import render_template, request, redirect, url_for, jsonify, g, session
 from app import app, db
 from models import EventReport, ActivityLog, EventScenario, AssessmentTemplate
@@ -197,16 +198,28 @@ def view_access_logs():
 
 @app.route('/chat')
 def chat():
-    log = start_activity_tracking('chat')
-    g.activity_log = log
-    logger.debug("Attempting to render chat.html template")
     try:
+        logger.debug("Starting chat route handler")
+        logger.debug("Template folder path: %s", app.template_folder)
+        logger.debug("Available templates: %s", os.listdir(app.template_folder))
+
+        # Try rendering with minimal context
+        logger.debug("Attempting to render chat.html template")
         rendered = render_template('chat.html')
         logger.debug("Successfully rendered chat.html template")
+
         return rendered
     except Exception as e:
         logger.error(f"Failed to render chat.html template: {str(e)}", exc_info=True)
-        raise
+        # Return a simple error page
+        return f"""
+        <html>
+            <body>
+                <h1>Error loading page</h1>
+                <p>Error details: {str(e)}</p>
+            </body>
+        </html>
+        """, 500
 
 @app.route('/chat_query', methods=['POST'])
 def chat_query():
