@@ -80,11 +80,40 @@
                             {% endif %}
                         </ul>
                     </div>
-                    <a href="{{ url_for('view_report', report_id=event.id) }}" class="btn btn-secondary btn-sm">View Full Report</a>
+                    <div class="btn-group">
+                        <a href="{{ url_for('view_report', report_id=event.id) }}" class="btn btn-secondary btn-sm">View Full Report</a>
+                        <button onclick="selectForComparison({{ event.id }}, '{{ event.title }}')" class="btn btn-info btn-sm">Select for Comparison</button>
+                    </div>
                 </div>
             </div>
         </div>
         {% endfor %}
+    </div>
+</div>
+
+<div class="card mt-4 {% if not similar_events %}d-none{% endif %}" id="comparisonSection">
+    <div class="card-header">
+        <h5 class="mb-0">Compare Selected Events</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-5">
+                <label class="form-label">Event 1</label>
+                <select class="form-select" id="event1">
+                    <option value="">Select an event</option>
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Event 2</label>
+                <select class="form-select" id="event2">
+                    <option value="">Select an event</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button onclick="compareEvents()" class="btn btn-primary d-block">Compare</button>
+            </div>
+        </div>
     </div>
 </div>
 {% endif %}
@@ -93,6 +122,43 @@
 function clearSearch() {
     document.getElementById('searchForm').reset();
     window.location.href = '{{ url_for("comparative_search") }}';
+}
+
+let selectedEvents = {};
+
+function selectForComparison(eventId, eventTitle) {
+    selectedEvents[eventId] = eventTitle;
+    updateComparisonSelects();
+}
+
+function updateComparisonSelects() {
+    const event1Select = document.getElementById('event1');
+    const event2Select = document.getElementById('event2');
+
+    // Clear existing options except the first one
+    event1Select.innerHTML = '<option value="">Select an event</option>';
+    event2Select.innerHTML = '<option value="">Select an event</option>';
+
+    // Add options for each selected event
+    for (let [id, title] of Object.entries(selectedEvents)) {
+        const option1 = new Option(title, id);
+        const option2 = new Option(title, id);
+        event1Select.add(option1);
+        event2Select.add(option2);
+    }
+
+    document.getElementById('comparisonSection').classList.remove('d-none');
+}
+
+function compareEvents() {
+    const event1 = document.getElementById('event1').value;
+    const event2 = document.getElementById('event2').value;
+
+    if (event1 && event2 && event1 !== event2) {
+        window.location.href = `/report-comparison/${event1}/${event2}`;
+    } else {
+        alert('Please select two different events to compare');
+    }
 }
 </script>
 {% endblock %}

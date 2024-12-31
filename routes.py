@@ -10,14 +10,14 @@ from chat_processor import process_natural_language_query, generate_response_sum
 def dashboard():
     # Get 5 upcoming events ordered by date
     upcoming_events = EventReport.query.order_by(EventReport.date.desc()).limit(5).all()
-
+    
     # Calculate risk levels distribution for chart
     risk_levels = {
         'High': len([e for e in upcoming_events if e.risk_level == 'High']),
         'Medium': len([e for e in upcoming_events if e.risk_level == 'Medium']),
         'Low': len([e for e in upcoming_events if e.risk_level == 'Low'])
     }
-
+    
     return render_template('dashboard.html', 
                          upcoming_events=upcoming_events,
                          risk_levels=risk_levels)
@@ -26,9 +26,9 @@ def dashboard():
 def index():
     search_query = request.args.get('search', '')
     risk_level = request.args.get('risk_level', '')
-
+    
     query = EventReport.query
-
+    
     if search_query:
         query = query.filter(
             or_(EventReport.title.ilike(f'%{search_query}%'),
@@ -36,10 +36,10 @@ def index():
                 EventReport.lessons_learned.ilike(f'%{search_query}%'),
                 EventReport.recommendations.ilike(f'%{search_query}%'))
         )
-
+    
     if risk_level:
         query = query.filter(EventReport.risk_level == risk_level)
-
+    
     # Only get the 5 most recent reports
     reports = query.order_by(EventReport.date.desc()).limit(5).all()
     return render_template('index.html', reports=reports)
@@ -52,14 +52,14 @@ def comparative_search():
                              venue_types=get_venue_types(),
                              event_types=get_event_types(),
                              similar_events=[])
-
+    
     location = request.args.get('location', '')
     event_type = request.args.get('event_type', '')
     attendance_range = request.args.get('attendance_range', '')
     venue_type = request.args.get('venue_type', '')
-
+    
     query = EventReport.query
-
+    
     if location:
         query = query.filter(EventReport.location.ilike(f'%{location}%'))
     if event_type:
@@ -75,7 +75,7 @@ def comparative_search():
             query = query.filter(EventReport.attendance.between(5000, 15000))
         elif attendance_range == 'xlarge':
             query = query.filter(EventReport.attendance > 15000)
-
+    
     similar_events = query.order_by(EventReport.date.desc()).all()
     return render_template('comparative_search.html',
                          similar_events=similar_events,
@@ -138,7 +138,7 @@ def chat_query():
         event_query, explanation = process_natural_language_query(query, event_query)
         events = event_query.limit(5).all()
         response = generate_response_summary(events, explanation)
-
+        
         event_list = []
         for event in events:
             event_list.append({
@@ -150,13 +150,13 @@ def chat_query():
                 'incident_type': event.incident_type,
                 'attendance': event.attendance
             })
-
+        
         return jsonify({
             'status': 'success',
             'response': response,
             'events': event_list
         })
-
+        
     except Exception as e:
         logging.error(f"Error processing chat query: {str(e)}")
         return jsonify({
@@ -196,3 +196,38 @@ def calculate_scenario_risk(elements):
     elif medium_count > 0:
         return 'Medium'
     return 'Low'
+
+@app.route('/report-comparison/<int:report1_id>/<int:report2_id>')
+def compare_reports(report1_id, report2_id):
+    report1 = EventReport.query.get_or_404(report1_id)
+    report2 = EventReport.query.get_or_404(report2_id)
+
+    # Calculate similarities and differences
+    comparison = {
+        'security_staff': {
+            'difference': abs(report1.security_staff_count - report2.security_staff_count),
+            'percentage': calculate_percentage_difference(report1.security_staff_count, report2.security_staff_count)
+        },
+        'incidents': {
+            'difference': abs(report1.incidents_reported - report2.incidents_reported),
+            'percentage': calculate_percentage_difference(report1.incidents_reported, report2.incidents_reported)
+        },
+        'attendance': {
+            'difference': abs(report1.attendance - report2.attendance),
+            'percentage': calculate_percentage_difference(report1.attendance, report2.attendance)
+        }
+    }
+
+    return render_template('report_comparison.html', 
+                         report1=report1, 
+                         report2=report2,
+                         comparison=comparison)
+
+def calculate_percentage_difference(val1, val2):
+    if not val1 or not val2:
+        return 0
+    try:
+        avg = (val1 + val2) / 2
+        return round(abs(val1 - val2) / avg * 100, 1)
+    except ZeroDivisionError:
+        return 0

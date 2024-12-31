@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4>Event Report Comparison</h4>
+            <p class="text-muted">Comparing security metrics and insights between events</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ report1.title }}</h5>
+                    <span class="badge bg-{{ 'danger' if report1.risk_level == 'High' else 'warning' if report1.risk_level == 'Medium' else 'success' }}">
+                        {{ report1.risk_level }} Risk
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i data-feather="calendar" class="feather-sm me-1"></i> {{ report1.date.strftime('%Y-%m-%d') }}<br>
+                            <i data-feather="map-pin" class="feather-sm me-1"></i> {{ report1.location }}<br>
+                            <i data-feather="users" class="feather-sm me-1"></i> {{ report1.attendance }} attendees<br>
+                            <i data-feather="shield" class="feather-sm me-1"></i> {{ report1.security_staff_count }} security staff
+                        </small>
+                    </div>
+
+                    <h6 class="mb-3">Security Metrics</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <strong>Incidents Reported:</strong> {{ report1.incidents_reported }}
+                            {% if comparison.incidents.difference > 0 %}
+                            <span class="badge bg-info">{{ comparison.incidents.percentage }}% difference</span>
+                            {% endif %}
+                        </li>
+                        <li class="mb-2">
+                            <strong>Security Staff:</strong> {{ report1.security_staff_count }}
+                            {% if comparison.security_staff.difference > 0 %}
+                            <span class="badge bg-info">{{ comparison.security_staff.percentage }}% difference</span>
+                            {% endif %}
+                        </li>
+                    </ul>
+
+                    {% if report1.security_measures %}
+                    <h6 class="mb-3">Security Measures</h6>
+                    <p class="small">{{ report1.security_measures }}</p>
+                    {% endif %}
+
+                    {% if report1.lessons_learned %}
+                    <h6 class="mb-3">Lessons Learned</h6>
+                    <p class="small">{{ report1.lessons_learned }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ report2.title }}</h5>
+                    <span class="badge bg-{{ 'danger' if report2.risk_level == 'High' else 'warning' if report2.risk_level == 'Medium' else 'success' }}">
+                        {{ report2.risk_level }} Risk
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i data-feather="calendar" class="feather-sm me-1"></i> {{ report2.date.strftime('%Y-%m-%d') }}<br>
+                            <i data-feather="map-pin" class="feather-sm me-1"></i> {{ report2.location }}<br>
+                            <i data-feather="users" class="feather-sm me-1"></i> {{ report2.attendance }} attendees<br>
+                            <i data-feather="shield" class="feather-sm me-1"></i> {{ report2.security_staff_count }} security staff
+                        </small>
+                    </div>
+
+                    <h6 class="mb-3">Security Metrics</h6>
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <strong>Incidents Reported:</strong> {{ report2.incidents_reported }}
+                            {% if comparison.incidents.difference > 0 %}
+                            <span class="badge bg-info">{{ comparison.incidents.percentage }}% difference</span>
+                            {% endif %}
+                        </li>
+                        <li class="mb-2">
+                            <strong>Security Staff:</strong> {{ report2.security_staff_count }}
+                            {% if comparison.security_staff.difference > 0 %}
+                            <span class="badge bg-info">{{ comparison.security_staff.percentage }}% difference</span>
+                            {% endif %}
+                        </li>
+                    </ul>
+
+                    {% if report2.security_measures %}
+                    <h6 class="mb-3">Security Measures</h6>
+                    <p class="small">{{ report2.security_measures }}</p>
+                    {% endif %}
+
+                    {% if report2.lessons_learned %}
+                    <h6 class="mb-3">Lessons Learned</h6>
+                    <p class="small">{{ report2.lessons_learned }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Key Differences</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        {% if comparison.security_staff.difference > 0 %}
+                        <li class="mb-3">
+                            <strong>Security Staffing:</strong>
+                            {{ comparison.security_staff.percentage }}% difference in security staff count
+                            ({{ report1.security_staff_count }} vs {{ report2.security_staff_count }})
+                        </li>
+                        {% endif %}
+
+                        {% if comparison.incidents.difference > 0 %}
+                        <li class="mb-3">
+                            <strong>Incident Reports:</strong>
+                            {{ comparison.incidents.percentage }}% difference in reported incidents
+                            ({{ report1.incidents_reported }} vs {{ report2.incidents_reported }})
+                        </li>
+                        {% endif %}
+
+                        {% if comparison.attendance.difference > 0 %}
+                        <li class="mb-3">
+                            <strong>Attendance:</strong>
+                            {{ comparison.attendance.percentage }}% difference in attendance
+                            ({{ report1.attendance }} vs {{ report2.attendance }})
+                        </li>
+                        {% endif %}
+
+                        {% if report1.risk_level != report2.risk_level %}
+                        <li>
+                            <strong>Risk Level Difference:</strong>
+                            Event 1 is rated as {{ report1.risk_level }} risk while Event 2 is rated as {{ report2.risk_level }} risk
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
