@@ -19,27 +19,27 @@ logger = logging.getLogger(__name__)
 
 class VectorStore:
     def __init__(self):
-        self.embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get('OPENAI_API_KEY'))
-        self.engine = create_engine(os.environ['DATABASE_URL'])
-        logger.info("Vector store instance created")
+        try:
+            self.embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get('OPENAI_API_KEY'))
+            self.engine = create_engine(os.environ['DATABASE_URL'])
+            logger.info("Vector store instance created successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize VectorStore: {str(e)}", exc_info=True)
+            raise
 
-    def initialize_store(self):
+    def initialize_store(self) -> bool:
         """Initialize vector store tables and indices"""
         try:
-            logger.info("Initializing vector store...")
+            logger.info("Starting vector store initialization...")
             with self.engine.connect() as conn:
-                # First ensure vector extension is installed
+                # Create vector extension
                 conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
                 conn.commit()
                 logger.info("Vector extension initialized")
 
-                # Drop existing table if exists
-                conn.execute(text("DROP TABLE IF EXISTS document_embeddings"))
-                conn.commit()
-
-                # Create table with vector extension support
+                # Create embeddings table
                 create_table_sql = """
-                    CREATE TABLE document_embeddings (
+                    CREATE TABLE IF NOT EXISTS document_embeddings (
                         id SERIAL PRIMARY KEY,
                         content TEXT NOT NULL,
                         embedding vector(1536),
@@ -51,9 +51,10 @@ class VectorStore:
                 conn.commit()
                 logger.info("Created document_embeddings table")
 
-                # Create vector similarity index
+                # Create index if it doesn't exist
                 create_index_sql = """
-                    CREATE INDEX ON document_embeddings 
+                    CREATE INDEX IF NOT EXISTS document_embeddings_vector_idx 
+                    ON document_embeddings 
                     USING ivfflat (embedding vector_cosine_ops)
                     WITH (lists = 100)
                 """
@@ -67,7 +68,7 @@ class VectorStore:
             logger.error(f"Failed to initialize vector store: {str(e)}", exc_info=True)
             return False
 
-    def add_document(self, content: str, metadata: Dict[str, Any] = None):
+    def add_document(self, content: str, metadata: Dict[str, Any] = None) -> bool:
         """Add a document to the vector store"""
         if metadata is None:
             metadata = {}
@@ -75,46 +76,39 @@ class VectorStore:
         try:
             # Generate embedding
             embedding = self.create_embedding(content)
-            embedding_arr = np.array(embedding).astype(float).tolist()
+            embedding_array = np.array(embedding).astype(float)
+            embedding_str = f"[{','.join(map(str, embedding_array.tolist()))}]"
 
-            # Insert using parameterized query
+            # Insert document
             with self.engine.connect() as conn:
-                # Create the vector literal directly in SQL
                 sql = text("""
                     INSERT INTO document_embeddings (content, embedding, metadata)
-                    VALUES (:content, array_to_vector(:embedding), :metadata)
+                    VALUES (:content, :embedding::vector, :metadata::jsonb)
+                    RETURNING id
                 """)
 
-                # Create vector conversion function if it doesn't exist
-                conn.execute(text("""
-                    CREATE OR REPLACE FUNCTION array_to_vector(float8[])
-                    RETURNS vector
-                    AS $$ SELECT $1::vector $$
-                    LANGUAGE SQL
-                    IMMUTABLE
-                    PARALLEL SAFE;
-                """))
-                conn.commit()
-
-                # Execute insert with parameters
-                conn.execute(sql, {
+                result = conn.execute(sql, {
                     'content': content,
-                    'embedding': embedding_arr,
+                    'embedding': embedding_str,
                     'metadata': json.dumps(metadata)
                 })
                 conn.commit()
-                logger.info(f"Document added successfully: {metadata.get('id', 'unknown')}")
+
+                doc_id = result.scalar()
+                logger.info(f"Document added successfully with ID: {doc_id}")
+                return True
 
         except Exception as e:
             logger.error(f"Failed to add document: {str(e)}", exc_info=True)
-            raise
+            return False
 
     def search_similar(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """Search for similar documents"""
         try:
             # Generate query embedding
             query_embedding = self.create_embedding(query)
-            query_arr = np.array(query_embedding).astype(float).tolist()
+            query_array = np.array(query_embedding).astype(float)
+            query_str = f"[{','.join(map(str, query_array.tolist()))}]"
 
             # Execute search
             with self.engine.connect() as conn:
@@ -122,15 +116,15 @@ class VectorStore:
                     SELECT 
                         content,
                         metadata,
-                        1 - (embedding <=> array_to_vector(:embedding)) as similarity
+                        1 - (embedding <=> :embedding::vector) as similarity
                     FROM document_embeddings
                     WHERE embedding IS NOT NULL
-                    ORDER BY embedding <=> array_to_vector(:embedding)
+                    ORDER BY embedding <=> :embedding::vector
                     LIMIT :limit
                 """)
 
                 result = conn.execute(sql, {
-                    'embedding': query_arr,
+                    'embedding': query_str,
                     'limit': limit
                 })
 
@@ -147,8 +141,7 @@ class VectorStore:
     def create_embedding(self, text: str) -> List[float]:
         """Create an embedding vector for text"""
         try:
-            embeddings = self.embeddings.embed_query(text)
-            return embeddings
+            return self.embeddings.embed_query(text)
         except Exception as e:
             logger.error(f"Failed to create embedding: {str(e)}", exc_info=True)
             raise
@@ -226,4 +219,9 @@ class VectorStore:
             raise
 
 # Create singleton instance
-vector_store = VectorStore()
+try:
+    vector_store = VectorStore()
+    logger.info("VectorStore singleton instance created successfully")
+except Exception as e:
+    logger.error(f"Failed to create VectorStore singleton: {str(e)}", exc_info=True)
+    raise
