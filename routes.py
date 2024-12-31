@@ -90,6 +90,17 @@ def view_report(report_id):
     log = start_activity_tracking('view_report', report_id)
     g.activity_log = log
 
+    # Add document details to the log
+    log.interaction_details = {
+        'document_type': 'event_report',
+        'document_title': report.title,
+        'document_date': report.date.strftime('%Y-%m-%d'),
+        'risk_level': report.risk_level,
+        'venue_type': report.venue_type,
+        'location': report.location
+    }
+    db.session.commit()
+
     return render_template('view_report.html', report=report)
 
 @app.route('/comparative-search')
