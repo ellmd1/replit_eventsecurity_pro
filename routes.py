@@ -1,32 +1,45 @@
-import logging
-from datetime import datetime, timedelta
 from flask import render_template, request, redirect, url_for, jsonify, g, session
 from app import app, db
-from models import EventReport, ActivityLog
-from sqlalchemy import or_, func, extract
+from models import EventReport, ActivityLog, EventScenario, AssessmentTemplate
+from datetime import datetime, timedelta
+import logging
+from sqlalchemy import or_, func, extract, and_
 import uuid
-from chat_processor import process_natural_language_query, generate_response_summary
 
-# Configure logging
-logger = logging.getLogger(__name__)
+def get_or_create_session_id():
+    if 'session_id' not in session:
+        session['session_id'] = str(uuid.uuid4())
+    return session['session_id']
 
-@app.route('/test')
-def test():
-    """Test endpoint to verify routes are working"""
-    logger.debug("Test route accessed")
-    return jsonify({
-        "status": "success",
-        "message": "Routes are working!"
-    })
+def start_activity_tracking(activity_type, event_report_id=None):
+    log = ActivityLog(
+        activity_type=activity_type,
+        event_report_id=event_report_id,
+        session_id=get_or_create_session_id(),
+        user_identifier=request.remote_addr
+    )
+    db.session.add(log)
+    db.session.commit()
+    return log
+
+def end_activity_tracking(log):
+    log.end_activity()
+    db.session.commit()
+    return log
+
+@app.before_request
+def before_request():
+    g.start_time = datetime.utcnow()
+    g.activity_log = None
+
+@app.after_request
+def after_request(response):
+    if hasattr(g, 'activity_log') and g.activity_log:
+        end_activity_tracking(g.activity_log)
+    return response
 
 @app.route('/')
-def home():
-    """Root endpoint - redirects to dashboard"""
-    return redirect(url_for('dashboard'))
-
-@app.route('/dashboard')
 def dashboard():
-    """Dashboard endpoint - shows main dashboard"""
     log = start_activity_tracking('dashboard_view')
     g.activity_log = log
 
@@ -44,19 +57,8 @@ def dashboard():
                          upcoming_events=upcoming_events,
                          risk_levels=risk_levels)
 
-@app.route('/chat')
-def chat():
-    """Chat interface endpoint"""
-    try:
-        logger.debug("=== Starting chat route handler ===")
-        return render_template('chat.html')
-    except Exception as e:
-        logger.error(f"Error rendering chat template: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
 @app.route('/browse')
-def browse_events():
-    """Browse events endpoint"""
+def index():
     search_query = request.args.get('search', '')
     risk_level = request.args.get('risk_level', '')
 
@@ -82,102 +84,13 @@ def browse_events():
 
     return render_template('index.html', reports=reports)
 
-@app.route('/chat_query', methods=['POST'])
-def chat_query():
-    """Handle chat queries"""
-    try:
-        query = request.json.get('query', '')
-        session_id = get_or_create_session_id()
-        event_query = EventReport.query
-
-        # Process query using natural language
-        query_result, explanation = process_natural_language_query(
-            query, 
-            event_query, 
-            session_id
-        )
-        events = query_result.limit(5).all()
-
-        # Generate natural language response
-        response = generate_response_summary(
-            events, 
-            explanation,
-            session_id=session_id
-        )
-
-        # Format events for display
-        event_list = []
-        for event in events:
-            event_list.append({
-                'id': event.id,
-                'title': event.title,
-                'date': event.date.strftime('%Y-%m-%d'),
-                'location': event.location,
-                'risk_level': event.risk_level,
-                'venue_type': event.venue_type,
-                'attendance': event.attendance,
-                'security_measures': event.security_measures[:150] if event.security_measures else None,
-                'incidents_reported': event.incidents_reported,
-                'incident_summary': event.incident_summary[:150] if event.incident_summary else None
-            })
-
-        return jsonify({
-            'status': 'success',
-            'response': response,
-            'events': event_list
-        })
-    except Exception as e:
-        logging.error(f"Error processing chat query: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'response': 'Sorry, I encountered an error processing your query.',
-            'events': []
-        }), 500
-
-# Helper functions
-def get_or_create_session_id():
-    """Get or create a new session ID"""
-    if 'session_id' not in session:
-        session['session_id'] = str(uuid.uuid4())
-    return session['session_id']
-
-def start_activity_tracking(activity_type, event_report_id=None):
-    """Start tracking user activity"""
-    log = ActivityLog(
-        activity_type=activity_type,
-        event_report_id=event_report_id,
-        session_id=get_or_create_session_id(),
-        user_identifier=request.remote_addr
-    )
-    db.session.add(log)
-    db.session.commit()
-    return log
-
-def end_activity_tracking(log):
-    """End tracking user activity"""
-    log.end_activity()
-    db.session.commit()
-    return log
-
-# Request tracking
-@app.before_request
-def before_request():
-    g.start_time = datetime.utcnow()
-    g.activity_log = None
-
-@app.after_request
-def after_request(response):
-    if hasattr(g, 'activity_log') and g.activity_log:
-        end_activity_tracking(g.activity_log)
-    return response
-
 @app.route('/report/<int:report_id>')
 def view_report(report_id):
-    """View specific report endpoint"""
     report = EventReport.query.get_or_404(report_id)
     log = start_activity_tracking('view_report', report_id)
     g.activity_log = log
 
+    # Add document details to the log
     log.interaction_details = {
         'document_type': 'event_report',
         'document_title': report.title,
@@ -189,30 +102,6 @@ def view_report(report_id):
     db.session.commit()
 
     return render_template('view_report.html', report=report)
-
-@app.route('/access_logs')
-def view_access_logs():
-    """View access logs endpoint"""
-    logs = ActivityLog.query.order_by(ActivityLog.started_at.desc()).all()
-    return render_template('access_log.html', logs=logs)
-
-def get_venue_types():
-    """Get list of unique venue types"""
-    types = db.session.query(
-        EventReport.venue_type
-    ).filter(
-        EventReport.venue_type.isnot(None)
-    ).distinct().order_by(EventReport.venue_type).all()
-    return [t[0] for t in types if t[0]]
-
-def get_event_types():
-    """Get list of unique event types"""
-    types = db.session.query(
-        EventReport.incident_type
-    ).filter(
-        EventReport.incident_type.isnot(None)
-    ).distinct().order_by(EventReport.incident_type).all()
-    return [t[0] for t in types if t[0]]
 
 @app.route('/comparative-search')
 def comparative_search():
@@ -276,6 +165,69 @@ def comparative_search():
                          venue_types=get_venue_types(),
                          event_types=get_event_types())
 
+@app.route('/scenario-builder')
+def scenario_builder():
+    log = start_activity_tracking('scenario_builder')
+    g.activity_log = log
+
+    template_id = request.args.get('template_id')
+    template = None
+    if template_id:
+        template = AssessmentTemplate.query.get(template_id)
+        log.interaction_details = {'template_id': template_id}
+        db.session.commit()
+
+    return render_template('scenario_builder.html', template=template)
+
+@app.route('/access_logs')
+def view_access_logs():
+    logs = ActivityLog.query.order_by(ActivityLog.started_at.desc()).all()
+    return render_template('access_log.html', logs=logs)
+
+@app.route('/chat')
+def chat():
+    log = start_activity_tracking('chat')
+    g.activity_log = log
+    return render_template('chat.html')
+
+@app.route('/chat_query', methods=['POST'])
+def chat_query():
+    try:
+        query = request.json.get('query', '')
+        event_query = EventReport.query
+
+        # Process query using natural language
+        events = event_query.limit(5).all()
+        response = f"Based on your query: '{query}', here are some relevant events."
+
+        # Format events for display
+        event_list = []
+        for event in events:
+            event_list.append({
+                'id': event.id,
+                'title': event.title,
+                'date': event.date.strftime('%Y-%m-%d'),
+                'location': event.location,
+                'risk_level': event.risk_level,
+                'venue_type': event.venue_type,
+                'attendance': event.attendance,
+                'security_measures': event.security_measures[:150] if event.security_measures else None,
+                'incidents_reported': event.incidents_reported,
+                'incident_summary': event.incident_summary[:150] if event.incident_summary else None
+            })
+
+        return jsonify({
+            'status': 'success',
+            'response': response,
+            'events': event_list
+        })
+    except Exception as e:
+        logging.error(f"Error processing chat query: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'response': 'Sorry, I encountered an error processing your query.',
+            'events': []
+        }), 500
 
 @app.route('/save_scenario', methods=['POST'])
 def save_scenario():
@@ -361,16 +313,18 @@ def edit_template(template_id):
 
     return render_template('templates/edit.html', template=template)
 
-@app.route('/scenario-builder')
-def scenario_builder():
-    log = start_activity_tracking('scenario_builder')
-    g.activity_log = log
+def get_venue_types():
+    types = db.session.query(
+        EventReport.venue_type
+    ).filter(
+        EventReport.venue_type.isnot(None)
+    ).distinct().order_by(EventReport.venue_type).all()
+    return [t[0] for t in types if t[0]]
 
-    template_id = request.args.get('template_id')
-    template = None
-    if template_id:
-        template = AssessmentTemplate.query.get(template_id)
-        log.interaction_details = {'template_id': template_id}
-        db.session.commit()
-
-    return render_template('scenario_builder.html', template=template)
+def get_event_types():
+    types = db.session.query(
+        EventReport.incident_type
+    ).filter(
+        EventReport.incident_type.isnot(None)
+    ).distinct().order_by(EventReport.incident_type).all()
+    return [t[0] for t in types if t[0]]
