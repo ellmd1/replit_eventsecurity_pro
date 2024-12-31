@@ -10,8 +10,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Example prompts functionality
     document.querySelectorAll('.example-prompt').forEach(button => {
         button.addEventListener('click', function() {
-            queryInput.value = this.textContent.trim();
-            queryInput.focus();
+            if (queryInput) {
+                queryInput.value = this.textContent.trim();
+                queryInput.focus();
+            }
         });
     });
 
@@ -20,7 +22,6 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
 
             const query = queryInput.value.trim();
-
             if (!query) return;
 
             // Add user message to chat
@@ -95,47 +96,6 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (error) {
                 console.error('Error:', error);
                 addMessageToChat('assistant', 'Sorry, I encountered an error processing your query.');
-            }
-        });
-    }
-
-    // Handle access log form submission
-    const accessLogForm = document.getElementById('accessLogForm');
-    if (accessLogForm) {
-        accessLogForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const reportId = this.dataset.reportId;
-            const assessorName = this.elements.assessorName.value;
-            const purpose = this.elements.purpose.value;
-            const assessmentContext = this.elements.assessmentContext.value;
-            const similarEventDetails = this.elements.similarEventDetails.value;
-
-            try {
-                const response = await fetch('/log_access', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        report_id: reportId,
-                        assessor_name: assessorName,
-                        purpose: purpose,
-                        assessment_context: assessmentContext,
-                        similar_event_details: similarEventDetails
-                    })
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    alert('Access logged successfully');
-                    this.reset();
-                } else {
-                    alert('Error logging access: ' + data.message);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error logging access');
             }
         });
     }
