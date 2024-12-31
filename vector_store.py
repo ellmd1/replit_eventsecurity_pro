@@ -9,8 +9,13 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sqlalchemy import create_engine, text
 import numpy as np
 from app import db
-from models import EventReport, ActivityLog
+from models import EventReport
 
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 class VectorStore:
@@ -20,13 +25,15 @@ class VectorStore:
         logger.info("Vector store instance created")
 
     def initialize_store(self):
-        """Initialize the vector store and ensure the table exists."""
+        """Initialize vector store tables and indices"""
         try:
+            logger.info("Initializing vector store...")
             with self.engine.connect() as conn:
-                # Create vector extension if not exists
-                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+                # Create vector extension
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                conn.commit()
 
-                # Create the embeddings table using parameterized query style
+                # Create embeddings table with vector support
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS document_embeddings (
                         id SERIAL PRIMARY KEY,
@@ -34,74 +41,87 @@ class VectorStore:
                         embedding vector(1536),
                         metadata JSONB DEFAULT '{}'::jsonb,
                         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    );
-                """))
-
-                # Create index for similarity search
-                conn.execute(text("""
-                    CREATE INDEX IF NOT EXISTS document_embeddings_embedding_idx 
-                    ON document_embeddings 
-                    USING ivfflat (embedding vector_cosine_ops)
-                    WITH (lists = 100);
+                    )
                 """))
                 conn.commit()
-                logger.info("Vector store initialized successfully")
+
+                # Create similarity search index
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS embeddings_vector_idx 
+                    ON document_embeddings 
+                    USING ivfflat (embedding vector_cosine_ops)
+                    WITH (lists = 100)
+                """))
+                conn.commit()
+
+                logger.info("Vector store tables and indices created successfully")
 
         except Exception as e:
             logger.error(f"Failed to initialize vector store: {str(e)}", exc_info=True)
             raise
 
     def add_document(self, content: str, metadata: Dict[str, Any] = None):
-        """Add a document to the vector store."""
-        try:
-            # Create embedding
-            embedding = self.create_embedding(content)
-            embedding_array = np.array(embedding).astype(float)  # Convert to numpy array to ensure float values
-            embedding_str = f"[{','.join(str(x) for x in embedding_array)}]"
-            metadata_json = json.dumps(metadata or {})
+        """Add a document to the vector store"""
+        if metadata is None:
+            metadata = {}
 
-            # Insert document using parameterized query
+        try:
+            # Generate embedding
+            embedding = self.create_embedding(content)
+            embedding_array = np.array(embedding).astype(float)
+
+            # Format embedding for PostgreSQL
+            embedding_list = [float(x) for x in embedding_array]
+
+            # Use SQLAlchemy style parameter binding
             with self.engine.connect() as conn:
-                query = """
+                stmt = text("""
                     INSERT INTO document_embeddings (content, embedding, metadata)
-                    VALUES (%(content)s, %(embedding)s::vector, %(metadata)s::jsonb)
-                """
+                    VALUES (:content, :embedding::vector, :metadata::jsonb)
+                """)
+
                 params = {
                     'content': content,
-                    'embedding': embedding_str,
-                    'metadata': metadata_json
+                    'embedding': f"[{','.join(str(x) for x in embedding_list)}]",
+                    'metadata': json.dumps(metadata)
                 }
-                conn.execute(text(query), params)
+
+                conn.execute(stmt, params)
                 conn.commit()
-                logger.info(f"Successfully added document: {metadata.get('report_id', 'unknown') if metadata else 'unknown'}")
+
+            logger.info(f"Document added successfully: {metadata.get('id', 'unknown')}")
 
         except Exception as e:
             logger.error(f"Failed to add document: {str(e)}", exc_info=True)
             raise
 
     def search_similar(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
-        """Search for similar documents using cosine similarity."""
+        """Search for similar documents"""
         try:
-            # Create query embedding
+            # Generate query embedding
             query_embedding = self.create_embedding(query)
             query_array = np.array(query_embedding).astype(float)
-            embedding_str = f"[{','.join(str(x) for x in query_array)}]"
 
-            # Execute search using parameterized query
+            # Format query embedding for PostgreSQL
+            query_list = [float(x) for x in query_array]
+
+            # Execute similarity search with SQLAlchemy style parameter binding
             with self.engine.connect() as conn:
-                query = """
-                    SELECT content, metadata,
-                           1 - (embedding <=> %(embedding)s::vector) as similarity
+                stmt = text("""
+                    SELECT 
+                        content,
+                        metadata,
+                        1 - (embedding <=> :embedding::vector) as similarity
                     FROM document_embeddings
                     WHERE embedding IS NOT NULL
-                    ORDER BY embedding <=> %(embedding)s::vector
-                    LIMIT %(limit)s
-                """
-                params = {
-                    'embedding': embedding_str,
+                    ORDER BY embedding <=> :embedding::vector
+                    LIMIT :limit
+                """)
+
+                result = conn.execute(stmt, {
+                    'embedding': f"[{','.join(str(x) for x in query_list)}]",
                     'limit': limit
-                }
-                result = conn.execute(text(query), params)
+                })
 
                 return [{
                     'content': row.content,
@@ -114,73 +134,85 @@ class VectorStore:
             return []
 
     def create_embedding(self, text: str) -> List[float]:
-        """Create an embedding for a given text."""
+        """Create an embedding vector for text"""
         try:
-            embedding = self.embeddings.embed_query(text)
-            return [float(x) for x in embedding]  # Ensure all values are float
+            logger.debug(f"Generating embedding for text: {text[:100]}...")
+            return self.embeddings.embed_query(text)
         except Exception as e:
             logger.error(f"Failed to create embedding: {str(e)}", exc_info=True)
             raise
 
     def index_event_report(self, report: EventReport):
-        """Index an event report's content in the vector store."""
+        """Index a single event report"""
         try:
-            # Prepare content
+            # Prepare document content
             content = f"""
-            Title: {report.title or ''}
-            Description: {report.description or ''}
-            Location: {report.location or ''}
-            Risk Level: {report.risk_level or ''}
-            Venue Type: {report.venue_type or ''}
-            Security Staff Count: {report.security_staff_count or 0}
-            Security Measures: {report.security_measures or ''}
-            Incident Summary: {report.incident_summary or ''}
-            Lessons Learned: {report.lessons_learned or ''}
-            Recommendations: {report.recommendations or ''}
-            Security Protocols: {report.security_protocols or ''}
-            Emergency Response Plan: {report.emergency_response_plan or ''}
-            Post Event Analysis: {report.post_event_analysis or ''}
-            """
+Title: {report.title or ''}
+Description: {report.description or ''}
+Location: {report.location or ''}
+Risk Level: {report.risk_level or ''}
+Venue Type: {report.venue_type or ''}
+Security Measures: {report.security_measures or ''}
+Incident Summary: {report.incident_summary or ''}
+Lessons Learned: {report.lessons_learned or ''}
+Recommendations: {report.recommendations or ''}
+            """.strip()
 
+            # Prepare metadata
             metadata = {
-                'report_id': report.id,
+                'id': report.id,
                 'date': report.date.isoformat() if report.date else None,
                 'risk_level': report.risk_level,
-                'venue_type': report.venue_type,
-                'doc_type': 'event_report'
+                'type': 'event_report'
             }
 
-            # Split content into chunks
-            text_splitter = RecursiveCharacterTextSplitter(
+            # Split into chunks for better semantic search
+            splitter = RecursiveCharacterTextSplitter(
                 chunk_size=1000,
-                chunk_overlap=100,
-                separators=["\n\n", "\n", " ", ""]
+                chunk_overlap=200,
+                separators=["\n\n", "\n", ". ", " ", ""]
             )
-            chunks = text_splitter.split_text(content)
+            chunks = splitter.split_text(content)
 
             # Index each chunk
-            for chunk in chunks:
-                self.add_document(chunk, metadata)
+            for i, chunk in enumerate(chunks):
+                chunk_metadata = {
+                    **metadata,
+                    'chunk': i,
+                    'total_chunks': len(chunks)
+                }
+                self.add_document(chunk, chunk_metadata)
 
             logger.info(f"Successfully indexed report {report.id}")
+
         except Exception as e:
             logger.error(f"Failed to index report {report.id}: {str(e)}", exc_info=True)
             raise
 
     def index_all_reports(self):
-        """Index all existing event reports."""
+        """Index all event reports"""
         try:
             reports = EventReport.query.all()
+            total = len(reports)
+            success = 0
+            failed = 0
+
+            logger.info(f"Starting indexing of {total} reports...")
+
             for report in reports:
                 try:
                     self.index_event_report(report)
+                    success += 1
                 except Exception as e:
-                    logger.error(f"Failed to index report {report.id}: {str(e)}", exc_info=True)
+                    failed += 1
+                    logger.error(f"Failed to index report {report.id}: {str(e)}")
                     continue
-            logger.info("Completed indexing all reports")
+
+            logger.info(f"Completed indexing. Success: {success}, Failed: {failed}")
+
         except Exception as e:
-            logger.error(f"Failed to get reports for indexing: {str(e)}", exc_info=True)
+            logger.error(f"Failed to index reports: {str(e)}", exc_info=True)
             raise
 
-# Create a singleton instance
+# Create singleton instance
 vector_store = VectorStore()
