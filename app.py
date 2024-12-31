@@ -57,7 +57,14 @@ def log_request_info():
 @app.after_request
 def add_security_headers(response):
     # Allow iframe embedding from Replit domains
-    response.headers['Content-Security-Policy'] = "frame-ancestors 'self' https://*.repl.co https://*.replit.com"
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self' https://*.repl.co https://*.replit.com; "
+        "img-src 'self' data: https: blob:; "
+        "style-src 'self' 'unsafe-inline' https:; "
+        "script-src 'self' 'unsafe-inline' https:; "
+        "connect-src 'self' https:; "
+        "frame-ancestors 'self' https://*.repl.co https://*.replit.com"
+    )
     response.headers['X-Frame-Options'] = 'ALLOW-FROM https://*.repl.co https://*.replit.com'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     # CORS headers
@@ -79,11 +86,17 @@ def internal_error(error):
     db.session.rollback()
     return jsonify({"error": "Internal server error"}), 500
 
-# Explicit route for serving static files
+# Explicit route for serving static files with better error handling
 @app.route('/static/<path:path>')
 def serve_static(path):
-    logger.debug(f"Serving static file: {path}")
-    return send_from_directory('static', path)
+    try:
+        logger.debug(f"Attempting to serve static file: {path}")
+        response = send_from_directory('static', path)
+        logger.debug(f"Successfully served static file: {path}")
+        return response
+    except Exception as e:
+        logger.error(f"Failed to serve static file {path}: {str(e)}")
+        return jsonify({"error": "File not found"}), 404
 
 def verify_database():
     """Verify database connection and vector extension availability"""
