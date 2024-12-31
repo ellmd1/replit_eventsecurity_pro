@@ -1,6 +1,5 @@
 import os
 import logging
-from flask_cors import CORS
 
 # Configure logging with more details
 logging.basicConfig(
