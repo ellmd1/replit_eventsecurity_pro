@@ -11,13 +11,6 @@ logger = logging.getLogger(__name__)
 
 from app import app
 
-# Enable CORS with a more permissive configuration for development
-CORS(app,
-     resources={r"/*": {"origins": "*"}},
-     supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "OPTIONS"])
-
 if __name__ == "__main__":
     try:
         logger.info("Starting Flask application...")
