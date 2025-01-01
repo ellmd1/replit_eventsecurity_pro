@@ -16,21 +16,31 @@ db = SQLAlchemy(model_class=Base)
 app = Flask(__name__)
 
 # Enable CORS for development
-CORS(app, resources={
-    r"/*": {
-        "origins": "*",
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
+CORS(app, 
+     resources={r"/*": {
+         "origins": ["*"],
+         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"]
+     }},
+     supports_credentials=True)
 
 # Configuration
+app.config['ENV'] = 'development'
+app.config['DEBUG'] = True
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
 }
+
+# Security headers for development
+@app.after_request
+def after_request(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+    return response
 
 # Initialize extensions
 db.init_app(app)
