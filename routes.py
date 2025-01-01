@@ -181,7 +181,7 @@ def view_report(report_id):
     log.interaction_details = {
         'document_type': 'event_report',
         'document_title': report.title,
-        'document_date': report.date.strftime('%Y-%m-%d'),
+        'document_date': report.date.strftime('%d-%m-%Y'),
         'risk_level': report.risk_level,
         'venue_type': report.venue_type,
         'location': report.location
@@ -251,6 +251,7 @@ def comparative_search():
                          similar_events=similar_events,
                          venue_types=get_venue_types(),
                          event_types=get_event_types())
+
 
 
 @app.route('/compare-reports')
