@@ -3,7 +3,6 @@ import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-from flask_cors import CORS
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -15,15 +14,6 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 app = Flask(__name__)
 
-# Enable CORS for development
-CORS(app, 
-     resources={r"/*": {
-         "origins": ["*"],
-         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"]
-     }},
-     supports_credentials=True)
-
 # Configuration
 app.config['ENV'] = 'development'
 app.config['DEBUG'] = True
@@ -33,14 +23,6 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
 }
-
-# Security headers for development
-@app.after_request
-def after_request(response):
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
-    response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
-    return response
 
 # Initialize extensions
 db.init_app(app)
