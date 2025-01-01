@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Event Report Comparison</h2>
+            <p class="text-muted">Compare security measures, risks, and outcomes between events</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-5">
+                            <label class="form-label">First Report</label>
+                            <select name="report1" class="form-select" required>
+                                <option value="">Select first report...</option>
+                                {% for report in reports %}
+                                <option value="{{ report.id }}" {% if report.id|string == report1_id|string %}selected{% endif %}>
+                                    {{ report.title }} ({{ report.date.strftime('%Y-%m-%d') }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">Second Report</label>
+                            <select name="report2" class="form-select" required>
+                                <option value="">Select second report...</option>
+                                {% for report in reports %}
+                                <option value="{{ report.id }}" {% if report.id|string == report2_id|string %}selected{% endif %}>
+                                    {{ report.title }} ({{ report.date.strftime('%Y-%m-%d') }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">Compare</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if report1 and report2 %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Comparison Results</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="width: 20%">Metric</th>
+                                    <th style="width: 40%">{{ report1.title }}</th>
+                                    <th style="width: 40%">{{ report2.title }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Basic Info -->
+                                <tr>
+                                    <td class="table-secondary">Date</td>
+                                    <td>{{ report1.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ report2.date.strftime('%Y-%m-%d') }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="table-secondary">Location</td>
+                                    <td>{{ report1.location }}</td>
+                                    <td>{{ report2.location }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="table-secondary">Risk Level</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'danger' if report1.risk_level == 'High' else 'warning' if report1.risk_level == 'Medium' else 'success' }}">
+                                            {{ report1.risk_level }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'danger' if report2.risk_level == 'High' else 'warning' if report2.risk_level == 'Medium' else 'success' }}">
+                                            {{ report2.risk_level }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="table-secondary">Attendance</td>
+                                    <td>{{ report1.attendance }}</td>
+                                    <td>{{ report2.attendance }}</td>
+                                </tr>
+
+                                <!-- Security Details -->
+                                <tr>
+                                    <td colspan="3" class="table-dark">Security Details</td>
+                                </tr>
+                                <tr>
+                                    <td class="table-secondary">Security Staff Count</td>
+                                    <td>{{ report1.security_staff_count }}</td>
+                                    <td>{{ report2.security_staff_count }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="table-secondary">Incidents Reported</td>
+                                    <td>{{ report1.incidents_reported }}</td>
+                                    <td>{{ report2.incidents_reported }}</td>
+                                </tr>
+
+                                <!-- Risk Assessment -->
+                                <tr>
+                                    <td colspan="3" class="table-dark">Risk Assessment</td>
+                                </tr>
+                                <tr>
+                                    <td class="table-secondary">Latest Assessment</td>
+                                    <td>
+                                        {% if report1.risk_assessments %}
+                                        {% set latest = report1.risk_assessments|sort(attribute='assessment_date')|last %}
+                                        <div class="mb-2">
+                                            <span class="badge bg-{{ 'danger' if latest.overall_risk_level == 'High' else 'warning' if latest.overall_risk_level == 'Medium' else 'success' }}">
+                                                {{ latest.overall_risk_level }}
+                                            </span>
+                                            ({{ latest.assessment_date.strftime('%Y-%m-%d') }})
+                                        </div>
+                                        {% else %}
+                                        No assessment available
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if report2.risk_assessments %}
+                                        {% set latest = report2.risk_assessments|sort(attribute='assessment_date')|last %}
+                                        <div class="mb-2">
+                                            <span class="badge bg-{{ 'danger' if latest.overall_risk_level == 'High' else 'warning' if latest.overall_risk_level == 'Medium' else 'success' }}">
+                                                {{ latest.overall_risk_level }}
+                                            </span>
+                                            ({{ latest.assessment_date.strftime('%Y-%m-%d') }})
+                                        </div>
+                                        {% else %}
+                                        No assessment available
+                                        {% endif %}
+                                    </td>
+                                </tr>
+
+                                <!-- Analysis -->
+                                <tr>
+                                    <td colspan="3" class="table-dark">Analysis & Outcomes</td>
+                                </tr>
+                                <tr>
+                                    <td class="table-secondary">Security Measures</td>
+                                    <td>{{ report1.security_measures or 'Not recorded' }}</td>
+                                    <td>{{ report2.security_measures or 'Not recorded' }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="table-secondary">Lessons Learned</td>
+                                    <td>{{ report1.lessons_learned or 'Not recorded' }}</td>
+                                    <td>{{ report2.lessons_learned or 'Not recorded' }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="table-secondary">Recommendations</td>
+                                    <td>{{ report1.recommendations or 'Not recorded' }}</td>
+                                    <td>{{ report2.recommendations or 'Not recorded' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
