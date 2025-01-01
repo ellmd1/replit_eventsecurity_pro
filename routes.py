@@ -301,7 +301,7 @@ def chat_query():
             event_list.append({
                 'id': event.id,
                 'title': event.title,
-                'date': event.date.strftime('%Y-%m-%d'),
+                'date': event.date.strftime('%d-%m-%Y'),
                 'location': event.location,
                 'risk_level': event.risk_level,
                 'venue_type': event.venue_type,

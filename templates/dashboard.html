@@ -72,7 +72,7 @@
                                         {% for event in upcoming_events %}
                                         <tr>
                                             <td>{{ event.title }}</td>
-                                            <td>{{ event.date.strftime('%Y-%m-%d') }}</td>
+                                            <td>{{ event.date.strftime('%d-%m-%Y') }}</td>
                                             <td>{{ event.location }}</td>
                                             <td>
                                                 <span class="badge bg-{{ 'danger' if event.risk_level == 'High' else 'warning' if event.risk_level == 'Medium' else 'success' }}">

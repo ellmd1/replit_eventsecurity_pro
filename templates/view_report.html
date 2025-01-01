@@ -13,7 +13,7 @@
             <div class="col-md-6">
                 <h5>{{ report.title }}</h5>
                 <p class="text-muted">
-                    <strong>Date:</strong> {{ report.date.strftime('%Y-%m-%d') }}<br>
+                    <strong>Date:</strong> {{ report.date.strftime('%d-%m-%Y') }}<br>
                     <strong>Location:</strong> {{ report.location }}<br>
                     <strong>Incident Type:</strong> {{ report.incident_type }}<br>
                     <strong>Attendance:</strong> {{ report.attendance if report.attendance else 'Not recorded' }}
@@ -46,7 +46,7 @@
                         <tbody>
                             {% for assessment in report.risk_assessments %}
                             <tr>
-                                <td>{{ assessment.assessment_date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ assessment.assessment_date.strftime('%d-%m-%Y') }}</td>
                                 <td>
                                     <span class="badge bg-{{ 'danger' if assessment.overall_risk_level == 'High' else 'warning' if assessment.overall_risk_level == 'Medium' else 'success' }}">
                                         {{ assessment.overall_risk_level }}
