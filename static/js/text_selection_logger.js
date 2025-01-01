@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectedText) {
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
-            
+
             // Position the button near the selection
             logButton.style.display = 'block';
             logButton.style.top = `${window.scrollY + rect.bottom + 10}px`;
@@ -49,13 +49,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 id: Date.now().toString()
             };
 
-            // Send log entry to server
+            // Send log entry to server using relative URL
             fetch('/log_selection', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(logEntry)
+                body: JSON.stringify(logEntry),
+                // Add credentials to ensure cookies are sent
+                credentials: 'same-origin'
             })
             .then(response => response.json())
             .then(data => {
@@ -63,14 +65,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Clear selection and hide button
                     window.getSelection().removeAllRanges();
                     logButton.style.display = 'none';
-                    
+
                     // Show success message
                     const toast = createToast('Text logged successfully!');
                     document.body.appendChild(toast);
                     setTimeout(() => toast.remove(), 3000);
                 }
             })
-            .catch(error => console.error('Error logging selection:', error));
+            .catch(error => {
+                console.error('Error logging selection:', error);
+                const toast = createToast('Error logging selection. Please try again.');
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+            });
         }
     }
 
