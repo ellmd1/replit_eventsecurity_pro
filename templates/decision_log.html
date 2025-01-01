@@ -50,7 +50,7 @@
                         <tbody>
                             {% for decision in decisions %}
                             <tr>
-                                <td>{{ decision.created_at.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ decision.created_at.strftime('%d-%m-%Y') }}</td>
                                 <td>
                                     {% if decision.event_report %}
                                         <a href="{{ url_for('view_report', report_id=decision.event_report.id) }}">
@@ -64,16 +64,16 @@
                                 <td>{{ decision.description[:100] }}...</td>
                                 <td>
                                     <span class="badge bg-{{ 'danger' if decision.impact_level == 'High' 
-                                                           else 'warning' if decision.impact_level == 'Medium' 
-                                                           else 'success' }}">
+                                                            else 'warning' if decision.impact_level == 'Medium' 
+                                                            else 'success' }}">
                                         {{ decision.impact_level }}
                                     </span>
                                 </td>
                                 <td>
                                     {% if decision.outcome %}
                                         <span class="badge bg-{{ 'success' if decision.outcome_type == 'Positive' 
-                                                               else 'danger' if decision.outcome_type == 'Negative' 
-                                                               else 'warning' }}">
+                                                                else 'danger' if decision.outcome_type == 'Negative' 
+                                                                else 'warning' }}">
                                             {{ decision.outcome_type }}
                                         </span>
                                     {% else %}
@@ -161,6 +161,9 @@
         </div>
     </div>
 </div>
+
+<!-- Include text selection logger script -->
+<script src="{{ url_for('static', filename='js/text_selection_logger.js') }}"></script>
 
 <script>
 function viewDecisionDetails(decisionId) {
