@@ -253,6 +253,27 @@ def comparative_search():
                          event_types=get_event_types())
 
 
+@app.route('/compare-reports')
+def compare_reports():
+    reports = EventReport.query.order_by(EventReport.date.desc()).all()
+
+    report1_id = request.args.get('report1')
+    report2_id = request.args.get('report2')
+
+    report1 = None
+    report2 = None
+
+    if report1_id and report2_id:
+        report1 = EventReport.query.get_or_404(report1_id)
+        report2 = EventReport.query.get_or_404(report2_id)
+
+    return render_template('report_comparison.html',
+                         reports=reports,
+                         report1=report1,
+                         report2=report2,
+                         report1_id=report1_id,
+                         report2_id=report2_id)
+
 @app.route('/access_logs')
 def view_access_logs():
     logs = ActivityLog.query.order_by(ActivityLog.started_at.desc()).all()
