@@ -22,7 +22,10 @@ def summarize_file_content(file_path, file_type):
         app.logger.info(f"Attempting to read file: {file_path} of type: {file_type}")
 
         # Handle different file types
-        if file_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        if file_type.startswith('image/'):
+            return f"[Image File] Type: {file_type}"
+
+        elif file_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
             try:
                 doc = Document(file_path)
                 content = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
@@ -44,11 +47,11 @@ def summarize_file_content(file_path, file_type):
 
         elif file_type == 'application/pdf':
             # For now, return a message for PDF files
-            return "PDF summarization will be implemented soon"
+            return "PDF file uploaded (content extraction not supported)"
 
         if not content.strip():
             app.logger.warning(f"No content extracted from file of type: {file_type}")
-            return f"Unable to extract content from file type: {file_type}"
+            return f"File uploaded successfully (type: {file_type})"
 
         app.logger.info("Sending content to GPT for summarization")
         response = client.chat.completions.create(
@@ -72,7 +75,7 @@ def summarize_file_content(file_path, file_type):
 
     except Exception as e:
         app.logger.error(f"Error in summarize_file_content: {str(e)}")
-        return f"Error generating summary: {str(e)}"
+        return f"File uploaded successfully, but summary generation failed: {str(e)}"
 
 @app.route('/decisions', methods=['GET', 'POST'])
 def decision_log():
