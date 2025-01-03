@@ -10,29 +10,36 @@ import tempfile
 import os
 from werkzeug.utils import secure_filename
 
-
 @app.route('/decisions', methods=['GET', 'POST'])
 def decision_log():
     if request.method == 'POST':
         try:
+            # Ensure upload folder exists
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
             # Handle file uploads
             uploaded_files = request.files.getlist('attachments')
             file_metadata = []
 
             for file in uploaded_files:
                 if file and file.filename:
-                    # Generate a secure filename
-                    filename = secure_filename(file.filename)
-                    # Save file to a secure location
+                    # Generate a secure filename with timestamp to avoid duplicates
+                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S_')
+                    original_filename = secure_filename(file.filename)
+                    filename = timestamp + original_filename
+
+                    # Save file to upload folder
                     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                     file.save(file_path)
 
                     # Store file metadata
                     file_metadata.append({
                         'filename': filename,
+                        'original_filename': original_filename,
                         'file_path': file_path,
                         'file_type': file.content_type,
                         'file_size': os.path.getsize(file_path),
+                        'uploaded_at': datetime.utcnow().isoformat()
                     })
 
             # Create new log entry
@@ -61,7 +68,13 @@ def decision_log():
                     'description': decision.description,
                     'author': decision.author,
                     'created_at': decision.created_at.strftime('%d/%m/%Y, %H:%M:%S'),
-                    'attachments': decision.attachments
+                    'attachments': [
+                        {
+                            'filename': att['filename'],
+                            'uploaded_at': att['uploaded_at'],
+                            'file_type': att['file_type']
+                        } for att in decision.attachments
+                    ] if decision.attachments else []
                 }
             })
         except Exception as e:
@@ -145,6 +158,7 @@ def end_activity_tracking(log):
     log.end_activity()
     db.session.commit()
     return log
+
 
 def get_decision_categories():
     """Get unique decision categories from the database"""
