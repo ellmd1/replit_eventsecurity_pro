@@ -1,39 +1,73 @@
-from flask import render_template, request, redirect, url_for, jsonify, g, session, send_file, send_from_directory, abort
+from flask import render_template, request, redirect, url_for, jsonify, send_from_directory, abort
 from app import app, db
-from models import EventReport, ActivityLog, SecurityDecision
-from datetime import datetime, timedelta
-import logging
-from sqlalchemy import or_, func, extract, and_
-import uuid
-import weasyprint
-import tempfile
+from models import SecurityDecision
 import os
+import logging
 from werkzeug.utils import secure_filename
 
+@app.route('/decisions', methods=['GET', 'POST'])
+def decision_log():
+    if request.method == 'POST':
+        try:
+            # Handle file uploads
+            uploaded_files = request.files.getlist('attachments')
+            file_metadata = []
 
-def get_or_create_session_id():
-    if 'session_id' not in session:
-        session['session_id'] = str(uuid.uuid4())
-    return session['session_id']
+            for file in uploaded_files:
+                if file and file.filename:
+                    # Generate a secure filename
+                    filename = secure_filename(file.filename)
+                    # Save file to a secure location
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(file_path)
 
+                    # Store file metadata
+                    file_metadata.append({
+                        'filename': filename,
+                        'file_path': file_path,
+                        'file_type': file.content_type,
+                        'file_size': os.path.getsize(file_path),
+                    })
 
-def start_activity_tracking(activity_type, event_report_id=None):
-    log = ActivityLog(
-        activity_type=activity_type,
-        event_report_id=event_report_id,
-        session_id=get_or_create_session_id(),
-        user_identifier=request.remote_addr
-    )
-    db.session.add(log)
-    db.session.commit()
-    return log
+            # Create new log entry
+            decision = SecurityDecision(
+                description=request.form['description'],
+                author=request.form.get('author', 'Anonymous')
+            )
 
+            # Add attachments if any
+            for metadata in file_metadata:
+                decision.add_attachment(
+                    metadata['filename'],
+                    metadata['file_path'],
+                    metadata['file_type'],
+                    metadata['file_size']
+                )
 
-def end_activity_tracking(log):
-    log.end_activity()
-    db.session.commit()
-    return log
+            db.session.add(decision)
+            db.session.commit()
 
+            return redirect(url_for('decision_log'))
+        except Exception as e:
+            logging.error(f"Error logging decision: {str(e)}")
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    # GET request - display the log
+    decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).all()
+    return render_template('decision_log.html', decisions=decisions)
+
+@app.route('/decision/attachment/<path:filename>')
+def download_attachment(filename):
+    """Download an attachment file"""
+    try:
+        return send_from_directory(
+            app.config['UPLOAD_FOLDER'],
+            filename,
+            as_attachment=True
+        )
+    except Exception as e:
+        logging.error(f"Error downloading attachment: {str(e)}")
+        abort(404)
 
 @app.before_request
 def before_request():
@@ -46,7 +80,6 @@ def after_request(response):
     if hasattr(g, 'activity_log') and g.activity_log:
         end_activity_tracking(g.activity_log)
     return response
-
 
 @app.route('/')
 def dashboard():
@@ -74,57 +107,40 @@ def dashboard():
                          risk_levels=risk_levels)
 
 
-@app.route('/decisions', methods=['GET', 'POST'])
-def decision_log():
-    if request.method == 'POST':
-        try:
-            # Handle file uploads
-            uploaded_files = request.files.getlist('attachments')
-            file_metadata = []
+def get_or_create_session_id():
+    if 'session_id' not in session:
+        session['session_id'] = str(uuid.uuid4())
+    return session['session_id']
 
-            for file in uploaded_files:
-                if file and file.filename:
-                    # Generate a secure filename
-                    filename = secure_filename(file.filename)
-                    # Save file to a secure location
-                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    file.save(file_path)
 
-                    # Store file metadata
-                    file_metadata.append({
-                        'filename': filename,
-                        'file_path': file_path,
-                        'file_type': file.content_type,
-                        'file_size': os.path.getsize(file_path),
-                    })
+def start_activity_tracking(activity_type, event_report_id=None):
+    log = ActivityLog(
+        activity_type=activity_type,
+        event_report_id=event_report_id,
+        session_id=get_or_create_session_id(),
+        user_identifier=request.remote_addr
+    )
+    db.session.add(log)
+    db.session.commit()
+    return log
 
-            # Create new decision entry
-            decision = SecurityDecision(
-                description=request.form['description'],
-                author=request.form.get('author', 'Anonymous'),
-                status='Active'
-            )
 
-            # Add attachments if any
-            for metadata in file_metadata:
-                decision.add_attachment(
-                    metadata['filename'],
-                    metadata['file_path'],
-                    metadata['file_type'],
-                    metadata['file_size']
-                )
+def end_activity_tracking(log):
+    log.end_activity()
+    db.session.commit()
+    return log
 
-            db.session.add(decision)
-            db.session.commit()
-
-            return redirect(url_for('decision_log'))
-        except Exception as e:
-            logging.error(f"Error logging decision: {str(e)}")
-            return jsonify({'status': 'error', 'message': str(e)}), 500
-
-    # GET request - display the log
-    decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).all()
-    return render_template('decision_log.html', decisions=decisions)
+from flask import render_template, request, redirect, url_for, jsonify, g, session, send_file, send_from_directory, abort
+from app import app, db
+from models import EventReport, ActivityLog, SecurityDecision
+from datetime import datetime, timedelta
+import logging
+from sqlalchemy import or_, func, extract, and_
+import uuid
+import weasyprint
+import tempfile
+import os
+from werkzeug.utils import secure_filename
 
 
 def get_decision_categories():
@@ -509,16 +525,4 @@ def export_report_pdf(report_id):
         # Clean up the temporary file after sending
         os.unlink(tmp_path)
 
-
-@app.route('/decision/attachment/<path:filename>')
-def download_attachment(filename):
-    """Download an attachment file"""
-    try:
-        return send_from_directory(
-            app.config['UPLOAD_FOLDER'],
-            filename,
-            as_attachment=True
-        )
-    except Exception as e:
-        logging.error(f"Error downloading attachment: {str(e)}")
-        abort(404)
+from models import AssessmentTemplate

@@ -24,9 +24,56 @@ class EventReport(db.Model):
     emergency_response_plan = db.Column(db.Text)
     post_event_analysis = db.Column(db.Text)
     activity_logs = db.relationship('ActivityLog', backref='event_report', lazy=True)
-    security_decisions = db.relationship('SecurityDecision', backref='event_report', lazy=True)
     estimated_risk_level = db.Column(db.String(50))
     risk_assessments = db.relationship('RiskAssessment', backref='event_report', lazy=True)
+
+class SecurityDecision(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    description = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    author = db.Column(db.String(100))
+    attachments = db.Column(db.JSON, default=list)  # Store file metadata
+    event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=True)
+    event_report = db.relationship('EventReport', backref=db.backref('security_decisions', lazy=True))
+
+    def add_attachment(self, filename, file_path, file_type, file_size):
+        """Add a new file attachment to the decision"""
+        if not self.attachments:
+            self.attachments = []
+
+        self.attachments.append({
+            'filename': filename,
+            'file_path': file_path,
+            'file_type': file_type,
+            'file_size': file_size,
+            'uploaded_at': datetime.utcnow().isoformat(),
+            'upload_by': self.author
+        })
+
+class ActivityLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=True)
+    activity_type = db.Column(db.String(50), nullable=False)
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    ended_at = db.Column(db.DateTime)
+    duration_seconds = db.Column(db.Integer)
+    user_identifier = db.Column(db.String(100))
+    session_id = db.Column(db.String(100))
+    search_query = db.Column(db.String(500))
+    filters_applied = db.Column(db.JSON, default=dict)
+    interaction_details = db.Column(db.JSON, default=dict)
+    related_resources = db.Column(db.JSON, default=list)
+    user_decisions = db.Column(db.JSON, default=list)
+    notes = db.Column(db.Text)
+
+    def calculate_duration(self):
+        if self.ended_at and self.started_at:
+            self.duration_seconds = int((self.ended_at - self.started_at).total_seconds())
+        return self.duration_seconds
+
+    def end_activity(self):
+        self.ended_at = datetime.utcnow()
+        self.calculate_duration()
 
 class RiskAssessment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -56,56 +103,12 @@ class RiskAssessment(db.Model):
             return 'Medium'
         return 'Low'
 
-class ActivityLog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=True)
-    activity_type = db.Column(db.String(50), nullable=False)
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
-    ended_at = db.Column(db.DateTime)
-    duration_seconds = db.Column(db.Integer)
-    user_identifier = db.Column(db.String(100))
-    session_id = db.Column(db.String(100))
-    search_query = db.Column(db.String(500))
-    filters_applied = db.Column(db.JSON, default=dict)
-    interaction_details = db.Column(db.JSON, default=dict)
-    related_resources = db.Column(db.JSON, default=list)
-    user_decisions = db.Column(db.JSON, default=list)
-    notes = db.Column(db.Text)
-
-    def calculate_duration(self):
-        if self.ended_at and self.started_at:
-            self.duration_seconds = int((self.ended_at - self.started_at).total_seconds())
-        return self.duration_seconds
-
-    def end_activity(self):
-        self.ended_at = datetime.utcnow()
-        self.calculate_duration()
-
-    def add_decision(self, decision_type, details):
-        if not self.user_decisions:
-            self.user_decisions = []
-        self.user_decisions.append({
-            'type': decision_type,
-            'details': details,
-            'timestamp': datetime.utcnow().isoformat()
-        })
-
-    def add_related_resource(self, resource_type, resource_id):
-        if not self.related_resources:
-            self.related_resources = []
-        self.related_resources.append({
-            'type': resource_type,
-            'id': resource_id,
-            'timestamp': datetime.utcnow().isoformat()
-        })
-
 class AssessmentTemplate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'))
     configuration = db.Column(db.JSON, nullable=False, default=dict)
     security_requirements = db.Column(db.JSON, default=list)
     risk_factors = db.Column(db.JSON, default=list)
@@ -130,67 +133,3 @@ class AssessmentTemplate(db.Model):
         elif avg_score >= 4:
             return 'Medium'
         return 'Low'
-
-class SecurityDecision(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=True)
-    decision_type = db.Column(db.String(50), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    impact_level = db.Column(db.String(20), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    implementation_date = db.Column(db.DateTime)
-    expected_outcome = db.Column(db.Text)
-    actual_outcome = db.Column(db.Text)
-    outcome_type = db.Column(db.String(20))
-    status = db.Column(db.String(20), default='Pending')
-    effectiveness_rating = db.Column(db.Integer)
-    lessons_learned = db.Column(db.Text)
-    related_decisions = db.Column(db.JSON, default=list)
-    attachments = db.Column(db.JSON, default=list)  # Store file metadata
-    author = db.Column(db.String(100))
-    tags = db.Column(db.JSON, default=list)
-    priority_level = db.Column(db.String(20))
-    follow_up_date = db.Column(db.DateTime)
-    category = db.Column(db.String(50))
-    notes_history = db.Column(db.JSON, default=list)
-
-    def add_attachment(self, filename, file_path, file_type, file_size):
-        """Add a new file attachment to the decision"""
-        if not self.attachments:
-            self.attachments = []
-
-        self.attachments.append({
-            'filename': filename,
-            'file_path': file_path,
-            'file_type': file_type,
-            'file_size': file_size,
-            'uploaded_at': datetime.utcnow().isoformat(),
-            'upload_by': self.author
-        })
-
-    def update_status(self, new_status, notes=None):
-        """Update the status of the decision with optional notes"""
-        self.status = new_status
-        self.updated_at = datetime.utcnow()
-        if notes:
-            if not self.notes_history:
-                self.notes_history = []
-            self.notes_history.append({
-                'note': notes,
-                'status': new_status,
-                'timestamp': datetime.utcnow().isoformat(),
-                'author': self.author
-            })
-
-    def add_tag(self, tag):
-        """Add a new tag to the decision"""
-        if not self.tags:
-            self.tags = []
-        if tag not in self.tags:
-            self.tags.append(tag)
-
-    def remove_tag(self, tag):
-        """Remove a tag from the decision"""
-        if self.tags and tag in self.tags:
-            self.tags.remove(tag)
