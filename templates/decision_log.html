@@ -6,8 +6,11 @@
         <!-- Document Viewer Panel -->
         <div class="col-md-4 border-end" style="height: calc(100vh - 56px); overflow-y: auto;">
             <div class="card h-100">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Documents</h5>
+                    <a href="{{ url_for('export_decisions') }}" class="btn btn-sm btn-outline-primary">
+                        <i data-feather="download" class="feather-sm me-1"></i>Export Log
+                    </a>
                 </div>
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush" id="documentsList">
