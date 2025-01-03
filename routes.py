@@ -1,10 +1,13 @@
-from flask import render_template, request, redirect, url_for, jsonify, g, session
+from flask import render_template, request, redirect, url_for, jsonify, g, session, send_file
 from app import app, db
 from models import EventReport, ActivityLog, SecurityDecision
 from datetime import datetime, timedelta
 import logging
 from sqlalchemy import or_, func, extract, and_
 import uuid
+import weasyprint
+import tempfile
+import os
 
 def get_or_create_session_id():
     if 'session_id' not in session:
@@ -410,3 +413,34 @@ def get_event_types():
         EventReport.incident_type.isnot(None)
     ).distinct().order_by(EventReport.incident_type).all()
     return [t[0] for t in types if t[0]]
+
+@app.route('/report/<int:report_id>/export')
+def export_report_pdf(report_id):
+    """Export a report as PDF"""
+    report = EventReport.query.get_or_404(report_id)
+
+    # Log the export activity
+    log = start_activity_tracking('export_report_pdf', report_id)
+    g.activity_log = log
+
+    # Generate HTML content
+    html = render_template('pdf/report_pdf.html', report=report)
+
+    # Create a temporary file for the PDF
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+        # Generate PDF from HTML
+        pdf = weasyprint.HTML(string=html).write_pdf()
+        tmp.write(pdf)
+        tmp_path = tmp.name
+
+    try:
+        # Send the PDF file
+        return send_file(
+            tmp_path,
+            download_name=f'report_{report.id}_{datetime.now().strftime("%Y%m%d")}.pdf',
+            as_attachment=True,
+            mimetype='application/pdf'
+        )
+    finally:
+        # Clean up the temporary file after sending
+        os.unlink(tmp_path)
