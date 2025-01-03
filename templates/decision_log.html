@@ -40,7 +40,7 @@
                     <form id="decisionForm" method="POST" enctype="multipart/form-data" class="mb-4">
                         <div class="mb-3">
                             <label class="form-label">Description</label>
-                            <textarea name="description" class="form-control" rows="4" required></textarea>
+                            <textarea name="description" class="form-control" rows="4"></textarea>
                         </div>
                         <div class="d-flex gap-2">
                             <!-- File selection button -->
@@ -49,7 +49,7 @@
                                 <input type="file" name="attachments" class="d-none" multiple>
                             </label>
                             <!-- Upload button (hidden initially) -->
-                            <button type="submit" class="btn btn-primary d-none" id="uploadBtn">
+                            <button type="button" class="btn btn-primary d-none" id="uploadBtn">
                                 <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                                 <span class="btn-text">Upload Selected Files</span>
                             </button>
@@ -152,35 +152,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    form.addEventListener('submit', async function(e) {
+    // Handle file upload button click
+    uploadBtn.addEventListener('click', async function(e) {
         e.preventDefault();
 
-        // Validate form
-        const description = this.querySelector('textarea[name="description"]').value.trim();
-        if (!description) {
-            uploadStatus.innerHTML = '<div class="alert alert-danger">Please enter a description</div>';
-            return;
-        }
-
-        // Show loading state on the clicked button
-        const clickedButton = document.activeElement;
-        const spinner = clickedButton.querySelector('.spinner-border');
-        const btnText = clickedButton.querySelector('.btn-text');
+        // Show loading state
+        const spinner = this.querySelector('.spinner-border');
+        const btnText = this.querySelector('.btn-text');
 
         spinner.classList.remove('d-none');
-        clickedButton.disabled = true;
-        uploadStatus.innerHTML = '<div class="alert alert-info">Processing your request...</div>';
+        this.disabled = true;
+        uploadStatus.innerHTML = '<div class="alert alert-info">Uploading files...</div>';
 
         try {
-            const formData = new FormData(this);
-            const files = fileInput.files;
-
-            if (files.length > 0) {
-                console.log('Number of files selected:', files.length);
-                for (let i = 0; i < files.length; i++) {
-                    console.log('File:', files[i].name, files[i].type, files[i].size);
-                }
-            }
+            const formData = new FormData(form);
+            formData.set('description', 'File upload'); // Set a default description for file uploads
 
             const response = await fetch(window.location.href, {
                 method: 'POST',
@@ -194,6 +180,61 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
             console.log('Server response:', result);
 
+            if (result.status === 'success') {
+                uploadStatus.innerHTML = '<div class="alert alert-success">Files uploaded successfully!</div>';
+                await refreshDecisionsList();
+                form.reset();
+                fileLabel.textContent = 'Upload File';
+                uploadBtn.classList.add('d-none');
+                hasSelectedFiles = false;
+
+                setTimeout(() => {
+                    uploadStatus.innerHTML = '';
+                }, 3000);
+            } else {
+                throw new Error(result.message || 'Unknown error occurred');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            uploadStatus.innerHTML = '<div class="alert alert-danger">Error uploading files. Please try again.</div>';
+        } finally {
+            spinner.classList.add('d-none');
+            this.disabled = false;
+            btnText.textContent = 'Upload Selected Files';
+        }
+    });
+
+    // Handle form submit for updates
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // Validate description for updates
+        const description = this.querySelector('textarea[name="description"]').value.trim();
+        if (!description) {
+            uploadStatus.innerHTML = '<div class="alert alert-danger">Please enter a description</div>';
+            return;
+        }
+
+        // Show loading state
+        const spinner = updateBtn.querySelector('.spinner-border');
+        const btnText = updateBtn.querySelector('.btn-text');
+
+        spinner.classList.remove('d-none');
+        updateBtn.disabled = true;
+        uploadStatus.innerHTML = '<div class="alert alert-info">Saving update...</div>';
+
+        try {
+            const formData = new FormData(this);
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
             if (result.status === 'success') {
                 uploadStatus.innerHTML = '<div class="alert alert-success">Update submitted successfully!</div>';
                 await refreshDecisionsList();
@@ -210,15 +251,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             console.error('Error:', error);
-            uploadStatus.innerHTML = '<div class="alert alert-danger">Error processing request. Please try again.</div>';
+            uploadStatus.innerHTML = '<div class="alert alert-danger">Error saving update. Please try again.</div>';
         } finally {
             spinner.classList.add('d-none');
-            clickedButton.disabled = false;
-            if (clickedButton === uploadBtn) {
-                btnText.textContent = 'Upload Selected Files';
-            } else {
-                btnText.textContent = 'Update';
-            }
+            updateBtn.disabled = false;
+            btnText.textContent = 'Update';
         }
     });
 });
