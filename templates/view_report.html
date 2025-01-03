@@ -12,6 +12,11 @@
                 <i data-feather="download" class="feather-sm"></i>
                 Export PDF
             </a>
+            <a href="{{ url_for('export_report_csv', report_id=report.id) }}" class="btn btn-outline-secondary btn-sm">
+                <i data-feather="download" class="feather-sm"></i>
+                Export CSV
+            </a>
+
         </div>
     </div>
     <div class="card-body">
