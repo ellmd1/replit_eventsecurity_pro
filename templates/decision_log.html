@@ -1,56 +1,88 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container">
-    <div class="card">
-        <div class="card-header">
-            <h4 class="mb-0">Details Log</h4>
+<div class="container-fluid">
+    <div class="row">
+        <!-- Document Viewer Panel -->
+        <div class="col-md-4 border-end" style="height: calc(100vh - 56px); overflow-y: auto;">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Documents</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="documentsList">
+                        {% for decision in decisions %}
+                            {% if decision.attachments %}
+                                {% for attachment in decision.attachments %}
+                                <a href="{{ url_for('download_attachment', filename=attachment.filename) }}" 
+                                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i data-feather="file" class="feather-sm me-2"></i>
+                                        {{ attachment.filename }}
+                                    </div>
+                                    <small class="text-muted">{{ attachment.uploaded_at[:16] }}</small>
+                                </a>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <form id="decisionForm" method="POST" action="{{ url_for('decision_log') }}" enctype="multipart/form-data" class="mb-4">
-                <div class="mb-3">
-                    <label class="form-label">Description</label>
-                    <textarea name="description" class="form-control" rows="4" required></textarea>
-                </div>
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary" id="submitBtn">
-                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                        <span class="btn-text">Update</span>
-                    </button>
-                    <div class="btn btn-outline-secondary position-relative">
-                        <span>Upload Document or File</span>
-                        <input type="file" name="attachments" class="position-absolute top-0 start-0 opacity-0 w-100 h-100" 
-                               style="cursor: pointer;" multiple>
-                    </div>
-                </div>
-            </form>
 
-            <div id="decisionsContainer">
-                {% for decision in decisions|sort(attribute='created_at', reverse=true) %}
-                <div class="border-bottom py-3">
-                    <div class="mb-2">
-                        <strong>update {{ loop.index }}</strong>
-                    </div>
-                    <div class="mb-2">
-                        <div><strong>Submitted by:</strong> {{ decision.author or 'Anonymous' }}</div>
-                        <div><strong>Date & Time:</strong> {{ decision.created_at.strftime('%d/%m/%Y, %H:%M:%S') }}</div>
-                        {% if decision.attachments %}
-                        <div>
-                            <strong>Document:</strong>
-                            {% for attachment in decision.attachments %}
-                            <a href="{{ url_for('download_attachment', filename=attachment.filename) }}" class="text-decoration-none">
-                                {{ attachment.filename }}
-                            </a>
-                            {% if not loop.last %}, {% endif %}
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div><strong>Document:</strong> N/A</div>
-                        {% endif %}
-                    </div>
-                    <p class="mb-0">{{ decision.description }}</p>
+        <!-- Details Log Panel -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Details Log</h4>
                 </div>
-                {% endfor %}
+                <div class="card-body">
+                    <form id="decisionForm" method="POST" action="{{ url_for('decision_log') }}" enctype="multipart/form-data" class="mb-4">
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="4" required></textarea>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                <span class="btn-text">Update</span>
+                            </button>
+                            <div class="btn btn-outline-secondary position-relative">
+                                <span>Upload Document or File</span>
+                                <input type="file" name="attachments" class="position-absolute top-0 start-0 opacity-0 w-100 h-100" 
+                                       style="cursor: pointer;" multiple>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div id="decisionsContainer">
+                        {% for decision in decisions|sort(attribute='created_at', reverse=true) %}
+                        <div class="border-bottom py-3">
+                            <div class="mb-2">
+                                <strong>update {{ loop.index }}</strong>
+                            </div>
+                            <div class="mb-2">
+                                <div><strong>Submitted by:</strong> {{ decision.author or 'Anonymous' }}</div>
+                                <div><strong>Date & Time:</strong> {{ decision.created_at.strftime('%d/%m/%Y, %H:%M:%S') }}</div>
+                                {% if decision.attachments %}
+                                <div>
+                                    <strong>Document:</strong>
+                                    {% for attachment in decision.attachments %}
+                                    <a href="{{ url_for('download_attachment', filename=attachment.filename) }}" class="text-decoration-none">
+                                        {{ attachment.filename }}
+                                    </a>
+                                    {% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div><strong>Document:</strong> N/A</div>
+                                {% endif %}
+                            </div>
+                            <p class="mb-0">{{ decision.description }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -82,6 +114,24 @@ document.getElementById('decisionForm').addEventListener('submit', async functio
         const result = await response.json();
 
         if (result.status === 'success') {
+            // Add new document to the documents list if there are attachments
+            if (result.decision.attachments && result.decision.attachments.length > 0) {
+                const documentsList = document.getElementById('documentsList');
+                result.decision.attachments.forEach(att => {
+                    const newDoc = document.createElement('a');
+                    newDoc.href = `/decision/attachment/${att.filename}`;
+                    newDoc.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                    newDoc.innerHTML = `
+                        <div>
+                            <i data-feather="file" class="feather-sm me-2"></i>
+                            ${att.filename}
+                        </div>
+                        <small class="text-muted">${new Date().toISOString().slice(0, 16)}</small>
+                    `;
+                    documentsList.insertBefore(newDoc, documentsList.firstChild);
+                });
+            }
+
             // Create new decision entry
             const newDecisionHtml = `
                 <div class="border-bottom py-3">
@@ -108,6 +158,11 @@ document.getElementById('decisionForm').addEventListener('submit', async functio
             // Add new entry to the top of the list
             const container = document.getElementById('decisionsContainer');
             container.insertAdjacentHTML('afterbegin', newDecisionHtml);
+
+            // Reinitialize Feather icons
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
 
             // Clear form
             this.reset();
