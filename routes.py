@@ -847,42 +847,63 @@ def generate_insights():
     try:
         app.logger.info("Starting insights generation process")
 
-        # Fetch relevant data from database
-        events = EventReport.query.order_by(EventReport.date.desc()).limit(50).all()
-        decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).limit(50).all()
+        # Verify OpenAI API key
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            app.logger.error("OpenAI API key not found")
+            return jsonify({
+                "status": "error",
+                "message": "OpenAI API key not configured. Please check your environment settings."
+            }), 500
 
-        app.logger.info(f"Retrieved {len(events)} events and {len(decisions)} decisions for analysis")
+        # Fetch relevant data from database
+        try:
+            events = EventReport.query.order_by(EventReport.date.desc()).limit(50).all()
+            decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).limit(50).all()
+            app.logger.info(f"Retrieved {len(events)} events and {len(decisions)} decisions for analysis")
+        except Exception as db_error:
+            app.logger.error(f"Database error: {str(db_error)}")
+            return jsonify({
+                "status": "error",
+                "message": "Error accessing database. Please try again."
+            }), 500
 
         # Prepare data for analysis
-        events_data = [
-            {
-                "title": event.title,
-                "date": event.date.strftime("%Y-%m-%d"),
-                "risk_level": event.risk_level,
-                "location": event.location,
-                "attendance": event.attendance,
-                "incidents_reported": event.incidents_reported,
-                "incident_summary": event.incident_summary[:200] if event.incident_summary else None,
-                "security_measures": event.security_measures[:200] if event.security_measures else None,
-                "venue_type": event.venue_type
-            }
-            for event in events
-        ]
+        try:
+            events_data = [
+                {
+                    "title": event.title,
+                    "date": event.date.strftime("%Y-%m-%d"),
+                    "risk_level": event.risk_level,
+                    "location": event.location,
+                    "attendance": event.attendance,
+                    "incidents_reported": event.incidents_reported,
+                    "incident_summary": event.incident_summary[:200] if event.incident_summary else None,
+                    "security_measures": event.security_measures[:200] if event.security_measures else None,
+                    "venue_type": event.venue_type
+                }
+                for event in events
+            ]
 
-        decisions_data = [
-            {
-                "description": decision.description[:200] if decision.description else None,
-                "created_at": decision.created_at.strftime("%Y-%m-%d"),
-                "outcome": decision.outcome[:200] if hasattr(decision, "outcome") and decision.outcome else None,
-                "effectiveness": decision.effectiveness if hasattr(decision, "effectiveness") else None
-            }
-            for decision in decisions
-        ]
-
-        app.logger.info("Data prepared for analysis")
+            decisions_data = [
+                {
+                    "description": decision.description[:200] if decision.description else None,
+                    "created_at": decision.created_at.strftime("%Y-%m-%d"),
+                    "outcome": decision.outcome[:200] if hasattr(decision, "outcome") and decision.outcome else None,
+                    "effectiveness": decision.effectiveness if hasattr(decision, "effectiveness") else None
+                }
+                for decision in decisions
+            ]
+            app.logger.info("Data prepared for analysis")
+        except Exception as prep_error:
+            app.logger.error(f"Error preparing data: {str(prep_error)}")
+            return jsonify({
+                "status": "error",
+                "message": "Error preparing data for analysis. Please try again."
+            }), 500
 
         # Create prompt for OpenAI
-        analysis_prompt = f"""As an expert security analyst, analyze this event and decision data to generate insights:
+        analysis_prompt = f"""As a security analyst, analyze this event and decision data:
 
 Events Data: {json.dumps(events_data)}
 Decisions Data: {json.dumps(decisions_data)}
@@ -895,11 +916,11 @@ Generate 6 unique insights focusing on:
 5. Decision impact analysis
 6. Recommendations for improvement
 
-For each insight, provide:
-1. A clear title
-2. A detailed description
+Each insight should have:
+1. A clear title (max 50 chars)
+2. A detailed description (max 200 chars)
 3. 2-3 key findings or actionable points
-4. An appropriate icon name from Feather Icons (e.g., alert-triangle, shield, trending-up)
+4. An appropriate icon name from: alert-triangle, shield, trending-up, activity, users, check-square
 
 Format response as a JSON object with this exact structure:
 {{
@@ -907,40 +928,52 @@ Format response as a JSON object with this exact structure:
         {{
             "title": "string",
             "description": "string",
-            "data": ["string", "string", "string"],
+            "data": ["string"],
             "icon": "string"
         }}
     ]
 }}"""
 
-        app.logger.info("Sending request to OpenAI")
         # Get insights from OpenAI
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are an expert security analyst specializing in event safety and risk assessment. Always respond with properly formatted JSON."
-                },
-                {"role": "user", "content": analysis_prompt}
-            ],
-            max_tokens=2000,
-            temperature=0.7,
-            response_format={"type": "json_object"}
-        )
+        try:
+            app.logger.info("Sending request to OpenAI")
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a security analyst. Format your response as a valid JSON object with the specified structure."
+                    },
+                    {"role": "user", "content": analysis_prompt}
+                ],
+                max_tokens=2000,
+                temperature=0.7,
+                response_format={"type": "json_object"}
+            )
+            app.logger.info("Received response from OpenAI")
+        except Exception as openai_error:
+            app.logger.error(f"OpenAI API error: {str(openai_error)}")
+            return jsonify({
+                "status": "error",
+                "message": "Error communicating with AI service. Please try again."
+            }), 500
 
-        app.logger.info("Received response from OpenAI")
-        # Parse the response
+        # Parse the response and save insights
         try:
             insights_data = json.loads(response.choices[0].message.content)
+            app.logger.info(f"Parsed OpenAI response: {insights_data}")
+
             if not isinstance(insights_data, dict) or 'insights' not in insights_data:
                 raise ValueError("Invalid response format from OpenAI")
 
-            # Save insights to database
+            # Delete existing insights before adding new ones
+            SecurityInsight.query.delete()
+
+            # Save new insights to database
             for insight_data in insights_data['insights']:
                 insight = SecurityInsight(
-                    title=insight_data.get('title', 'Untitled Insight'),
-                    description=insight_data.get('description', ''),
+                    title=insight_data.get('title', 'Untitled Insight')[:200],
+                    description=insight_data.get('description', '')[:500],
                     key_findings=insight_data.get('data', []),
                     icon=insight_data.get('icon', 'alert-circle')
                 )
@@ -948,20 +981,29 @@ Format response as a JSON object with this exact structure:
 
             db.session.commit()
             app.logger.info("Successfully saved insights to database")
-            return jsonify({"status": "success", "message": "New insights generated successfully"})
+            return jsonify({
+                "status": "success",
+                "message": "New insights generated successfully"
+            })
 
-        except json.JSONDecodeError as e:
-            app.logger.error(f"Error parsing OpenAI response: {str(e)}")
+        except json.JSONDecodeError as json_error:
+            app.logger.error(f"JSON parsing error: {str(json_error)}")
             return jsonify({
                 "status": "error",
                 "message": "Error processing AI response. Please try again."
             }), 500
+        except Exception as save_error:
+            app.logger.error(f"Database save error: {str(save_error)}")
+            return jsonify({
+                "status": "error",
+                "message": "Error saving insights. Please try again."
+            }), 500
 
     except Exception as e:
-        app.logger.error(f"Error generating insights: {str(e)}")
+        app.logger.error(f"Unexpected error in generate_insights: {str(e)}")
         return jsonify({
             "status": "error",
-            "message": "An error occurred while generating insights. Please try again."
+            "message": "An unexpected error occurred. Please try again."
         }), 500
 
 
