@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
 
                 // Add response to chat
-                addMessageToChat('assistant', data.response, false, true);
+                addMessageToChat('assistant', data.response, false, true, query);
 
                 // If there are events in the response, display them
                 if (data.events && data.events.length > 0) {
@@ -106,6 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const button = e.target.classList.contains('save-to-log') ? e.target : e.target.closest('.save-to-log');
             const messageContent = button.closest('.message-content');
             const responseText = messageContent.getAttribute('data-response');
+            const questionText = messageContent.getAttribute('data-question');
 
             try {
                 const response = await fetch('/decisions', {
@@ -114,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        description: `AI Assistant Response: ${responseText}`,
+                        description: `Question: ${questionText}\n\nAI Assistant Response: ${responseText}`,
                         author: 'AI Assistant'
                     })
                 });
@@ -150,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Helper function to add messages to chat
-function addMessageToChat(role, content, isHTML = false, addSaveButton = false) {
+function addMessageToChat(role, content, isHTML = false, addSaveButton = false, question = '') {
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message ${role}`;
 
@@ -162,6 +163,7 @@ function addMessageToChat(role, content, isHTML = false, addSaveButton = false) 
     } else {
         if (addSaveButton) {
             messageContent.setAttribute('data-response', content);
+            messageContent.setAttribute('data-question', question);
             const saveButton = document.createElement('button');
             saveButton.className = 'btn btn-sm btn-outline-light save-to-log';
             saveButton.innerHTML = '<i data-feather="save"></i>';
