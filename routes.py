@@ -845,9 +845,13 @@ def insights():
 def generate_insights():
     """Generate new AI-powered insights from security data"""
     try:
+        app.logger.info("Starting insights generation process")
+
         # Fetch relevant data from database
         events = EventReport.query.order_by(EventReport.date.desc()).limit(50).all()
         decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).limit(50).all()
+
+        app.logger.info(f"Retrieved {len(events)} events and {len(decisions)} decisions for analysis")
 
         # Prepare data for analysis
         events_data = [
@@ -858,28 +862,30 @@ def generate_insights():
                 "location": event.location,
                 "attendance": event.attendance,
                 "incidents_reported": event.incidents_reported,
-                "incident_summary": event.incident_summary,
-                "security_measures": event.security_measures,
-                "venue_type": event.venue_type,
+                "incident_summary": event.incident_summary[:200] if event.incident_summary else None,
+                "security_measures": event.security_measures[:200] if event.security_measures else None,
+                "venue_type": event.venue_type
             }
             for event in events
         ]
 
         decisions_data = [
             {
-                "description": decision.description,
+                "description": decision.description[:200] if decision.description else None,
                 "created_at": decision.created_at.strftime("%Y-%m-%d"),
-                "outcome": decision.outcome if hasattr(decision, "outcome") else None,
-                "effectiveness": decision.effectiveness if hasattr(decision, "effectiveness") else None,
+                "outcome": decision.outcome[:200] if hasattr(decision, "outcome") and decision.outcome else None,
+                "effectiveness": decision.effectiveness if hasattr(decision, "effectiveness") else None
             }
             for decision in decisions
         ]
 
-        # Create prompt for OpenAI
-        analysis_prompt = f"""Analyze the following security event and decision data to generate meaningful insights:
+        app.logger.info("Data prepared for analysis")
 
-Events Data: {str(events_data)}
-Decisions Data: {str(decisions_data)}
+        # Create prompt for OpenAI
+        analysis_prompt = f"""As an expert security analyst, analyze this event and decision data to generate insights:
+
+Events Data: {json.dumps(events_data)}
+Decisions Data: {json.dumps(decisions_data)}
 
 Generate 6 unique insights focusing on:
 1. Risk level trends and patterns
@@ -893,9 +899,9 @@ For each insight, provide:
 1. A clear title
 2. A detailed description
 3. 2-3 key findings or actionable points
-4. An appropriate icon name from Feather Icons
+4. An appropriate icon name from Feather Icons (e.g., alert-triangle, shield, trending-up)
 
-Format the response as an object with an 'insights' array containing objects with:
+Format response as a JSON object with this exact structure:
 {{
     "insights": [
         {{
@@ -907,40 +913,57 @@ Format the response as an object with an 'insights' array containing objects wit
     ]
 }}"""
 
+        app.logger.info("Sending request to OpenAI")
         # Get insights from OpenAI
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert security analyst specializing in event safety and risk assessment.",
+                    "content": "You are an expert security analyst specializing in event safety and risk assessment. Always respond with properly formatted JSON."
                 },
-                {"role": "user", "content": analysis_prompt},
+                {"role": "user", "content": analysis_prompt}
             ],
             max_tokens=2000,
             temperature=0.7,
-            response_format={"type": "json_object"},
+            response_format={"type": "json_object"}
         )
 
+        app.logger.info("Received response from OpenAI")
         # Parse the response
-        insights_data = json.loads(response.choices[0].message.content)
+        try:
+            insights_data = json.loads(response.choices[0].message.content)
+            if not isinstance(insights_data, dict) or 'insights' not in insights_data:
+                raise ValueError("Invalid response format from OpenAI")
 
-        # Save insights to database
-        for insight_data in insights_data["insights"]:
-            insight = SecurityInsight(
-                title=insight_data["title"],
-                description=insight_data["description"],
-                key_findings=insight_data["data"],
-                icon=insight_data["icon"],
-            )
-            db.session.add(insight)
+            # Save insights to database
+            for insight_data in insights_data['insights']:
+                insight = SecurityInsight(
+                    title=insight_data.get('title', 'Untitled Insight'),
+                    description=insight_data.get('description', ''),
+                    key_findings=insight_data.get('data', []),
+                    icon=insight_data.get('icon', 'alert-circle')
+                )
+                db.session.add(insight)
 
-        db.session.commit()
+            db.session.commit()
+            app.logger.info("Successfully saved insights to database")
+            return jsonify({"status": "success", "message": "New insights generated successfully"})
 
-        return jsonify({"status": "success"})
+        except json.JSONDecodeError as e:
+            app.logger.error(f"Error parsing OpenAI response: {str(e)}")
+            return jsonify({
+                "status": "error",
+                "message": "Error processing AI response. Please try again."
+            }), 500
+
     except Exception as e:
         app.logger.error(f"Error generating insights: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({
+            "status": "error",
+            "message": "An error occurred while generating insights. Please try again."
+        }), 500
+
 
 def get_venue_types():
     """Get unique venue types from the database"""
@@ -952,6 +975,7 @@ def get_venue_types():
         .all()
     )
     return [t[0] for t in types if t[0]]
+
 
 def get_event_types():
     """Get unique event types from the database"""
