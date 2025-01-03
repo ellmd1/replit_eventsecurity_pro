@@ -203,9 +203,15 @@
                     <p class="card-text text-muted">
                         Get instant insights and recommendations from our AI-powered security assistant.
                     </p>
-                    <a href="{{ url_for('chat') }}" class="btn btn-outline-success">
-                        Chat Now
-                    </a>
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('chat') }}" class="btn btn-outline-success">
+                            Chat Now
+                        </a>
+                        <a href="{{ url_for('insights') }}" class="btn btn-outline-info">
+                            <i data-feather="bar-chart-2" class="feather-sm me-1"></i>
+                            View Insights
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
