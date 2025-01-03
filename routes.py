@@ -1,9 +1,15 @@
-from flask import render_template, request, redirect, url_for, jsonify, send_from_directory, abort
+from flask import render_template, request, redirect, url_for, jsonify, send_from_directory, abort, g, session, send_file
 from app import app, db
-from models import SecurityDecision
-import os
+from models import EventReport, ActivityLog, SecurityDecision
+from datetime import datetime, timedelta
 import logging
+from sqlalchemy import or_, func, extract, and_
+import uuid
+import weasyprint
+import tempfile
+import os
 from werkzeug.utils import secure_filename
+
 
 @app.route('/decisions', methods=['GET', 'POST'])
 def decision_log():
@@ -139,19 +145,6 @@ def end_activity_tracking(log):
     log.end_activity()
     db.session.commit()
     return log
-
-from flask import render_template, request, redirect, url_for, jsonify, g, session, send_file, send_from_directory, abort
-from app import app, db
-from models import EventReport, ActivityLog, SecurityDecision
-from datetime import datetime, timedelta
-import logging
-from sqlalchemy import or_, func, extract, and_
-import uuid
-import weasyprint
-import tempfile
-import os
-from werkzeug.utils import secure_filename
-
 
 def get_decision_categories():
     """Get unique decision categories from the database"""
@@ -332,7 +325,6 @@ def comparative_search():
                          similar_events=similar_events,
                          venue_types=get_venue_types(),
                          event_types=get_event_types())
-
 
 
 @app.route('/compare-reports')
