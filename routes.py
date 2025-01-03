@@ -181,7 +181,7 @@ def view_report(report_id):
     log.interaction_details = {
         'document_type': 'event_report',
         'document_title': report.title,
-        'document_date': report.date.strftime('%d-%m-%Y'),
+        'document_date': report.date.strftime('%Y-%m-%d'),
         'risk_level': report.risk_level,
         'venue_type': report.venue_type,
         'location': report.location
@@ -253,7 +253,6 @@ def comparative_search():
                          event_types=get_event_types())
 
 
-
 @app.route('/compare-reports')
 def compare_reports():
     reports = EventReport.query.order_by(EventReport.date.desc()).all()
@@ -302,7 +301,7 @@ def chat_query():
             event_list.append({
                 'id': event.id,
                 'title': event.title,
-                'date': event.date.strftime('%d-%m-%Y'),
+                'date': event.date.strftime('%Y-%m-%d'),
                 'location': event.location,
                 'risk_level': event.risk_level,
                 'venue_type': event.venue_type,
