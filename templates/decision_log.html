@@ -43,15 +43,16 @@
                             <textarea name="description" class="form-control" rows="4" required></textarea>
                         </div>
                         <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary" id="submitBtn">
-                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                                <span class="btn-text">Update</span>
-                            </button>
                             <label class="btn btn-outline-secondary mb-0">
                                 <span>Upload Document or File</span>
                                 <input type="file" name="attachments" class="d-none" multiple>
                             </label>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                <span class="btn-text">Submit Update with Files</span>
+                            </button>
                         </div>
+                        <div id="uploadStatus" class="mt-2"></div>
                     </form>
 
                     <div id="decisionsContainer">
@@ -95,29 +96,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const submitBtn = document.getElementById('submitBtn');
     const spinner = submitBtn.querySelector('.spinner-border');
     const btnText = submitBtn.querySelector('.btn-text');
+    const uploadStatus = document.getElementById('uploadStatus');
 
     // Update file label when files are selected
     fileInput.addEventListener('change', function() {
         const numFiles = this.files.length;
-        fileLabel.textContent = numFiles > 0 
-            ? `${numFiles} file${numFiles === 1 ? '' : 's'} selected` 
-            : 'Upload Document or File';
+        if (numFiles > 0) {
+            fileLabel.textContent = `${numFiles} file${numFiles === 1 ? '' : 's'} selected`;
+            uploadStatus.innerHTML = `<div class="alert alert-info">Ready to upload ${numFiles} file${numFiles === 1 ? '' : 's'}</div>`;
+        } else {
+            fileLabel.textContent = 'Upload Document or File';
+            uploadStatus.innerHTML = '';
+        }
     });
 
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        console.log('Form submission started');
+
+        // Validate form
+        const description = this.querySelector('textarea[name="description"]').value.trim();
+        if (!description) {
+            uploadStatus.innerHTML = '<div class="alert alert-danger">Please enter a description</div>';
+            return;
+        }
 
         // Show loading state
         spinner.classList.remove('d-none');
-        btnText.textContent = 'Updating...';
+        btnText.textContent = 'Uploading...';
         submitBtn.disabled = true;
+        uploadStatus.innerHTML = '<div class="alert alert-info">Uploading files and saving update...</div>';
 
         try {
             const formData = new FormData(this);
             const files = fileInput.files;
-            console.log('Number of files selected:', files.length);
 
+            // Log form data for debugging
+            console.log('Number of files selected:', files.length);
             for (let i = 0; i < files.length; i++) {
                 console.log('File:', files[i].name, files[i].type, files[i].size);
             }
@@ -135,6 +149,9 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Server response:', result);
 
             if (result.status === 'success') {
+                // Show success message
+                uploadStatus.innerHTML = '<div class="alert alert-success">Update submitted successfully!</div>';
+
                 // Add new documents to the list
                 if (result.decision.attachments && result.decision.attachments.length > 0) {
                     const documentsList = document.getElementById('documentsList');
@@ -189,16 +206,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Reset form and file label
                 this.reset();
                 fileLabel.textContent = 'Upload Document or File';
+
+                // Clear status after a delay
+                setTimeout(() => {
+                    uploadStatus.innerHTML = '';
+                }, 3000);
             } else {
                 throw new Error(result.message || 'Unknown error occurred');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('There was an error submitting the update. Please try again.');
+            uploadStatus.innerHTML = '<div class="alert alert-danger">Error uploading files. Please try again.</div>';
         } finally {
             // Reset button state
             spinner.classList.add('d-none');
-            btnText.textContent = 'Update';
+            btnText.textContent = 'Submit Update with Files';
             submitBtn.disabled = false;
         }
     });
