@@ -28,11 +28,6 @@ class EventReport(db.Model):
     estimated_risk_level = db.Column(db.String(50))
     risk_assessments = db.relationship('RiskAssessment', backref='event_report', lazy=True)
 
-    @property
-    def formatted_date(self):
-        """Return the date in DD-MM-YYYY format"""
-        return self.date.strftime('%d-%m-%Y') if self.date else None
-
 class RiskAssessment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=False)
