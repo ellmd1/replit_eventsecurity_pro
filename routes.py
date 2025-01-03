@@ -1,3 +1,4 @@
+import os
 from flask import render_template, request, redirect, url_for, jsonify, send_from_directory, abort, g, session, send_file
 from app import app, db
 from models import EventReport, ActivityLog, SecurityDecision
@@ -7,44 +8,71 @@ from sqlalchemy import or_, func, extract, and_
 import uuid
 import weasyprint
 import tempfile
-import os
 from werkzeug.utils import secure_filename
+from openai import OpenAI
+
+# Initialize OpenAI client
+client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
+
+def summarize_file_content(file_path, file_type):
+    """Summarize file content using GPT"""
+    try:
+        content = ""
+        if file_type.startswith('text/') or file_type == 'application/pdf':
+            with open(file_path, 'rb') as f:
+                content = f.read().decode('utf-8', errors='ignore')
+
+        if not content:
+            return "File type not supported for summarization"
+
+        # Call GPT for summarization
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that summarizes documents. Provide a concise summary of the content."},
+                {"role": "user", "content": f"Please summarize this document:\n\n{content}"}
+            ],
+            max_tokens=150
+        )
+
+        return response.choices[0].message.content
+    except Exception as e:
+        app.logger.error(f"Error summarizing file: {str(e)}")
+        return "Error generating summary"
 
 @app.route('/decisions', methods=['GET', 'POST'])
 def decision_log():
     if request.method == 'POST':
         try:
             app.logger.info("Processing POST request to /decisions")
-
-            # Log request details
             app.logger.debug(f"Request form data: {request.form}")
             app.logger.debug(f"Request files: {request.files}")
 
-            # Ensure upload folder exists
             if not os.path.exists(app.config['UPLOAD_FOLDER']):
                 os.makedirs(app.config['UPLOAD_FOLDER'])
                 app.logger.info(f"Created upload folder: {app.config['UPLOAD_FOLDER']}")
 
-            # Handle file uploads
             uploaded_files = request.files.getlist('attachments')
             app.logger.info(f"Number of files received: {len(uploaded_files)}")
             file_metadata = []
+            summaries = []
 
             for file in uploaded_files:
                 if file and file.filename:
                     try:
-                        # Generate a secure filename with timestamp
                         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S_')
                         original_filename = secure_filename(file.filename)
                         filename = timestamp + original_filename
                         app.logger.info(f"Processing file: {original_filename} -> {filename}")
 
-                        # Save file to upload folder
                         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                         file.save(file_path)
                         app.logger.info(f"File saved successfully to: {file_path}")
 
-                        # Store file metadata
+                        # Get file summary
+                        summary = summarize_file_content(file_path, file.content_type)
+                        summaries.append(summary)
+
                         file_metadata.append({
                             'filename': filename,
                             'original_filename': original_filename,
@@ -60,13 +88,17 @@ def decision_log():
 
             # Create new decision entry
             try:
+                description = request.form.get('description', '')
+                if summaries:  # Add summaries to description if files were processed
+                    description = description or "File upload"
+                    description += "\n\nFile Summaries:\n" + "\n\n".join(summaries)
+
                 decision = SecurityDecision(
-                    description=request.form['description'],
+                    description=description,
                     author=request.form.get('author', 'Anonymous')
                 )
                 app.logger.info("Created new SecurityDecision object")
 
-                # Add attachments if any
                 for metadata in file_metadata:
                     decision.add_attachment(
                         metadata['filename'],
@@ -522,6 +554,7 @@ def edit_template(template_id):
     return render_template('templates/edit.html', template=template)
 
 
+
 def get_venue_types():
     types = db.session.query(
         EventReport.venue_type
@@ -529,6 +562,7 @@ def get_venue_types():
         EventReport.venue_type.isnot(None)
     ).distinct().order_by(EventReport.venue_type).all()
     return [t[0] for t in types if t[0]]
+
 
 
 def get_event_types():
