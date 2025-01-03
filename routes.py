@@ -253,19 +253,32 @@ def comparative_search():
                          event_types=get_event_types())
 
 
+
 @app.route('/compare-reports')
 def compare_reports():
+    """Handle report comparison functionality"""
+    # Get all reports for selection
     reports = EventReport.query.order_by(EventReport.date.desc()).all()
 
+    # Get selected report IDs from query parameters
     report1_id = request.args.get('report1')
     report2_id = request.args.get('report2')
 
     report1 = None
     report2 = None
 
+    # If both reports are selected, fetch their data
     if report1_id and report2_id:
         report1 = EventReport.query.get_or_404(report1_id)
         report2 = EventReport.query.get_or_404(report2_id)
+
+        # Log the comparison activity
+        log = start_activity_tracking('compare_reports')
+        log.interaction_details = {
+            'report1_id': report1_id,
+            'report2_id': report2_id
+        }
+        g.activity_log = log
 
     return render_template('report_comparison.html',
                          reports=reports,
