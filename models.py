@@ -138,6 +138,7 @@ class SecurityDecision(db.Model):
     description = db.Column(db.Text, nullable=False)
     impact_level = db.Column(db.String(20), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     implementation_date = db.Column(db.DateTime)
     expected_outcome = db.Column(db.Text)
     actual_outcome = db.Column(db.Text)
@@ -146,22 +147,50 @@ class SecurityDecision(db.Model):
     effectiveness_rating = db.Column(db.Integer)
     lessons_learned = db.Column(db.Text)
     related_decisions = db.Column(db.JSON, default=list)
-    supporting_documents = db.Column(db.JSON, default=list)
+    attachments = db.Column(db.JSON, default=list)  # Store file metadata
+    author = db.Column(db.String(100))
+    tags = db.Column(db.JSON, default=list)
+    priority_level = db.Column(db.String(20))
+    follow_up_date = db.Column(db.DateTime)
+    category = db.Column(db.String(50))
+    notes_history = db.Column(db.JSON, default=list)
 
-    def update_outcome(self, outcome_text, outcome_type, effectiveness):
-        self.actual_outcome = outcome_text
-        self.outcome_type = outcome_type
-        self.effectiveness_rating = effectiveness
-        self.status = 'Implemented'
+    def add_attachment(self, filename, file_path, file_type, file_size):
+        """Add a new file attachment to the decision"""
+        if not self.attachments:
+            self.attachments = []
 
-    def add_lesson_learned(self, lesson):
-        self.lessons_learned = lesson
-
-    def link_related_decision(self, decision_id, relationship_type):
-        if not self.related_decisions:
-            self.related_decisions = []
-        self.related_decisions.append({
-            'decision_id': decision_id,
-            'relationship_type': relationship_type,
-            'added_at': datetime.utcnow().isoformat()
+        self.attachments.append({
+            'filename': filename,
+            'file_path': file_path,
+            'file_type': file_type,
+            'file_size': file_size,
+            'uploaded_at': datetime.utcnow().isoformat(),
+            'upload_by': self.author
         })
+
+    def update_status(self, new_status, notes=None):
+        """Update the status of the decision with optional notes"""
+        self.status = new_status
+        self.updated_at = datetime.utcnow()
+        if notes:
+            if not self.notes_history:
+                self.notes_history = []
+            self.notes_history.append({
+                'note': notes,
+                'status': new_status,
+                'timestamp': datetime.utcnow().isoformat(),
+                'author': self.author
+            })
+
+    def add_tag(self, tag):
+        """Add a new tag to the decision"""
+        if not self.tags:
+            self.tags = []
+        if tag not in self.tags:
+            self.tags.append(tag)
+
+    def remove_tag(self, tag):
+        """Remove a tag from the decision"""
+        if self.tags and tag in self.tags:
+            self.tags.remove(tag)
