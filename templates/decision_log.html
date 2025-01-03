@@ -97,6 +97,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const spinner = submitBtn.querySelector('.spinner-border');
     const btnText = submitBtn.querySelector('.btn-text');
     const uploadStatus = document.getElementById('uploadStatus');
+    const decisionsContainer = document.getElementById('decisionsContainer');
+    const documentsList = document.getElementById('documentsList');
 
     // Update file label when files are selected
     fileInput.addEventListener('change', function() {
@@ -109,6 +111,35 @@ document.addEventListener('DOMContentLoaded', function() {
             uploadStatus.innerHTML = '';
         }
     });
+
+    async function refreshDecisionsList() {
+        try {
+            const response = await fetch(window.location.href);
+            const text = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+
+            // Update decisions container
+            const newDecisionsContainer = doc.getElementById('decisionsContainer');
+            if (newDecisionsContainer) {
+                decisionsContainer.innerHTML = newDecisionsContainer.innerHTML;
+            }
+
+            // Update documents list
+            const newDocumentsList = doc.getElementById('documentsList');
+            if (newDocumentsList) {
+                documentsList.innerHTML = newDocumentsList.innerHTML;
+            }
+
+            // Reinitialize Feather icons
+            if (typeof feather !== 'undefined') {
+                feather.replace();
+            }
+        } catch (error) {
+            console.error('Error refreshing decisions list:', error);
+            uploadStatus.innerHTML = '<div class="alert alert-warning">Updates submitted but could not refresh the list. Please reload the page.</div>';
+        }
+    }
 
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -152,56 +183,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Show success message
                 uploadStatus.innerHTML = '<div class="alert alert-success">Update submitted successfully!</div>';
 
-                // Add new documents to the list
-                if (result.decision.attachments && result.decision.attachments.length > 0) {
-                    const documentsList = document.getElementById('documentsList');
-
-                    result.decision.attachments.forEach(att => {
-                        console.log('Adding attachment to list:', att);
-                        const newDoc = document.createElement('a');
-                        newDoc.href = `/decision/attachment/${att.filename}`;
-                        newDoc.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-                        newDoc.innerHTML = `
-                            <div>
-                                <i data-feather="file" class="feather-sm me-2"></i>
-                                ${att.filename}
-                            </div>
-                            <small class="text-muted">${att.uploaded_at.slice(0, 16)}</small>
-                        `;
-                        documentsList.insertBefore(newDoc, documentsList.firstChild);
-                    });
-
-                    // Reinitialize Feather icons for new elements
-                    if (typeof feather !== 'undefined') {
-                        feather.replace();
-                    }
-                }
-
-                // Add new decision entry
-                const newDecisionHtml = `
-                    <div class="border-bottom py-3">
-                        <div class="mb-2">
-                            <strong>update New</strong>
-                        </div>
-                        <div class="mb-2">
-                            <div><strong>Submitted by:</strong> ${result.decision.author}</div>
-                            <div><strong>Date & Time:</strong> ${result.decision.created_at}</div>
-                            <div><strong>Document:</strong> ${
-                                result.decision.attachments && result.decision.attachments.length > 0
-                                ? result.decision.attachments.map(att => 
-                                    `<a href="/decision/attachment/${att.filename}" class="text-decoration-none">
-                                        ${att.filename}
-                                    </a>`
-                                  ).join(', ')
-                                : 'N/A'
-                            }</div>
-                        </div>
-                        <p class="mb-0">${result.decision.description}</p>
-                    </div>
-                `;
-
-                const container = document.getElementById('decisionsContainer');
-                container.insertAdjacentHTML('afterbegin', newDecisionHtml);
+                // Refresh the entire decisions list
+                await refreshDecisionsList();
 
                 // Reset form and file label
                 this.reset();
