@@ -81,6 +81,48 @@
         </div>
     </div>
 
+    <!-- Security Threats Section -->
+    {% if security_threats %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger bg-opacity-25">
+                    <div class="d-flex align-items-center">
+                        <i data-feather="alert-triangle" class="text-danger me-2"></i>
+                        <h5 class="card-title mb-0">Security Threats & High-Risk Events</h5>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for threat in security_threats %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100 bg-dark">
+                                <div class="card-body">
+                                    <h6 class="card-title text-danger">
+                                        {{ threat.event }}
+                                    </h6>
+                                    <div class="small text-muted mb-2">
+                                        <div><i data-feather="calendar" class="feather-sm me-1"></i> {{ threat.date.strftime('%Y-%m-%d') }}</div>
+                                        <div><i data-feather="map-pin" class="feather-sm me-1"></i> {{ threat.location }}</div>
+                                        <div>
+                                            <span class="badge bg-danger mt-1">{{ threat.risk_level }} Risk</span>
+                                        </div>
+                                    </div>
+                                    <p class="card-text small">
+                                        <strong>Security Measures:</strong><br>
+                                        {{ threat.measures }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Quick Actions Grid -->
     <div class="row">
         <div class="col-md-4 mb-4">

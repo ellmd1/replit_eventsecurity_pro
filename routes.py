@@ -227,6 +227,24 @@ def dashboard():
     upcoming_events = EventReport.query.order_by(EventReport.date.desc()).limit(5).all()
     recent_decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).limit(5).all()
 
+    # Get high-risk events and security threats
+    high_risk_events = EventReport.query.filter(
+        EventReport.risk_level == 'High',
+        EventReport.date >= datetime.utcnow()
+    ).order_by(EventReport.date).limit(3).all()
+
+    security_threats = []
+    for event in high_risk_events:
+        if event.security_measures:
+            threats = {
+                'event': event.title,
+                'date': event.date,
+                'location': event.location,
+                'risk_level': event.risk_level,
+                'measures': event.security_measures[:200] + '...' if len(event.security_measures) > 200 else event.security_measures
+            }
+            security_threats.append(threats)
+
     risk_levels = {
         'High': len([e for e in upcoming_events if e.risk_level == 'High']),
         'Medium': len([e for e in upcoming_events if e.risk_level == 'Medium']),
@@ -235,14 +253,17 @@ def dashboard():
 
     log.interaction_details = {
         'viewed_events_count': len(upcoming_events),
-        'viewed_decisions_count': len(recent_decisions)
+        'viewed_decisions_count': len(recent_decisions),
+        'security_threats_count': len(security_threats)
     }
     db.session.commit()
 
     return render_template('dashboard.html',
                          upcoming_events=upcoming_events,
                          recent_decisions=recent_decisions,
-                         risk_levels=risk_levels)
+                         risk_levels=risk_levels,
+                         security_threats=security_threats)
+
 
 
 def get_or_create_session_id():
