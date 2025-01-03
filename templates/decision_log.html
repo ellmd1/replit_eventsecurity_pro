@@ -2,184 +2,52 @@
 
 {% block content %}
 <div class="container">
-    <div class="row mb-4">
-        <div class="col">
-            <h2>Security Decision Log</h2>
-            <p class="text-muted">Track and analyze security-related decisions and their outcomes</p>
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">Details Log</h4>
         </div>
-        <div class="col-auto">
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newDecisionModal">
-                <i data-feather="plus"></i> New Log Entry
-            </button>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col">
-            <div class="card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Decision Log History</h5>
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-                                Filter by Category
-                            </button>
-                            <ul class="dropdown-menu">
-                                {% for category in categories %}
-                                <li><a class="dropdown-item" href="?category={{ category }}">{{ category }}</a></li>
-                                {% endfor %}
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="?">Show All</a></li>
-                            </ul>
-                        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('decision_log') }}" enctype="multipart/form-data" class="mb-4">
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="4" required></textarea>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Update</button>
+                    <div class="btn btn-outline-secondary position-relative">
+                        <span>Upload Document or File</span>
+                        <input type="file" name="attachments" class="position-absolute top-0 start-0 opacity-0 w-100 h-100" 
+                               style="cursor: pointer;" multiple>
                     </div>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Timestamp</th>
-                                <th>Category</th>
-                                <th>Description</th>
-                                <th>Priority</th>
-                                <th>Status</th>
-                                <th>Files</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for decision in decisions %}
-                            <tr>
-                                <td>{{ decision.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-                                <td>{{ decision.category or 'Uncategorized' }}</td>
-                                <td>{{ decision.description[:100] }}...</td>
-                                <td>
-                                    <span class="badge bg-{{ 'danger' if decision.priority_level == 'High' 
-                                                        else 'warning' if decision.priority_level == 'Medium' 
-                                                        else 'success' }}">
-                                        {{ decision.priority_level }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge bg-{{ 'success' if decision.status == 'Implemented' 
-                                                        else 'warning' if decision.status == 'Pending' 
-                                                        else 'secondary' }}">
-                                        {{ decision.status }}
-                                    </span>
-                                </td>
-                                <td>
-                                    {% if decision.attachments %}
-                                        {% for attachment in decision.attachments %}
-                                            <a href="{{ url_for('download_attachment', filename=attachment.filename) }}" 
-                                               class="btn btn-sm btn-outline-secondary me-1">
-                                                <i data-feather="paperclip" class="feather-sm"></i>
-                                                {{ attachment.filename }}
-                                            </a>
-                                        {% endfor %}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary" 
-                                            onclick="viewDecisionDetails({{ decision.id }})">
-                                        View Details
-                                    </button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            </form>
+
+            {% for decision in decisions|sort(attribute='created_at', reverse=true) %}
+            <div class="border-bottom py-3">
+                <div class="mb-2">
+                    <strong>update {{ loop.index }}</strong>
                 </div>
+                <div class="mb-2">
+                    <div><strong>Submitted by:</strong> {{ decision.author or 'Anonymous' }}</div>
+                    <div><strong>Date & Time:</strong> {{ decision.created_at.strftime('%d/%m/%Y, %H:%M:%S') }}</div>
+                    {% if decision.attachments %}
+                    <div>
+                        <strong>Document:</strong>
+                        {% for attachment in decision.attachments %}
+                        <a href="{{ url_for('download_attachment', filename=attachment.filename) }}" class="text-decoration-none">
+                            {{ attachment.filename }}
+                        </a>
+                        {% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div><strong>Document:</strong> N/A</div>
+                    {% endif %}
+                </div>
+                <p class="mb-0">{{ decision.description }}</p>
             </div>
+            {% endfor %}
         </div>
     </div>
 </div>
-
-<!-- New Log Entry Modal -->
-<div class="modal fade" id="newDecisionModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">New Log Entry</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="decisionForm" method="POST" action="{{ url_for('decision_log') }}" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label class="form-label">Category</label>
-                        <select name="category" class="form-select" required>
-                            <option value="Security Update">Security Update</option>
-                            <option value="Incident Response">Incident Response</option>
-                            <option value="Policy Change">Policy Change</option>
-                            <option value="Risk Assessment">Risk Assessment</option>
-                            <option value="Training">Training</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Description</label>
-                        <textarea name="description" class="form-control" rows="4" required></textarea>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Priority Level</label>
-                                <select name="priority_level" class="form-select" required>
-                                    {% for level in priority_levels %}
-                                    <option value="{{ level }}">{{ level }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Related Event</label>
-                                <select name="event_report_id" class="form-select">
-                                    <option value="">None</option>
-                                    {% for event in events %}
-                                    <option value="{{ event.id }}">{{ event.title }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Implementation Timeline</label>
-                        <input type="date" name="implementation_date" class="form-control">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Expected Outcome</label>
-                        <textarea name="expected_outcome" class="form-control" rows="2"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Attachments</label>
-                        <input type="file" name="attachments" class="form-control" multiple>
-                        <div class="form-text">Upload any relevant documents, images, or files.</div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Tags</label>
-                        <input type="text" name="tags" class="form-control" placeholder="Enter tags separated by commas">
-                        <div class="form-text">Optional: Add tags to help categorize this entry</div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" form="decisionForm" class="btn btn-primary">Save Entry</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-function viewDecisionDetails(decisionId) {
-    window.location.href = `/decision/${decisionId}`;
-}
-
-// Initialize any feather icons
-document.addEventListener('DOMContentLoaded', function() {
-    if (typeof feather !== 'undefined') {
-        feather.replace();
-    }
-});
-</script>
 {% endblock %}

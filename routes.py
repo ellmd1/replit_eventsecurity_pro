@@ -100,17 +100,9 @@ def decision_log():
 
             # Create new decision entry
             decision = SecurityDecision(
-                event_report_id=request.form.get('event_report_id'),
-                decision_type=request.form['decision_type'],
                 description=request.form['description'],
-                impact_level=request.form['impact_level'],
-                implementation_date=datetime.strptime(request.form['implementation_date'], '%Y-%m-%d')
-                                  if request.form.get('implementation_date') else None,
-                expected_outcome=request.form.get('expected_outcome'),
                 author=request.form.get('author', 'Anonymous'),
-                priority_level=request.form.get('priority_level', 'Medium'),
-                category=request.form.get('category'),
-                tags=request.form.getlist('tags')
+                status='Active'
             )
 
             # Add attachments if any
@@ -131,23 +123,8 @@ def decision_log():
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
     # GET request - display the log
-    impact_level = request.args.get('impact')
-    category = request.args.get('category')
-    query = SecurityDecision.query
-
-    if impact_level:
-        query = query.filter(SecurityDecision.impact_level == impact_level.capitalize())
-    if category:
-        query = query.filter(SecurityDecision.category == category)
-
-    decisions = query.order_by(SecurityDecision.created_at.desc()).all()
-    events = EventReport.query.order_by(EventReport.date.desc()).all()
-
-    return render_template('decision_log.html',
-                         decisions=decisions,
-                         events=events,
-                         categories=get_decision_categories(),
-                         priority_levels=['High', 'Medium', 'Low'])
+    decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).all()
+    return render_template('decision_log.html', decisions=decisions)
 
 
 def get_decision_categories():
@@ -531,6 +508,7 @@ def export_report_pdf(report_id):
     finally:
         # Clean up the temporary file after sending
         os.unlink(tmp_path)
+
 
 @app.route('/decision/attachment/<path:filename>')
 def download_attachment(filename):
