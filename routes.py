@@ -710,3 +710,40 @@ def export_report_pdf(report_id):
         os.unlink(tmp_path)
 
 from models import AssessmentTemplate
+
+@app.route('/export-decisions')
+def export_decisions():
+    """Export all decisions as PDF"""
+    try:
+        decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).all()
+
+        # Log the export activity
+        log = start_activity_tracking('export_decisions_pdf')
+        g.activity_log = log
+
+        # Generate HTML content
+        html = render_template('pdf/decision_log_pdf.html',
+                             decisions=decisions,
+                             datetime=datetime)
+
+        # Create a temporary file for the PDF
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+            # Generate PDF from HTML
+            pdf = weasyprint.HTML(string=html).write_pdf()
+            tmp.write(pdf)
+            tmp_path = tmp.name
+
+        try:
+            # Send the PDF file
+            return send_file(
+                tmp_path,
+                download_name=f'decision_log_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf',
+                as_attachment=True,
+                mimetype='application/pdf'
+            )
+        finally:
+            # Clean up the temporary file after sending
+            os.unlink(tmp_path)
+    except Exception as e:
+        app.logger.error(f"Error exporting decisions: {str(e)}")
+        abort(500)

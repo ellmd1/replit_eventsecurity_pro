@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .decision {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .metadata {
+            color: #666;
+            font-size: 0.9em;
+            margin: 10px 0;
+        }
+        .description {
+            margin: 15px 0;
+            white-space: pre-wrap;
+        }
+        .attachments {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        h1 {
+            color: #2c3e50;
+            font-size: 24px;
+        }
+        h2 {
+            color: #34495e;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Decision Log Export</h1>
+        <p>Generated on {{ datetime.now().strftime('%Y-%m-%d %H:%M:%S') }}</p>
+    </div>
+
+    {% for decision in decisions %}
+    <div class="decision">
+        <h2>Decision {{ decisions|length - loop.index0 }}</h2>
+        <div class="metadata">
+            <div>Author: {{ decision.author or 'Anonymous' }}</div>
+            <div>Date & Time: {{ decision.created_at.strftime('%d/%m/%Y, %H:%M:%S') }}</div>
+            {% if decision.attachments %}
+            <div class="attachments">
+                Attachments:
+                {% for attachment in decision.attachments %}
+                    {{ attachment.filename }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        <div class="description">{{ decision.description }}</div>
+    </div>
+    {% endfor %}
+</body>
+</html>
