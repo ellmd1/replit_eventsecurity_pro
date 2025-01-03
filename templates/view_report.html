@@ -2,21 +2,23 @@
 
 {% block content %}
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h4 class="mb-0">Event Report Details</h4>
-        <div class="d-flex gap-2 align-items-center">
-            <span class="badge bg-{{ 'danger' if report.risk_level == 'High' else 'warning' if report.risk_level == 'Medium' else 'success' }}">
-                {{ report.risk_level }} Risk
-            </span>
-            <a href="{{ url_for('export_report_pdf', report_id=report.id) }}" class="btn btn-outline-secondary btn-sm">
-                <i data-feather="download" class="feather-sm"></i>
-                Export PDF
-            </a>
-            <a href="{{ url_for('export_report_csv', report_id=report.id) }}" class="btn btn-outline-secondary btn-sm">
-                <i data-feather="download" class="feather-sm"></i>
-                Export CSV
-            </a>
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Event Report Details</h4>
+            <div class="d-flex gap-2 align-items-center">
+                <span class="badge bg-{{ 'danger' if report.risk_level == 'High' else 'warning' if report.risk_level == 'Medium' else 'success' }}">
+                    {{ report.risk_level }} Risk
+                </span>
+                <a href="{{ url_for('export_report_pdf', report_id=report.id) }}" class="btn btn-outline-secondary">
+                    <i data-feather="download" class="feather-sm me-1"></i>
+                    Export PDF
+                </a>
+                <a href="{{ url_for('export_report_csv', report_id=report.id) }}" class="btn btn-outline-secondary">
+                    <i data-feather="download" class="feather-sm me-1"></i>
+                    Export CSV
+                </a>
 
+            </div>
         </div>
     </div>
     <div class="card-body">
