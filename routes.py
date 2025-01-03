@@ -30,6 +30,7 @@ from models import (
     EventReport,
     SecurityDecision,
     SecurityInsight,
+    RiskAssessment,
 )
 
 # Initialize OpenAI client
@@ -942,13 +943,12 @@ Format response as a JSON object with this exact structure:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a security analyst. Format your response as a valid JSON object with the specified structure."
+                        "content": "You are a security analyst. You must respond with a valid JSON object following the exact structure specified in the user's prompt. Do not include any additional text or explanation outside of the JSON object."
                     },
                     {"role": "user", "content": analysis_prompt}
                 ],
                 max_tokens=2000,
-                temperature=0.7,
-                response_format={"type": "json_object"}
+                temperature=0.7
             )
             app.logger.info("Received response from OpenAI")
         except Exception as openai_error:
