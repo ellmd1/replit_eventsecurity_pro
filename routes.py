@@ -10,6 +10,7 @@ import weasyprint
 import tempfile
 from werkzeug.utils import secure_filename
 from openai import OpenAI
+from docx import Document
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
@@ -18,27 +19,60 @@ def summarize_file_content(file_path, file_type):
     """Summarize file content using GPT"""
     try:
         content = ""
-        if file_type.startswith('text/') or file_type == 'application/pdf':
-            with open(file_path, 'rb') as f:
-                content = f.read().decode('utf-8', errors='ignore')
+        app.logger.info(f"Attempting to read file: {file_path} of type: {file_type}")
 
-        if not content:
-            return "File type not supported for summarization"
+        # Handle different file types
+        if file_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+            try:
+                doc = Document(file_path)
+                content = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
+                app.logger.info("Successfully extracted content from DOCX file")
+            except Exception as e:
+                app.logger.error(f"Error reading DOCX file: {str(e)}")
+                return "Error reading DOCX file"
 
-        # Call GPT for summarization
+        elif file_type.startswith('text/') or 'text' in file_type:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                app.logger.info("Successfully read text file")
+            except UnicodeDecodeError:
+                # Try binary mode if text mode fails
+                with open(file_path, 'rb') as f:
+                    content = f.read().decode('utf-8', errors='ignore')
+                app.logger.info("Successfully read file in binary mode")
+
+        elif file_type == 'application/pdf':
+            # For now, return a message for PDF files
+            return "PDF summarization will be implemented soon"
+
+        if not content.strip():
+            app.logger.warning(f"No content extracted from file of type: {file_type}")
+            return f"Unable to extract content from file type: {file_type}"
+
+        app.logger.info("Sending content to GPT for summarization")
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that summarizes documents. Provide a concise summary of the content."},
-                {"role": "user", "content": f"Please summarize this document:\n\n{content}"}
+                {
+                    "role": "system", 
+                    "content": "You are a helpful assistant that summarizes documents. Provide a concise summary of the content."
+                },
+                {
+                    "role": "user",
+                    "content": f"Please summarize this document content in 2-3 sentences:\n\n{content[:4000]}"  # Limit content length
+                }
             ],
             max_tokens=150
         )
 
-        return response.choices[0].message.content
+        summary = response.choices[0].message.content
+        app.logger.info("Successfully generated summary")
+        return summary
+
     except Exception as e:
-        app.logger.error(f"Error summarizing file: {str(e)}")
-        return "Error generating summary"
+        app.logger.error(f"Error in summarize_file_content: {str(e)}")
+        return f"Error generating summary: {str(e)}"
 
 @app.route('/decisions', methods=['GET', 'POST'])
 def decision_log():
@@ -197,12 +231,10 @@ def dashboard():
                          risk_levels=risk_levels)
 
 
-
 def get_or_create_session_id():
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
     return session['session_id']
-
 
 
 def start_activity_tracking(activity_type, event_report_id=None):
@@ -217,12 +249,10 @@ def start_activity_tracking(activity_type, event_report_id=None):
     return log
 
 
-
 def end_activity_tracking(log):
     log.end_activity()
     db.session.commit()
     return log
-
 
 
 def get_decision_categories():
@@ -554,7 +584,6 @@ def edit_template(template_id):
     return render_template('templates/edit.html', template=template)
 
 
-
 def get_venue_types():
     types = db.session.query(
         EventReport.venue_type
@@ -562,7 +591,6 @@ def get_venue_types():
         EventReport.venue_type.isnot(None)
     ).distinct().order_by(EventReport.venue_type).all()
     return [t[0] for t in types if t[0]]
-
 
 
 def get_event_types():
