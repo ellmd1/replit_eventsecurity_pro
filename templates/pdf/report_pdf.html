@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Event Report - {{ report.title }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 40px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .report-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .report-date {
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .risk-level {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .risk-high { background-color: #ffebee; color: #c62828; }
+        .risk-medium { background-color: #fff3e0; color: #ef6c00; }
+        .risk-low { background-color: #e8f5e9; color: #2e7d32; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="report-title">{{ report.title }}</div>
+        <div class="report-date">Generated on {{ datetime.now().strftime('%Y-%m-%d %H:%M:%S') }}</div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Event Details</div>
+        <table>
+            <tr>
+                <th>Date</th>
+                <td>{{ report.date.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            <tr>
+                <th>Location</th>
+                <td>{{ report.location }}</td>
+            </tr>
+            <tr>
+                <th>Risk Level</th>
+                <td>
+                    <span class="risk-level risk-{{ report.risk_level.lower() }}">
+                        {{ report.risk_level }}
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <th>Attendance</th>
+                <td>{{ report.attendance }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Security Details</div>
+        <table>
+            <tr>
+                <th>Security Staff Count</th>
+                <td>{{ report.security_staff_count }}</td>
+            </tr>
+            <tr>
+                <th>Incidents Reported</th>
+                <td>{{ report.incidents_reported }}</td>
+            </tr>
+        </table>
+        {% if report.security_measures %}
+        <p><strong>Security Measures:</strong></p>
+        <p>{{ report.security_measures }}</p>
+        {% endif %}
+    </div>
+
+    {% if report.risk_assessments %}
+    <div class="section">
+        <div class="section-title">Risk Assessments</div>
+        {% for assessment in report.risk_assessments %}
+        <div class="assessment">
+            <p><strong>Assessment Date:</strong> {{ assessment.assessment_date.strftime('%Y-%m-%d') }}</p>
+            <p><strong>Overall Risk Level:</strong> 
+                <span class="risk-level risk-{{ assessment.overall_risk_level.lower() }}">
+                    {{ assessment.overall_risk_level }}
+                </span>
+            </p>
+            {% if assessment.details %}
+            <p><strong>Details:</strong></p>
+            <p>{{ assessment.details }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if report.lessons_learned %}
+    <div class="section">
+        <div class="section-title">Lessons Learned</div>
+        <p>{{ report.lessons_learned }}</p>
+    </div>
+    {% endif %}
+
+    {% if report.recommendations %}
+    <div class="section">
+        <div class="section-title">Recommendations</div>
+        <p>{{ report.recommendations }}</p>
+    </div>
+    {% endif %}
+</body>
+</html>
