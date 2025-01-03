@@ -486,11 +486,50 @@ def chat():
 def chat_query():
     try:
         query = request.json.get('query', '')
-        event_query = EventReport.query
+        app.logger.info(f"Received chat query: {query}")
 
-        # Process query using natural language
+        # First, get relevant events
+        event_query = EventReport.query
         events = event_query.limit(5).all()
-        response = f"Based on your query: '{query}', here are some relevant events."
+
+        # Format events data for GPT context
+        events_context = []
+        for event in events:
+            event_info = {
+                'title': event.title,
+                'date': event.date.strftime('%Y-%m-%d'),
+                'location': event.location,
+                'risk_level': event.risk_level,
+                'venue_type': event.venue_type,
+                'attendance': event.attendance,
+                'incidents_reported': event.incidents_reported,
+                'incident_summary': event.incident_summary[:150] if event.incident_summary else None,
+                'security_measures': event.security_measures[:150] if event.security_measures else None
+            }
+            events_context.append(event_info)
+
+        # Create message for GPT
+        system_message = """You are a helpful public event safety risk assessment assistant. 
+        You help users understand event safety information and provide insights about security measures. 
+        Be concise but informative in your responses. When discussing events, focus on safety aspects 
+        and risk management. Format your response in a conversational tone."""
+
+        # Prepare the context and query for GPT
+        context_message = f"Here is information about recent events:\n{str(events_context)}\n\nUser query: {query}"
+
+        app.logger.info("Sending request to GPT")
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": context_message}
+            ],
+            max_tokens=300,
+            temperature=0.7
+        )
+
+        ai_response = response.choices[0].message.content
+        app.logger.info("Successfully received GPT response")
 
         # Format events for display
         event_list = []
@@ -510,14 +549,14 @@ def chat_query():
 
         return jsonify({
             'status': 'success',
-            'response': response,
+            'response': ai_response,
             'events': event_list
         })
     except Exception as e:
         app.logger.error(f"Error processing chat query: {str(e)}")
         return jsonify({
             'status': 'error',
-            'response': 'Sorry, I encountered an error processing your query.',
+            'response': "I apologize, but I encountered an error processing your query. Please try rephrasing your question.",
             'events': []
         }), 500
 
