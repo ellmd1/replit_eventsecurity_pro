@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>AI-Powered Security Insights</h2>
+                <button id="generateInsights" class="btn btn-primary">
+                    <i data-feather="refresh-cw" class="feather-sm me-2"></i>
+                    Generate New Insights
+                </button>
+            </div>
+            <p class="text-muted">Get detailed insights and analysis of security trends across all event reports.</p>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingInsights" class="d-none">
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Analyzing security data...</p>
+        </div>
+    </div>
+
+    <!-- Insights Container -->
+    <div id="insightsContainer">
+        {% if insights %}
+        <div class="row">
+            {% for insight in insights %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-dark">
+                        <div class="d-flex align-items-center">
+                            <i data-feather="{{ insight.icon }}" class="me-2"></i>
+                            <h5 class="card-title mb-0">{{ insight.title }}</h5>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">{{ insight.description }}</p>
+                        {% if insight.data %}
+                        <div class="mt-3">
+                            <strong>Key Findings:</strong>
+                            <ul class="list-unstyled mt-2">
+                                {% for item in insight.data %}
+                                <li class="mb-2">
+                                    <i data-feather="check-circle" class="feather-sm text-success me-2"></i>
+                                    {{ item }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center p-5">
+            <i data-feather="bar-chart-2" style="width: 48px; height: 48px;" class="text-muted mb-3"></i>
+            <h4>No Insights Generated Yet</h4>
+            <p class="text-muted">Click the button above to generate AI-powered insights from your security data.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const generateBtn = document.getElementById('generateInsights');
+    const loadingIndicator = document.getElementById('loadingInsights');
+    const insightsContainer = document.getElementById('insightsContainer');
+
+    generateBtn.addEventListener('click', async function() {
+        try {
+            generateBtn.disabled = true;
+            loadingIndicator.classList.remove('d-none');
+            insightsContainer.classList.add('d-none');
+
+            const response = await fetch('/generate_insights', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to generate insights');
+            }
+
+            const result = await response.json();
+            if (result.status === 'success') {
+                window.location.reload();
+            } else {
+                throw new Error(result.message || 'Failed to generate insights');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred while generating insights. Please try again.');
+        } finally {
+            generateBtn.disabled = false;
+            loadingIndicator.classList.add('d-none');
+            insightsContainer.classList.remove('d-none');
+        }
+    });
+
+    // Initialize feather icons
+    feather.replace();
+});
+</script>
+{% endblock %}
