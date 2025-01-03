@@ -66,7 +66,7 @@
                         {% for decision in decisions|sort(attribute='created_at', reverse=true) %}
                         <div class="border-bottom py-3">
                             <div class="mb-2">
-                                <strong>update {{ loop.index }}</strong>
+                                <strong>update {{ decisions|length - loop.index0 }}</strong>
                             </div>
                             <div class="mb-2">
                                 <div><strong>Submitted by:</strong> {{ decision.author or 'Anonymous' }}</div>
