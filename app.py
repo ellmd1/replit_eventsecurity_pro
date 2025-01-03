@@ -23,9 +23,17 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 }
 
 # File upload configuration
-app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
 # Create upload folder if it doesn't exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+try:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    logger.info(f"Upload folder created/verified at: {UPLOAD_FOLDER}")
+except Exception as e:
+    logger.error(f"Error creating upload folder: {str(e)}")
+    raise
 
 # Initialize extensions
 db.init_app(app)

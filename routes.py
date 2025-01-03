@@ -14,80 +14,100 @@ from werkzeug.utils import secure_filename
 def decision_log():
     if request.method == 'POST':
         try:
-            logging.info("Processing POST request to /decisions")
+            app.logger.info("Processing POST request to /decisions")
+
+            # Log request details
+            app.logger.debug(f"Request form data: {request.form}")
+            app.logger.debug(f"Request files: {request.files}")
+
             # Ensure upload folder exists
-            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-            logging.info(f"Upload folder confirmed: {app.config['UPLOAD_FOLDER']}")
+            if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                os.makedirs(app.config['UPLOAD_FOLDER'])
+                app.logger.info(f"Created upload folder: {app.config['UPLOAD_FOLDER']}")
 
             # Handle file uploads
             uploaded_files = request.files.getlist('attachments')
-            logging.info(f"Number of files received: {len(uploaded_files)}")
+            app.logger.info(f"Number of files received: {len(uploaded_files)}")
             file_metadata = []
 
             for file in uploaded_files:
                 if file and file.filename:
-                    # Generate a secure filename with timestamp to avoid duplicates
-                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S_')
-                    original_filename = secure_filename(file.filename)
-                    filename = timestamp + original_filename
-                    logging.info(f"Processing file: {original_filename} -> {filename}")
+                    try:
+                        # Generate a secure filename with timestamp
+                        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S_')
+                        original_filename = secure_filename(file.filename)
+                        filename = timestamp + original_filename
+                        app.logger.info(f"Processing file: {original_filename} -> {filename}")
 
-                    # Save file to upload folder
-                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    file.save(file_path)
-                    logging.info(f"File saved to: {file_path}")
+                        # Save file to upload folder
+                        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                        file.save(file_path)
+                        app.logger.info(f"File saved successfully to: {file_path}")
 
-                    # Store file metadata
-                    file_metadata.append({
-                        'filename': filename,
-                        'original_filename': original_filename,
-                        'file_path': file_path,
-                        'file_type': file.content_type,
-                        'file_size': os.path.getsize(file_path),
-                        'uploaded_at': datetime.utcnow().isoformat()
-                    })
-                    logging.info("File metadata stored successfully")
+                        # Store file metadata
+                        file_metadata.append({
+                            'filename': filename,
+                            'original_filename': original_filename,
+                            'file_path': file_path,
+                            'file_type': file.content_type,
+                            'file_size': os.path.getsize(file_path),
+                            'uploaded_at': datetime.utcnow().isoformat()
+                        })
+                        app.logger.info(f"File metadata stored for: {filename}")
+                    except Exception as e:
+                        app.logger.error(f"Error processing file {file.filename}: {str(e)}")
+                        return jsonify({'status': 'error', 'message': f'Error processing file {file.filename}'}), 500
 
-            # Create new log entry
-            decision = SecurityDecision(
-                description=request.form['description'],
-                author=request.form.get('author', 'Anonymous')
-            )
-            logging.info("Created new SecurityDecision object")
-
-            # Add attachments if any
-            for metadata in file_metadata:
-                decision.add_attachment(
-                    metadata['filename'],
-                    metadata['file_path'],
-                    metadata['file_type'],
-                    metadata['file_size']
+            # Create new decision entry
+            try:
+                decision = SecurityDecision(
+                    description=request.form['description'],
+                    author=request.form.get('author', 'Anonymous')
                 )
-            logging.info(f"Added {len(file_metadata)} attachments to decision")
+                app.logger.info("Created new SecurityDecision object")
 
-            db.session.add(decision)
-            db.session.commit()
-            logging.info("Decision saved to database successfully")
+                # Add attachments if any
+                for metadata in file_metadata:
+                    decision.add_attachment(
+                        metadata['filename'],
+                        metadata['file_path'],
+                        metadata['file_type'],
+                        metadata['file_size']
+                    )
+                app.logger.info(f"Added {len(file_metadata)} attachments to decision")
 
-            # Return JSON response with new decision data
-            return jsonify({
-                'status': 'success',
-                'decision': {
-                    'id': decision.id,
-                    'description': decision.description,
-                    'author': decision.author,
-                    'created_at': decision.created_at.strftime('%d/%m/%Y, %H:%M:%S'),
-                    'attachments': [
-                        {
-                            'filename': att['filename'],
-                            'uploaded_at': att['uploaded_at'],
-                            'file_type': att['file_type']
-                        } for att in decision.attachments
-                    ] if decision.attachments else []
-                }
-            })
+                db.session.add(decision)
+                db.session.commit()
+                app.logger.info("Decision saved to database successfully")
+
+                return jsonify({
+                    'status': 'success',
+                    'decision': {
+                        'id': decision.id,
+                        'description': decision.description,
+                        'author': decision.author,
+                        'created_at': decision.created_at.strftime('%d/%m/%Y, %H:%M:%S'),
+                        'attachments': [
+                            {
+                                'filename': att['filename'],
+                                'uploaded_at': att['uploaded_at'],
+                                'file_type': att['file_type']
+                            } for att in decision.attachments
+                        ] if decision.attachments else []
+                    }
+                })
+            except Exception as e:
+                app.logger.error(f"Error creating decision: {str(e)}")
+                # Cleanup any uploaded files if decision creation fails
+                for metadata in file_metadata:
+                    try:
+                        os.remove(metadata['file_path'])
+                        app.logger.info(f"Cleaned up file: {metadata['file_path']}")
+                    except Exception as cleanup_error:
+                        app.logger.error(f"Error cleaning up file: {str(cleanup_error)}")
+                return jsonify({'status': 'error', 'message': 'Error creating decision entry'}), 500
         except Exception as e:
-            logging.error(f"Error logging decision: {str(e)}")
+            app.logger.error(f"Error in decision_log POST handler: {str(e)}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
     # GET request - display the log
@@ -104,7 +124,7 @@ def download_attachment(filename):
             as_attachment=True
         )
     except Exception as e:
-        logging.error(f"Error downloading attachment: {str(e)}")
+        app.logger.error(f"Error downloading attachment: {str(e)}")
         abort(404)
 
 @app.before_request
@@ -216,7 +236,7 @@ def log_decision():
 
         return redirect(url_for('decision_log'))
     except Exception as e:
-        logging.error(f"Error logging decision: {str(e)}")
+        app.logger.error(f"Error logging decision: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
@@ -238,7 +258,7 @@ def update_decision(decision_id):
         db.session.commit()
         return redirect(url_for('view_decision', decision_id=decision_id))
     except Exception as e:
-        logging.error(f"Error updating decision: {str(e)}")
+        app.logger.error(f"Error updating decision: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
@@ -432,7 +452,7 @@ def chat_query():
             'events': event_list
         })
     except Exception as e:
-        logging.error(f"Error processing chat query: {str(e)}")
+        app.logger.error(f"Error processing chat query: {str(e)}")
         return jsonify({
             'status': 'error',
             'response': 'Sorry, I encountered an error processing your query.',
@@ -465,7 +485,7 @@ def create_template():
             db.session.commit()
             return jsonify({'status': 'success', 'id': template.id})
         except Exception as e:
-            logging.error(f"Error creating template: {str(e)}")
+            app.logger.error(f"Error creating template: {str(e)}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
     return render_template('templates/create.html')
@@ -496,7 +516,7 @@ def edit_template(template_id):
             db.session.commit()
             return jsonify({'status': 'success'})
         except Exception as e:
-            logging.error(f"Error updating template: {str(e)}")
+            app.logger.error(f"Error updating template: {str(e)}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
 
     return render_template('templates/edit.html', template=template)
