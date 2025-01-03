@@ -1,4 +1,4 @@
-from flask import render_template, request, redirect, url_for, jsonify, g, session, send_file
+from flask import render_template, request, redirect, url_for, jsonify, g, session, send_file, send_from_directory, abort
 from app import app, db
 from models import EventReport, ActivityLog, SecurityDecision
 from datetime import datetime, timedelta
@@ -8,11 +8,14 @@ import uuid
 import weasyprint
 import tempfile
 import os
+from werkzeug.utils import secure_filename
+
 
 def get_or_create_session_id():
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
     return session['session_id']
+
 
 def start_activity_tracking(activity_type, event_report_id=None):
     log = ActivityLog(
@@ -25,21 +28,25 @@ def start_activity_tracking(activity_type, event_report_id=None):
     db.session.commit()
     return log
 
+
 def end_activity_tracking(log):
     log.end_activity()
     db.session.commit()
     return log
+
 
 @app.before_request
 def before_request():
     g.start_time = datetime.utcnow()
     g.activity_log = None
 
+
 @app.after_request
 def after_request(response):
     if hasattr(g, 'activity_log') and g.activity_log:
         end_activity_tracking(g.activity_log)
     return response
+
 
 @app.route('/')
 def dashboard():
@@ -61,39 +68,102 @@ def dashboard():
     }
     db.session.commit()
 
-    return render_template('dashboard.html', 
+    return render_template('dashboard.html',
                          upcoming_events=upcoming_events,
                          recent_decisions=recent_decisions,
                          risk_levels=risk_levels)
 
-@app.route('/decisions')
-def decision_log():
-    log = start_activity_tracking('view_decision_log')
-    g.activity_log = log
 
+@app.route('/decisions', methods=['GET', 'POST'])
+def decision_log():
+    if request.method == 'POST':
+        try:
+            # Handle file uploads
+            uploaded_files = request.files.getlist('attachments')
+            file_metadata = []
+
+            for file in uploaded_files:
+                if file and file.filename:
+                    # Generate a secure filename
+                    filename = secure_filename(file.filename)
+                    # Save file to a secure location
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(file_path)
+
+                    # Store file metadata
+                    file_metadata.append({
+                        'filename': filename,
+                        'file_path': file_path,
+                        'file_type': file.content_type,
+                        'file_size': os.path.getsize(file_path),
+                    })
+
+            # Create new decision entry
+            decision = SecurityDecision(
+                event_report_id=request.form.get('event_report_id'),
+                decision_type=request.form['decision_type'],
+                description=request.form['description'],
+                impact_level=request.form['impact_level'],
+                implementation_date=datetime.strptime(request.form['implementation_date'], '%Y-%m-%d')
+                                  if request.form.get('implementation_date') else None,
+                expected_outcome=request.form.get('expected_outcome'),
+                author=request.form.get('author', 'Anonymous'),
+                priority_level=request.form.get('priority_level', 'Medium'),
+                category=request.form.get('category'),
+                tags=request.form.getlist('tags')
+            )
+
+            # Add attachments if any
+            for metadata in file_metadata:
+                decision.add_attachment(
+                    metadata['filename'],
+                    metadata['file_path'],
+                    metadata['file_type'],
+                    metadata['file_size']
+                )
+
+            db.session.add(decision)
+            db.session.commit()
+
+            return redirect(url_for('decision_log'))
+        except Exception as e:
+            logging.error(f"Error logging decision: {str(e)}")
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    # GET request - display the log
     impact_level = request.args.get('impact')
+    category = request.args.get('category')
     query = SecurityDecision.query
 
     if impact_level:
         query = query.filter(SecurityDecision.impact_level == impact_level.capitalize())
+    if category:
+        query = query.filter(SecurityDecision.category == category)
 
     decisions = query.order_by(SecurityDecision.created_at.desc()).all()
     events = EventReport.query.order_by(EventReport.date.desc()).all()
 
-    log.interaction_details = {
-        'filter_applied': impact_level,
-        'results_count': len(decisions)
-    }
-    db.session.commit()
-
-    return render_template('decision_log.html', 
+    return render_template('decision_log.html',
                          decisions=decisions,
-                         events=events)
+                         events=events,
+                         categories=get_decision_categories(),
+                         priority_levels=['High', 'Medium', 'Low'])
+
+
+def get_decision_categories():
+    """Get unique decision categories from the database"""
+    categories = db.session.query(
+        SecurityDecision.category
+    ).filter(
+        SecurityDecision.category.isnot(None)
+    ).distinct().all()
+    return [c[0] for c in categories if c[0]]
+
 
 @app.route('/decision/<int:decision_id>')
 def view_decision(decision_id):
     decision = SecurityDecision.query.get_or_404(decision_id)
-    log = start_activity_tracking('view_decision_details', 
+    log = start_activity_tracking('view_decision_details',
                                 decision.event_report_id if decision.event_report else None)
     g.activity_log = log
 
@@ -102,9 +172,10 @@ def view_decision(decision_id):
         related_ids = [rd['decision_id'] for rd in decision.related_decisions]
         related_decisions = SecurityDecision.query.filter(SecurityDecision.id.in_(related_ids)).all()
 
-    return render_template('view_decision.html', 
+    return render_template('view_decision.html',
                          decision=decision,
                          related_decisions=related_decisions)
+
 
 @app.route('/log_decision', methods=['POST'])
 def log_decision():
@@ -114,7 +185,7 @@ def log_decision():
             decision_type=request.form['decision_type'],
             description=request.form['description'],
             impact_level=request.form['impact_level'],
-            implementation_date=datetime.strptime(request.form['implementation_date'], '%Y-%m-%d') 
+            implementation_date=datetime.strptime(request.form['implementation_date'], '%Y-%m-%d')
                               if request.form.get('implementation_date') else None,
             expected_outcome=request.form.get('expected_outcome')
         )
@@ -125,6 +196,7 @@ def log_decision():
     except Exception as e:
         logging.error(f"Error logging decision: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 @app.route('/update_decision/<int:decision_id>', methods=['POST'])
 def update_decision(decision_id):
@@ -146,6 +218,7 @@ def update_decision(decision_id):
     except Exception as e:
         logging.error(f"Error updating decision: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 @app.route('/browse')
 def index():
@@ -174,6 +247,7 @@ def index():
 
     return render_template('index.html', reports=reports)
 
+
 @app.route('/report/<int:report_id>')
 def view_report(report_id):
     report = EventReport.query.get_or_404(report_id)
@@ -192,6 +266,7 @@ def view_report(report_id):
     db.session.commit()
 
     return render_template('view_report.html', report=report)
+
 
 @app.route('/comparative-search')
 def comparative_search():
@@ -290,16 +365,19 @@ def compare_reports():
                          report1_id=report1_id,
                          report2_id=report2_id)
 
+
 @app.route('/access_logs')
 def view_access_logs():
     logs = ActivityLog.query.order_by(ActivityLog.started_at.desc()).all()
     return render_template('access_log.html', logs=logs)
+
 
 @app.route('/chat')
 def chat():
     log = start_activity_tracking('chat')
     g.activity_log = log
     return render_template('chat.html')
+
 
 @app.route('/chat_query', methods=['POST'])
 def chat_query():
@@ -340,10 +418,12 @@ def chat_query():
             'events': []
         }), 500
 
+
 @app.route('/templates')
 def list_templates():
     templates = AssessmentTemplate.query.order_by(AssessmentTemplate.created_at.desc()).all()
     return render_template('templates/list.html', templates=templates)
+
 
 @app.route('/templates/new', methods=['GET', 'POST'])
 def create_template():
@@ -369,10 +449,12 @@ def create_template():
 
     return render_template('templates/create.html')
 
+
 @app.route('/templates/<int:template_id>')
 def view_template(template_id):
     template = AssessmentTemplate.query.get_or_404(template_id)
     return render_template('templates/view.html', template=template)
+
 
 @app.route('/templates/<int:template_id>/edit', methods=['GET', 'POST'])
 def edit_template(template_id):
@@ -398,6 +480,7 @@ def edit_template(template_id):
 
     return render_template('templates/edit.html', template=template)
 
+
 def get_venue_types():
     types = db.session.query(
         EventReport.venue_type
@@ -406,6 +489,7 @@ def get_venue_types():
     ).distinct().order_by(EventReport.venue_type).all()
     return [t[0] for t in types if t[0]]
 
+
 def get_event_types():
     types = db.session.query(
         EventReport.incident_type
@@ -413,6 +497,7 @@ def get_event_types():
         EventReport.incident_type.isnot(None)
     ).distinct().order_by(EventReport.incident_type).all()
     return [t[0] for t in types if t[0]]
+
 
 @app.route('/report/<int:report_id>/export')
 def export_report_pdf(report_id):
@@ -424,7 +509,7 @@ def export_report_pdf(report_id):
     g.activity_log = log
 
     # Generate HTML content
-    html = render_template('pdf/report_pdf.html', 
+    html = render_template('pdf/report_pdf.html',
                          report=report,
                          datetime=datetime)  # Pass datetime to template
 
@@ -446,3 +531,16 @@ def export_report_pdf(report_id):
     finally:
         # Clean up the temporary file after sending
         os.unlink(tmp_path)
+
+@app.route('/decision/attachment/<path:filename>')
+def download_attachment(filename):
+    """Download an attachment file"""
+    try:
+        return send_from_directory(
+            app.config['UPLOAD_FOLDER'],
+            filename,
+            as_attachment=True
+        )
+    except Exception as e:
+        logging.error(f"Error downloading attachment: {str(e)}")
+        abort(404)
