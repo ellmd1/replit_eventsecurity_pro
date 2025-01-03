@@ -1,7 +1,7 @@
 from flask import render_template, request, redirect, url_for, jsonify, g, session
 from app import app, db
 from models import EventReport, ActivityLog, SecurityDecision
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from sqlalchemy import or_, func, extract, and_
 import uuid
@@ -253,6 +253,7 @@ def comparative_search():
                          event_types=get_event_types())
 
 
+
 @app.route('/compare-reports')
 def compare_reports():
     reports = EventReport.query.order_by(EventReport.date.desc()).all()
@@ -397,38 +398,3 @@ def get_event_types():
         EventReport.incident_type.isnot(None)
     ).distinct().order_by(EventReport.incident_type).all()
     return [t[0] for t in types if t[0]]
-
-# Add new route for handling text selection logging
-@app.route('/log_selection', methods=['POST'])
-def log_selection():
-    try:
-        data = request.json
-        decision = SecurityDecision(
-            description=data['text'],
-            decision_type='text_selection',
-            impact_level='Info',
-            created_at=datetime.utcnow(),
-            status='Logged'
-        )
-        db.session.add(decision)
-        db.session.commit()
-
-        # Log the activity
-        log = ActivityLog(
-            activity_type='text_selection',
-            session_id=get_or_create_session_id(),
-            user_identifier=request.remote_addr,
-            interaction_details={
-                'selected_text': data['text'],
-                'source': data['source']
-            }
-        )
-        db.session.add(log)
-        db.session.commit()
-
-        return jsonify({'status': 'success', 'message': 'Selection logged successfully'})
-    except Exception as e:
-        logging.error(f"Error logging selection: {str(e)}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-from datetime import timedelta
