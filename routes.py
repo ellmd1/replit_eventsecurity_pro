@@ -424,7 +424,9 @@ def export_report_pdf(report_id):
     g.activity_log = log
 
     # Generate HTML content
-    html = render_template('pdf/report_pdf.html', report=report)
+    html = render_template('pdf/report_pdf.html', 
+                         report=report,
+                         datetime=datetime)  # Pass datetime to template
 
     # Create a temporary file for the PDF
     with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
