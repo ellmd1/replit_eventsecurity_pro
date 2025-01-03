@@ -15,8 +15,6 @@ db = SQLAlchemy(model_class=Base)
 app = Flask(__name__)
 
 # Configuration
-app.config['ENV'] = 'development'
-app.config['DEBUG'] = True
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
