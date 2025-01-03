@@ -7,13 +7,16 @@
             <h4 class="mb-0">Details Log</h4>
         </div>
         <div class="card-body">
-            <form method="POST" action="{{ url_for('decision_log') }}" enctype="multipart/form-data" class="mb-4">
+            <form id="decisionForm" method="POST" action="{{ url_for('decision_log') }}" enctype="multipart/form-data" class="mb-4">
                 <div class="mb-3">
                     <label class="form-label">Description</label>
                     <textarea name="description" class="form-control" rows="4" required></textarea>
                 </div>
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">Update</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        <span class="btn-text">Update</span>
+                    </button>
                     <div class="btn btn-outline-secondary position-relative">
                         <span>Upload Document or File</span>
                         <input type="file" name="attachments" class="position-absolute top-0 start-0 opacity-0 w-100 h-100" 
@@ -22,32 +25,71 @@
                 </div>
             </form>
 
-            {% for decision in decisions|sort(attribute='created_at', reverse=true) %}
-            <div class="border-bottom py-3">
-                <div class="mb-2">
-                    <strong>update {{ loop.index }}</strong>
-                </div>
-                <div class="mb-2">
-                    <div><strong>Submitted by:</strong> {{ decision.author or 'Anonymous' }}</div>
-                    <div><strong>Date & Time:</strong> {{ decision.created_at.strftime('%d/%m/%Y, %H:%M:%S') }}</div>
-                    {% if decision.attachments %}
-                    <div>
-                        <strong>Document:</strong>
-                        {% for attachment in decision.attachments %}
-                        <a href="{{ url_for('download_attachment', filename=attachment.filename) }}" class="text-decoration-none">
-                            {{ attachment.filename }}
-                        </a>
-                        {% if not loop.last %}, {% endif %}
-                        {% endfor %}
+            <div id="decisionsContainer">
+                {% for decision in decisions|sort(attribute='created_at', reverse=true) %}
+                <div class="border-bottom py-3">
+                    <div class="mb-2">
+                        <strong>update {{ loop.index }}</strong>
                     </div>
-                    {% else %}
-                    <div><strong>Document:</strong> N/A</div>
-                    {% endif %}
+                    <div class="mb-2">
+                        <div><strong>Submitted by:</strong> {{ decision.author or 'Anonymous' }}</div>
+                        <div><strong>Date & Time:</strong> {{ decision.created_at.strftime('%d/%m/%Y, %H:%M:%S') }}</div>
+                        {% if decision.attachments %}
+                        <div>
+                            <strong>Document:</strong>
+                            {% for attachment in decision.attachments %}
+                            <a href="{{ url_for('download_attachment', filename=attachment.filename) }}" class="text-decoration-none">
+                                {{ attachment.filename }}
+                            </a>
+                            {% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div><strong>Document:</strong> N/A</div>
+                        {% endif %}
+                    </div>
+                    <p class="mb-0">{{ decision.description }}</p>
                 </div>
-                <p class="mb-0">{{ decision.description }}</p>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('decisionForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    // Show loading state
+    const submitBtn = document.getElementById('submitBtn');
+    const spinner = submitBtn.querySelector('.spinner-border');
+    const btnText = submitBtn.querySelector('.btn-text');
+    spinner.classList.remove('d-none');
+    btnText.textContent = 'Updating...';
+    submitBtn.disabled = true;
+
+    try {
+        const formData = new FormData(this);
+        const response = await fetch(this.action, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+
+        // Refresh the page to show the updated list
+        window.location.reload();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('There was an error submitting the update. Please try again.');
+    } finally {
+        // Reset button state
+        spinner.classList.add('d-none');
+        btnText.textContent = 'Update';
+        submitBtn.disabled = false;
+    }
+});
+</script>
 {% endblock %}
