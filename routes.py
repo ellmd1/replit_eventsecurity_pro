@@ -47,7 +47,17 @@ def decision_log():
             db.session.add(decision)
             db.session.commit()
 
-            return redirect(url_for('decision_log'))
+            # Return JSON response with new decision data
+            return jsonify({
+                'status': 'success',
+                'decision': {
+                    'id': decision.id,
+                    'description': decision.description,
+                    'author': decision.author,
+                    'created_at': decision.created_at.strftime('%d/%m/%Y, %H:%M:%S'),
+                    'attachments': decision.attachments
+                }
+            })
         except Exception as e:
             logging.error(f"Error logging decision: {str(e)}")
             return jsonify({'status': 'error', 'message': str(e)}), 500
