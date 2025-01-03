@@ -14,11 +14,14 @@ from werkzeug.utils import secure_filename
 def decision_log():
     if request.method == 'POST':
         try:
+            logging.info("Processing POST request to /decisions")
             # Ensure upload folder exists
             os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            logging.info(f"Upload folder confirmed: {app.config['UPLOAD_FOLDER']}")
 
             # Handle file uploads
             uploaded_files = request.files.getlist('attachments')
+            logging.info(f"Number of files received: {len(uploaded_files)}")
             file_metadata = []
 
             for file in uploaded_files:
@@ -27,10 +30,12 @@ def decision_log():
                     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S_')
                     original_filename = secure_filename(file.filename)
                     filename = timestamp + original_filename
+                    logging.info(f"Processing file: {original_filename} -> {filename}")
 
                     # Save file to upload folder
                     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                     file.save(file_path)
+                    logging.info(f"File saved to: {file_path}")
 
                     # Store file metadata
                     file_metadata.append({
@@ -41,12 +46,14 @@ def decision_log():
                         'file_size': os.path.getsize(file_path),
                         'uploaded_at': datetime.utcnow().isoformat()
                     })
+                    logging.info("File metadata stored successfully")
 
             # Create new log entry
             decision = SecurityDecision(
                 description=request.form['description'],
                 author=request.form.get('author', 'Anonymous')
             )
+            logging.info("Created new SecurityDecision object")
 
             # Add attachments if any
             for metadata in file_metadata:
@@ -56,9 +63,11 @@ def decision_log():
                     metadata['file_type'],
                     metadata['file_size']
                 )
+            logging.info(f"Added {len(file_metadata)} attachments to decision")
 
             db.session.add(decision)
             db.session.commit()
+            logging.info("Decision saved to database successfully")
 
             # Return JSON response with new decision data
             return jsonify({
@@ -136,10 +145,12 @@ def dashboard():
                          risk_levels=risk_levels)
 
 
+
 def get_or_create_session_id():
     if 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
     return session['session_id']
+
 
 
 def start_activity_tracking(activity_type, event_report_id=None):
@@ -154,10 +165,12 @@ def start_activity_tracking(activity_type, event_report_id=None):
     return log
 
 
+
 def end_activity_tracking(log):
     log.end_activity()
     db.session.commit()
     return log
+
 
 
 def get_decision_categories():
@@ -168,7 +181,6 @@ def get_decision_categories():
         SecurityDecision.category.isnot(None)
     ).distinct().all()
     return [c[0] for c in categories if c[0]]
-
 
 @app.route('/decision/<int:decision_id>')
 def view_decision(decision_id):
