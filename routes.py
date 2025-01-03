@@ -79,6 +79,20 @@ def decision_log():
     if request.method == 'POST':
         try:
             app.logger.info("Processing POST request to /decisions")
+
+            # Handle JSON requests from chat save functionality
+            if request.is_json:
+                data = request.get_json()
+                decision = SecurityDecision(
+                    description=data.get('description', ''),
+                    author=data.get('author', 'Anonymous')
+                )
+                db.session.add(decision)
+                db.session.commit()
+                app.logger.info("Decision saved from chat successfully")
+                return jsonify({'status': 'success', 'id': decision.id})
+
+            # Handle form data and file uploads
             app.logger.debug(f"Request form data: {request.form}")
             app.logger.debug(f"Request files: {request.files}")
 
