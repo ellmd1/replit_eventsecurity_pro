@@ -20,7 +20,7 @@
                                 <option value="">Select first report...</option>
                                 {% for report in reports %}
                                 <option value="{{ report.id }}" {% if report.id|string == report1_id|string %}selected{% endif %}>
-                                    {{ report.title }} ({{ report.date.strftime('%d-%m-%Y') }})
+                                    {{ report.title }} ({{ report.date.strftime('%Y-%m-%d') }})
                                 </option>
                                 {% endfor %}
                             </select>
@@ -31,7 +31,7 @@
                                 <option value="">Select second report...</option>
                                 {% for report in reports %}
                                 <option value="{{ report.id }}" {% if report.id|string == report2_id|string %}selected{% endif %}>
-                                    {{ report.title }} ({{ report.date.strftime('%d-%m-%Y') }})
+                                    {{ report.title }} ({{ report.date.strftime('%Y-%m-%d') }})
                                 </option>
                                 {% endfor %}
                             </select>
@@ -66,8 +66,8 @@
                                 <!-- Basic Info -->
                                 <tr>
                                     <td class="table-secondary">Date</td>
-                                    <td>{{ report1.date.strftime('%d-%m-%Y') }}</td>
-                                    <td>{{ report2.date.strftime('%d-%m-%Y') }}</td>
+                                    <td>{{ report1.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ report2.date.strftime('%Y-%m-%d') }}</td>
                                 </tr>
                                 <tr>
                                     <td class="table-secondary">Location</td>
@@ -121,7 +121,7 @@
                                             <span class="badge bg-{{ 'danger' if latest.overall_risk_level == 'High' else 'warning' if latest.overall_risk_level == 'Medium' else 'success' }}">
                                                 {{ latest.overall_risk_level }}
                                             </span>
-                                            ({{ latest.assessment_date.strftime('%d-%m-%Y') }})
+                                            ({{ latest.assessment_date.strftime('%Y-%m-%d') }})
                                         </div>
                                         {% else %}
                                         No assessment available
@@ -134,7 +134,7 @@
                                             <span class="badge bg-{{ 'danger' if latest.overall_risk_level == 'High' else 'warning' if latest.overall_risk_level == 'Medium' else 'success' }}">
                                                 {{ latest.overall_risk_level }}
                                             </span>
-                                            ({{ latest.assessment_date.strftime('%d-%m-%Y') }})
+                                            ({{ latest.assessment_date.strftime('%Y-%m-%d') }})
                                         </div>
                                         {% else %}
                                         No assessment available

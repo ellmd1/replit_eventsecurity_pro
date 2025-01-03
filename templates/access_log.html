@@ -22,7 +22,7 @@
             <tbody>
                 {% for log in logs %}
                 <tr>
-                    <td>{{ log.started_at.strftime('%d-%m-%Y %H:%M:%S') }}</td>
+                    <td>{{ log.started_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                     <td>
                         <span class="badge bg-{{ 'primary' if log.activity_type == 'view_report' else 'info' if log.activity_type == 'search' else 'secondary' }}">
                             {{ log.activity_type|replace('_', ' ')|title }}
