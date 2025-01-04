@@ -15,6 +15,8 @@ db = SQLAlchemy(model_class=Base)
 app = Flask(__name__)
 
 # Configuration
+app.config['TIMEOUT'] = 300  # 5 minutes timeout
+app.config['TEMPLATES_AUTO_RELOAD'] = False  # Disable in production
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
