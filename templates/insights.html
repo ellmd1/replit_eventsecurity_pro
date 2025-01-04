@@ -20,8 +20,13 @@
             </div>
 
             <!-- Chat Interface -->
-            <div class="chat-interface mb-4">
-                <div class="card">
+            <div class="chat-interface mb-4" id="chatInterface">
+                <div class="d-flex justify-content-end mb-2">
+                    <button id="toggleChat" class="btn btn-sm btn-outline-secondary">
+                        <i data-feather="message-square"></i> Show Chat Assistant
+                    </button>
+                </div>
+                <div class="card collapse" id="chatCard">
                     <div class="card-body">
                         <div id="chatMessages" class="chat-messages mb-3" style="height: 300px; overflow-y: auto;">
                             <!-- Display existing chat messages -->
@@ -48,10 +53,10 @@
                             {% endif %}
                         </div>
                         <form id="persistentChatForm" class="d-flex gap-2">
-                            <input type="text" 
-                                   class="form-control" 
-                                   id="persistentChatInput" 
-                                   placeholder="Ask about security trends and insights..." 
+                            <input type="text"
+                                   class="form-control"
+                                   id="persistentChatInput"
+                                   placeholder="Ask about security trends and insights..."
                                    required
                                    autocomplete="off">
                             <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
@@ -76,42 +81,42 @@
             <!-- Insights Container -->
             <div id="insightsContainer">
                 {% if insights %}
-                <div class="row">
-                    {% for insight in insights %}
-                    <div class="col-md-6 mb-4">
-                        <div class="card h-100">
-                            <div class="card-header bg-dark">
-                                <div class="d-flex align-items-center">
-                                    <i data-feather="{{ insight.icon }}" class="me-2"></i>
-                                    <h5 class="card-title mb-0">{{ insight.title }}</h5>
+                    <div class="row">
+                        {% for insight in insights %}
+                            <div class="col-md-6 mb-4">
+                                <div class="card h-100">
+                                    <div class="card-header bg-dark">
+                                        <div class="d-flex align-items-center">
+                                            <i data-feather="{{ insight.icon }}" class="me-2"></i>
+                                            <h5 class="card-title mb-0">{{ insight.title }}</h5>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="card-text">{{ insight.description }}</p>
+                                        {% if insight.data %}
+                                            <div class="mt-3">
+                                                <strong>Key Findings:</strong>
+                                                <ul class="list-unstyled mt-2">
+                                                    {% for item in insight.data %}
+                                                        <li class="mb-2">
+                                                            <i data-feather="check-circle" class="feather-sm text-success me-2"></i>
+                                                            {{ item }}
+                                                        </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <p class="card-text">{{ insight.description }}</p>
-                                {% if insight.data %}
-                                <div class="mt-3">
-                                    <strong>Key Findings:</strong>
-                                    <ul class="list-unstyled mt-2">
-                                        {% for item in insight.data %}
-                                        <li class="mb-2">
-                                            <i data-feather="check-circle" class="feather-sm text-success me-2"></i>
-                                            {{ item }}
-                                        </li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
-                </div>
                 {% else %}
-                <div class="text-center p-5">
-                    <i data-feather="bar-chart-2" style="width: 48px; height: 48px;" class="text-muted mb-3"></i>
-                    <h4>No Insights Generated Yet</h4>
-                    <p class="text-muted">Click the button above to generate AI-powered insights from your security data.</p>
-                </div>
+                    <div class="text-center p-5">
+                        <i data-feather="bar-chart-2" style="width: 48px; height: 48px;" class="text-muted mb-3"></i>
+                        <h4>No Insights Generated Yet</h4>
+                        <p class="text-muted">Click the button above to generate AI-powered insights from your security data.</p>
+                    </div>
                 {% endif %}
             </div>
         </div>
@@ -169,9 +174,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatForm = document.getElementById('persistentChatForm');
     const chatInput = document.getElementById('persistentChatInput');
     const chatMessages = document.getElementById('chatMessages');
+    const toggleChat = document.getElementById('toggleChat');
+    const chatCard = document.getElementById('chatCard');
 
     // Initialize Feather icons
     feather.replace();
+
+    // Toggle chat visibility
+    toggleChat.addEventListener('click', function() {
+        $(chatCard).collapse('toggle');
+        const isVisible = $(chatCard).is(':visible');
+        toggleChat.innerHTML = `<i data-feather="${isVisible ? 'x' : 'message-square'}"></i> ${isVisible ? 'Hide' : 'Show'} Chat Assistant`;
+        feather.replace();
+    });
 
     // Handle chat form submission
     chatForm.addEventListener('submit', async function(e) {
