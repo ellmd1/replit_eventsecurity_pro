@@ -1,42 +1,13 @@
-modules = ["python-3.11"]
+
+run = "python main.py"
+modules = ["python-3.10:v18-20230807-322e88b"]
 
 [nix]
-channel = "stable-24_05"
+channel = "stable-23_05"
 
 [deployment]
-deploymentTarget = "autoscale"
-run = ["python", "main.py"]
-
-[workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Flask Server"
-
-[[workflows.workflow]]
-name = "Flask Server"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python main.py"
-waitForPort = 5000
-
-[[ports]]
-localPort = 3000
-externalPort = 3000
+run = "python main.py"
+deploymentTarget = "cloudrun"
 
 [[ports]]
 localPort = 5000
