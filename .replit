@@ -6,7 +6,7 @@ modules = ["python-3.11"]
 channel = "stable-23_05"
 
 [deployment]
-run = ["sh", "-c", "python3 main.py"]
+run = ["sh", "-c", "python main.py"]
 deploymentTarget = "cloudrun"
 
 [[ports]]
@@ -37,5 +37,5 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python3 main.py"
+args = "python main.py"
 waitForPort = 5000
