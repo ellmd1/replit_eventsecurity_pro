@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 from docx import Document
 from flask import (
+    Flask,
     abort,
     g,
     jsonify,
@@ -31,6 +32,7 @@ from models import (
     SecurityDecision,
     SecurityInsight,
     RiskAssessment,
+    ChatMessage
 )
 
 # Initialize OpenAI client
@@ -38,13 +40,268 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
+@app.before_request
+def before_request():
+    g.start_time = datetime.utcnow()
+    g.activity_log = None
+
+@app.after_request
+def after_request(response):
+    if hasattr(g, "activity_log") and g.activity_log:
+        end_activity_tracking(g.activity_log)
+    return response
+
+def get_or_create_session_id():
+    if "session_id" not in session:
+        session["session_id"] = str(uuid.uuid4())
+    return session["session_id"]
+
+def start_activity_tracking(activity_type, event_report_id=None):
+    log = ActivityLog(
+        activity_type=activity_type,
+        event_report_id=event_report_id,
+        session_id=get_or_create_session_id(),
+        user_identifier=request.remote_addr,
+    )
+    db.session.add(log)
+    db.session.commit()
+    return log
+
+def end_activity_tracking(log):
+    log.end_activity()
+    db.session.commit()
+    return log
+
+@app.route("/chat")
+def chat():
+    """Render the chat page with chat history"""
+    session_id = get_or_create_session_id()
+    chat_messages = ChatMessage.query.filter_by(session_id=session_id).order_by(ChatMessage.created_at.desc()).all()
+
+    log = start_activity_tracking("chat")
+    g.activity_log = log
+
+    return render_template("chat.html", chat_messages=chat_messages)
+
+@app.route("/chat_query", methods=["POST"])
+def chat_query():
+    try:
+        data = request.get_json()
+        query = data.get('query')
+        session_id = get_or_create_session_id()
+
+        if not query:
+            return jsonify({
+                "status": "error",
+                "message": "No query provided"
+            }), 400
+
+        # Save user message
+        user_message = ChatMessage(
+            session_id=session_id,
+            message=query,
+            is_user=True
+        )
+        db.session.add(user_message)
+
+        # Get recent events and decisions for context
+        events = (
+            EventReport.query.order_by(EventReport.created_at.desc())
+            .limit(10)
+            .all()
+        )
+        decisions = (
+            SecurityDecision.query.order_by(SecurityDecision.created_at.desc())
+            .limit(5)
+            .all()
+        )
+
+        try:
+            events_data = [
+                {
+                    "title": event.title,
+                    "date": event.date.strftime("%Y-%m-%d"),
+                    "location": event.location,
+                    "risk_level": event.risk_level,
+                    "attendance": event.attendance,
+                    "incidents_reported": event.incidents_reported,
+                    "incident_summary": event.incident_summary[:200] if event.incident_summary else None,
+                    "security_measures": event.security_measures[:200] if event.security_measures else None,
+                    "venue_type": event.venue_type
+                }
+                for event in events
+            ]
+
+            decisions_data = [
+                {
+                    "description": decision.description[:200] if decision.description else None,
+                    "created_at": decision.created_at.strftime("%Y-%m-%d"),
+                    "outcome": decision.outcome[:200] if hasattr(decision, "outcome") and decision.outcome else None,
+                    "effectiveness": decision.effectiveness if hasattr(decision, "effectiveness") else None
+                }
+                for decision in decisions
+            ]
+            logger.info("Data prepared for analysis")
+
+            # Process the query using OpenAI
+            messages = [
+                {"role": "system", "content": """You are an AI assistant specializing in security event analysis. 
+                   Analyze the provided context and user query to provide relevant insights about security events,
+                   risk assessments, and security measures. Keep responses clear and concise."""},
+                {"role": "user", "content": f"""Context:
+                   Recent Events: {json.dumps(events_data)}
+                   Recent Decisions: {json.dumps(decisions_data)}
+
+                   User Query: {query}"""}
+            ]
+
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=messages,
+                max_tokens=500
+            )
+
+            ai_response = response.choices[0].message.content
+
+            # Save AI response
+            assistant_message = ChatMessage(
+                session_id=session_id,
+                message=ai_response,
+                is_user=False
+            )
+            db.session.add(assistant_message)
+            db.session.commit()
+
+            return jsonify({
+                "status": "success",
+                "response": ai_response,
+                "events": events_data[:3]  # Limit to 3 events for demonstration
+            })
+
+        except Exception as e:
+            logger.error(f"Error processing chat query: {str(e)}")
+            db.session.rollback()
+            return jsonify({
+                "status": "error",
+                "message": "Error processing your request. Please try again."
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Unexpected error in chat_query: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "An unexpected error occurred. Please try again."
+        }), 500
+
+@app.route("/insights")
+def insights():
+    """Display the AI insights page"""
+    insights = SecurityInsight.query.order_by(SecurityInsight.created_at.desc()).limit(6).all()
+    return render_template("insights.html", insights=insights)
+
+@app.route("/generate_insights", methods=["POST"])
+def generate_insights():
+    """Generate new AI-powered insights from security data"""
+    try:
+        logger.info("Starting insights generation process")
+
+        # Verify OpenAI API key
+        if not os.environ.get("OPENAI_API_KEY"):
+            logger.error("OpenAI API key not found")
+            return jsonify({
+                "status": "error",
+                "message": "OpenAI API key not configured"
+            }), 500
+
+        # Get event and decision data
+        events = EventReport.query.order_by(EventReport.date.desc()).limit(50).all()
+        decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).limit(50).all()
+
+        events_data = [
+            {
+                "title": event.title,
+                "date": event.date.strftime("%Y-%m-%d"),
+                "risk_level": event.risk_level,
+                "location": event.location,
+                "attendance": event.attendance,
+                "incidents_reported": event.incidents_reported,
+                "security_measures": event.security_measures[:200] if event.security_measures else None,
+                "venue_type": event.venue_type
+            }
+            for event in events
+        ]
+
+        decisions_data = [
+            {
+                "description": decision.description[:200] if decision.description else None,
+                "created_at": decision.created_at.strftime("%Y-%m-%d")
+            }
+            for decision in decisions
+        ]
+
+        # Get insights from OpenAI
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Generate security insights from the provided event and decision data. Format as JSON."
+                },
+                {
+                    "role": "user",
+                    "content": f"Events: {json.dumps(events_data)}\nDecisions: {json.dumps(decisions_data)}"
+                }
+            ],
+            max_tokens=1000
+        )
+
+        insights_data = json.loads(response.choices[0].message.content)
+
+        # Save insights
+        SecurityInsight.query.delete()  # Clear existing insights
+        for insight in insights_data.get('insights', []):
+            new_insight = SecurityInsight(
+                title=insight['title'],
+                description=insight['description'],
+                key_findings=insight.get('findings', []),
+                icon=insight.get('icon', 'alert-circle')
+            )
+            db.session.add(new_insight)
+
+        db.session.commit()
+        return jsonify({"status": "success"})
+
+    except Exception as e:
+        logger.error(f"Error generating insights: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+def get_venue_types():
+    """Get unique venue types from the database"""
+    types = (
+        db.session.query(EventReport.venue_type)
+        .filter(EventReport.venue_type.isnot(None))
+        .distinct()
+        .all()
+    )
+    return [t[0] for t in types if t[0]]
+
+def get_event_types():
+    """Get unique event types from the database"""
+    types = (
+        db.session.query(EventReport.incident_type)
+        .filter(EventReport.incident_type.isnot(None))
+        .distinct()
+        .all()
+    )
+    return [t[0] for t in types if t[0]]
 
 def summarize_file_content(file_path, file_type):
     """Summarize file content using GPT"""
     try:
         content = ""
-        app.logger.info(f"Attempting to read file: {file_path} of type: {file_type}")
+        logger.info(f"Attempting to read file: {file_path} of type: {file_type}")
 
         # Handle different file types
         if file_type.startswith("image/"):
@@ -54,31 +311,31 @@ def summarize_file_content(file_path, file_type):
             try:
                 doc = Document(file_path)
                 content = "\n".join([paragraph.text for paragraph in doc.paragraphs])
-                app.logger.info("Successfully extracted content from DOCX file")
+                logger.info("Successfully extracted content from DOCX file")
             except Exception as e:
-                app.logger.error(f"Error reading DOCX file: {str(e)}")
+                logger.error(f"Error reading DOCX file: {str(e)}")
                 return "Error reading DOCX file"
 
         elif file_type.startswith("text/") or "text" in file_type:
             try:
                 with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
-                app.logger.info("Successfully read text file")
+                logger.info("Successfully read text file")
             except UnicodeDecodeError:
                 # Try binary mode if text mode fails
                 with open(file_path, "rb") as f:
                     content = f.read().decode("utf-8", errors="ignore")
-                app.logger.info("Successfully read file in binary mode")
+                logger.info("Successfully read file in binary mode")
 
         elif file_type == "application/pdf":
             # For now, return a message for PDF files
             return "PDF file uploaded (content extraction not supported)"
 
         if not content.strip():
-            app.logger.warning(f"No content extracted from file of type: {file_type}")
+            logger.warning(f"No content extracted from file of type: {file_type}")
             return f"File uploaded successfully (type: {file_type})"
 
-        app.logger.info("Sending content to GPT for summarization")
+        logger.info("Sending content to GPT for summarization")
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
@@ -95,11 +352,11 @@ def summarize_file_content(file_path, file_type):
         )
 
         summary = response.choices[0].message.content
-        app.logger.info("Successfully generated summary")
+        logger.info("Successfully generated summary")
         return summary
 
     except Exception as e:
-        app.logger.error(f"Error in summarize_file_content: {str(e)}")
+        logger.error(f"Error in summarize_file_content: {str(e)}")
         return f"File uploaded successfully, but summary generation failed: {str(e)}"
 
 
@@ -107,7 +364,7 @@ def summarize_file_content(file_path, file_type):
 def decision_log():
     if request.method == "POST":
         try:
-            app.logger.info("Processing POST request to /decisions")
+            logger.info("Processing POST request to /decisions")
 
             # Handle JSON requests from chat save functionality
             if request.is_json:
@@ -118,19 +375,19 @@ def decision_log():
                 )
                 db.session.add(decision)
                 db.session.commit()
-                app.logger.info("Decision saved from chat successfully")
+                logger.info("Decision saved from chat successfully")
                 return jsonify({"status": "success", "id": decision.id})
 
             # Handle form data and file uploads
-            app.logger.debug(f"Request form data: {request.form}")
-            app.logger.debug(f"Request files: {request.files}")
+            logger.debug(f"Request form data: {request.form}")
+            logger.debug(f"Request files: {request.files}")
 
             if not os.path.exists(app.config["UPLOAD_FOLDER"]):
                 os.makedirs(app.config["UPLOAD_FOLDER"])
-                app.logger.info(f"Created upload folder: {app.config['UPLOAD_FOLDER']}")
+                logger.info(f"Created upload folder: {app.config['UPLOAD_FOLDER']}")
 
             uploaded_files = request.files.getlist("attachments")
-            app.logger.info(f"Number of files received: {len(uploaded_files)}")
+            logger.info(f"Number of files received: {len(uploaded_files)}")
             file_metadata = []
             summaries = []
 
@@ -140,11 +397,11 @@ def decision_log():
                         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S_")
                         original_filename = secure_filename(file.filename)
                         filename = timestamp + original_filename
-                        app.logger.info(f"Processing file: {original_filename} -> {filename}")
+                        logger.info(f"Processing file: {original_filename} -> {filename}")
 
                         file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
                         file.save(file_path)
-                        app.logger.info(f"File saved successfully to: {file_path}")
+                        logger.info(f"File saved successfully to: {file_path}")
 
                         # Get file summary
                         summary = summarize_file_content(file_path, file.content_type)
@@ -160,9 +417,9 @@ def decision_log():
                                 "uploaded_at": datetime.utcnow().isoformat(),
                             }
                         )
-                        app.logger.info(f"File metadata stored for: {filename}")
+                        logger.info(f"File metadata stored for: {filename}")
                     except Exception as e:
-                        app.logger.error(f"Error processing file {file.filename}: {str(e)}")
+                        logger.error(f"Error processing file {file.filename}: {str(e)}")
                         return (
                             jsonify({"status": "error", "message": f"Error processing file {file.filename}"}),
                             500,
@@ -179,7 +436,7 @@ def decision_log():
                     description=description,
                     author=request.form.get("author", "Anonymous"),
                 )
-                app.logger.info("Created new SecurityDecision object")
+                logger.info("Created new SecurityDecision object")
 
                 for metadata in file_metadata:
                     decision.add_attachment(
@@ -188,11 +445,11 @@ def decision_log():
                         metadata["file_type"],
                         metadata["file_size"],
                     )
-                app.logger.info(f"Added {len(file_metadata)} attachments to decision")
+                logger.info(f"Added {len(file_metadata)} attachments to decision")
 
                 db.session.add(decision)
                 db.session.commit()
-                app.logger.info("Decision saved to database successfully")
+                logger.info("Decision saved to database successfully")
 
                 return jsonify(
                     {
@@ -216,20 +473,20 @@ def decision_log():
                     }
                 )
             except Exception as e:
-                app.logger.error(f"Error creating decision: {str(e)}")
+                logger.error(f"Error creating decision: {str(e)}")
                 # Cleanup any uploaded files if decision creation fails
                 for metadata in file_metadata:
                     try:
                         os.remove(metadata["file_path"])
-                        app.logger.info(f"Cleaned up file: {metadata['file_path']}")
+                        logger.info(f"Cleaned up file: {metadata['file_path']}")
                     except Exception as cleanup_error:
-                        app.logger.error(f"Error cleaning up file: {str(cleanup_error)}")
+                        logger.error(f"Error cleaning up file: {str(cleanup_error)}")
                 return (
                     jsonify({"status": "error", "message": "Error creating decision entry"}),
                     500,
                 )
         except Exception as e:
-            app.logger.error(f"Error in decision_log POST handler: {str(e)}")
+            logger.error(f"Error in decision_log POST handler: {str(e)}")
             return jsonify({"status": "error", "message": str(e)}), 500
 
     # GET request - display the log
@@ -245,21 +502,8 @@ def download_attachment(filename):
             app.config["UPLOAD_FOLDER"], filename, as_attachment=True
         )
     except Exception as e:
-        app.logger.error(f"Error downloading attachment: {str(e)}")
+        logger.error(f"Error downloading attachment: {str(e)}")
         abort(404)
-
-
-@app.before_request
-def before_request():
-    g.start_time = datetime.utcnow()
-    g.activity_log = None
-
-
-@app.after_request
-def after_request(response):
-    if hasattr(g, "activity_log") and g.activity_log:
-        end_activity_tracking(g.activity_log)
-    return response
 
 
 @app.route("/")
@@ -309,30 +553,6 @@ def dashboard():
         risk_levels=risk_levels,
         security_threats=security_threats,
     )
-
-
-def get_or_create_session_id():
-    if "session_id" not in session:
-        session["session_id"] = str(uuid.uuid4())
-    return session["session_id"]
-
-
-def start_activity_tracking(activity_type, event_report_id=None):
-    log = ActivityLog(
-        activity_type=activity_type,
-        event_report_id=event_report_id,
-        session_id=get_or_create_session_id(),
-        user_identifier=request.remote_addr,
-    )
-    db.session.add(log)
-    db.session.commit()
-    return log
-
-
-def end_activity_tracking(log):
-    log.end_activity()
-    db.session.commit()
-    return log
 
 
 def get_decision_categories():
@@ -387,7 +607,7 @@ def log_decision():
 
         return redirect(url_for("decision_log"))
     except Exception as e:
-        app.logger.error(f"Error logging decision: {str(e)}")
+        logger.error(f"Error logging decision: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -409,7 +629,7 @@ def update_decision(decision_id):
         db.session.commit()
         return redirect(url_for("view_decision", decision_id=decision_id))
     except Exception as e:
-        app.logger.error(f"Error updating decision: {str(e)}")
+        logger.error(f"Error updating decision: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
@@ -569,218 +789,6 @@ def view_access_logs():
     return render_template("access_log.html", logs=logs)
 
 
-@app.route("/chat")
-def chat():
-    log = start_activity_tracking("chat")
-    g.activity_log = log
-    return render_template("chat.html")
-
-
-@app.route("/chat_query", methods=["POST"])
-def chat_query():
-    from flask import jsonify, request
-    from app import app, db
-    from models import EventReport, SecurityDecision, ActivityLog
-    import json
-    import logging
-    # Configure logging
-    logger = logging.getLogger(__name__)
-
-    try:
-        data = request.get_json()
-        query = data.get('query')
-
-        if not query:
-            return jsonify({
-                "status": "error",
-                "message": "No query provided"
-            }), 400
-
-        # Get recent events and decisions for context
-        events = (
-            EventReport.query.order_by(EventReport.created_at.desc())
-            .limit(10)
-            .all()
-        )
-        decisions = (
-            SecurityDecision.query.order_by(SecurityDecision.created_at.desc())
-            .limit(5)
-            .all()
-        )
-
-        try:
-            events_data = [
-                {
-                    "id": event.id,
-                    "title": event.title,
-                    "date": event.date.strftime("%Y-%m-%d"),
-                    "location": event.location,
-                    "risk_level": event.risk_level,
-                    "attendance": event.attendance,
-                    "incidents_reported": event.incidents_reported,
-                    "incident_summary": event.incident_summary[:200] if event.incident_summary else None,
-                    "security_measures": event.security_measures[:200] if event.security_measures else None,
-                    "venue_type": event.venue_type
-                }
-                for event in events
-            ]
-
-            decisions_data = [
-                {
-                    "description": decision.description[:200] if decision.description else None,
-                    "created_at": decision.created_at.strftime("%Y-%m-%d"),
-                    "outcome": decision.outcome[:200] if hasattr(decision, "outcome") and decision.outcome else None,
-                    "effectiveness": decision.effectiveness if hasattr(decision, "effectiveness") else None
-                }
-                for decision in decisions
-            ]
-            logger.info("Data prepared for analysis")
-        except Exception as prep_error:
-            logger.error(f"Error preparing data: {str(prep_error)}")
-            return jsonify({
-                "status": "error",
-                "message": "Error preparing data for analysis. Please try again."
-            }), 500
-
-        # Return mock response for testing
-        return jsonify({
-            "status": "success",
-            "response": "I've analyzed your query and found some relevant information.",
-            "events": events_data[:3]  # Limit to 3 events for demonstration
-        })
-
-    except Exception as e:
-        logger.error(f"Unexpected error in chat_query: {str(e)}")
-        return jsonify({
-            "status": "error",
-            "message": "An unexpected error occurred. Please try again."
-        }), 500
-
-
-@app.route("/templates")
-def list_templates():
-    templates = AssessmentTemplate.query.order_by(
-        AssessmentTemplate.created_at.desc()
-    ).all()
-    return render_template("templates/list.html", templates=templates)
-
-
-@app.route("/templates/new", methods=["GET", "POST"])
-def create_template():
-    if request.method == "POST":
-        try:
-            template = AssessmentTemplate(
-                title=request.form["title"],
-                description=request.form["description"],
-                template_type=request.form["template_type"],
-                min_capacity=int(request.form.get("min_capacity", 0)),
-                max_capacity=int(request.form.get("max_capacity", 0)),
-                configuration=request.json.get("configuration", {}),
-                security_requirements=request.json.get("security_requirements", []),
-                risk_factors=request.json.get("risk_factors", []),
-                mitigation_strategies=request.json.get("mitigation_strategies", []),
-            )
-            db.session.add(template)
-            db.session.commit()
-            return jsonify({"status": "success", "id": template.id})
-        except Exception as e:
-            app.logger.error(f"Error creating template: {str(e)}")
-            return jsonify({"status": "error", "message": str(e)}), 500
-
-    return render_template("templates/create.html")
-
-
-@app.route("/templates/<int:template_id>")
-def view_template(template_id):
-    template = AssessmentTemplate.query.get_or_404(template_id)
-    return render_template("templates/view.html", template=template)
-
-
-@app.route("/templates/<int:template_id>/edit", methods=["GET", "POST"])
-def edit_template(template_id):
-    template = AssessmentTemplate.query.get_or_404(template_id)
-    if request.method == "POST":
-        try:
-            template.title = request.form["title"]
-            template.description = request.form["description"]
-            template.template_type = request.form["template_type"]
-            template.min_capacity = int(request.form.get("min_capacity", 0))
-            template.max_capacity = int(request.form.get("max_capacity", 0))
-            template.configuration = request.json.get("configuration", {})
-            template.security_requirements = request.json.get(
-                "security_requirements", []
-            )
-            template.risk_factors = request.json.get("risk_factors", [])
-            template.mitigation_strategies = request.json.get(
-                "mitigation_strategies", []
-            )
-            template.updated_at = datetime.utcnow()
-
-            db.session.commit()
-            return jsonify({"status": "success"})
-        except Exception as e:
-            app.logger.error(f"Error updating template: {str(e)}")
-            return jsonify({"status": "error", "message": str(e)}), 500
-
-    return render_template("templates/edit.html", template=template)
-
-
-def get_venue_types():
-    """Get unique venue types from the database"""
-    types = (
-        db.session.query(EventReport.venue_type)
-        .filter(EventReport.venue_type.isnot(None))
-        .distinct()
-        .order_by(EventReport.venue_type)
-        .all()
-    )
-    return [t[0] for t in types if t[0]]
-
-
-def get_event_types():
-    """Get unique event types from the database"""
-    types = (
-        db.session.query(EventReport.incident_type)
-        .filter(EventReport.incident_type.isnot(None))
-        .distinct()
-        .order_by(EventReport.incident_type)
-        .all()
-    )
-    return [t[0] for t in types if t[0]]
-
-
-@app.route("/report/<int:report_id>/export")
-def export_report_pdf(report_id):
-    """Export a report as PDF"""
-    report = EventReport.query.get_or_404(report_id)
-
-    # Log the export activity
-    log = start_activity_tracking("export_report_pdf", report_id)
-    g.activity_log = log
-
-    # Generate HTML content
-    html = render_template("pdf/report_pdf.html", report=report, datetime=datetime)
-
-    # Create a temporary file for the PDF
-    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-        # Generate PDF from HTML
-        pdf = weasyprint.HTML(string=html).write_pdf()
-        tmp.write(pdf)
-        tmp_path = tmp.name
-
-    try:
-        # Send the PDF file
-        return send_file(
-            tmp_path,
-            download_name=f"report_{report.id}_{datetime.now().strftime('%Y%m%d')}.pdf",
-            as_attachment=True,
-            mimetype="application/pdf",
-        )
-    finally:
-        # Clean up the temporary file after sending
-        os.unlink(tmp_path)
-
-
 @app.route("/export-decisions")
 def export_decisions():
     """Export all decisions as PDF"""
@@ -817,201 +825,37 @@ def export_decisions():
             # Clean up the temporary file after sending
             os.unlink(tmp_path)
     except Exception as e:
-        app.logger.error(f"Error exporting decisions: {str(e)}")
+        logger.error(f"Error exporting decisions: {str(e)}")
         abort(500)
 
 
-@app.route("/insights")
-def insights():
-    """Display the AI insights page"""
-    insights = SecurityInsight.query.order_by(SecurityInsight.created_at.desc()).limit(6).all()
-    return render_template("insights.html", insights=insights)
+@app.route("/report/<int:report_id>/export")
+def export_report_pdf(report_id):
+    """Export a report as PDF"""
+    report = EventReport.query.get_or_404(report_id)
 
+    # Log the export activity
+    log = start_activity_tracking("export_report_pdf", report_id)
+    g.activity_log = log
 
-@app.route("/generate_insights", methods=["POST"])
-def generate_insights():
-    """Generate new AI-powered insights from security data"""
+    # Generate HTML content
+    html = render_template("pdf/report_pdf.html", report=report, datetime=datetime)
+
+    # Create a temporary file for the PDF
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        # Generate PDF from HTML
+        pdf = weasyprint.HTML(string=html).write_pdf()
+        tmp.write(pdf)
+        tmp_path = tmp.name
+
     try:
-        app.logger.info("Starting insights generation process")
-
-        # Verify OpenAI API key
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            app.logger.error("OpenAI API key not found")
-            return jsonify({
-                "status": "error",
-                "message": "OpenAI API key not configured. Please check your environment settings."
-            }), 500
-
-        # Fetch relevant data from database
-        try:
-            events = EventReport.query.order_by(EventReport.date.desc()).limit(50).all()
-            decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).limit(50).all()
-            app.logger.info(f"Retrieved {len(events)} events and {len(decisions)} decisions for analysis")
-        except Exception as db_error:
-            app.logger.error(f"Database error: {str(db_error)}")
-            return jsonify({
-                "status": "error",
-                "message": "Error accessing database. Please try again."
-            }), 500
-
-        # Prepare data for analysis
-        try:
-            events_data = [
-                {
-                    "title": event.title,
-                    "date": event.date.strftime("%Y-%m-%d"),
-                    "risk_level": event.risk_level,
-                    "location": event.location,
-                    "attendance": event.attendance,
-                    "incidents_reported": event.incidents_reported,
-                    "incident_summary": event.incident_summary[:200] if event.incident_summary else None,
-                    "security_measures": event.security_measures[:200] if event.security_measures else None,
-                    "venue_type": event.venue_type
-                }
-                for event in events
-            ]
-
-            decisions_data = [
-                {
-                    "description": decision.description[:200] if decision.description else None,
-                    "created_at": decision.created_at.strftime("%Y-%m-%d"),
-                    "outcome": decision.outcome[:200] if hasattr(decision, "outcome") and decision.outcome else None,
-                    "effectiveness": decision.effectiveness if hasattr(decision, "effectiveness") else None
-                }
-                for decision in decisions
-            ]
-            app.logger.info("Data prepared for analysis")
-        except Exception as prep_error:
-            app.logger.error(f"Error preparing data: {str(prep_error)}")
-            return jsonify({
-                "status": "error",
-                "message": "Error preparing data for analysis. Please try again."
-            }), 500
-
-        # Create prompt for OpenAI
-        analysis_prompt = f"""As a security analyst, analyze this event and decision data:
-
-Events Data: {json.dumps(events_data)}
-Decisions Data: {json.dumps(decisions_data)}
-
-Generate 6 unique insights focusing on:
-1. Risk level trends and patterns
-2. Security measure effectiveness
-3. Venue-specific patterns
-4. Incident type analysis
-5. Decision impact analysis
-6. Recommendations for improvement
-
-Each insight should have:
-1. A clear title (max 50 chars)
-2. A detailed description (max 200 chars)
-3. 2-3 key findings or actionable points
-4. An appropriate icon name from: alert-triangle, shield, trending-up, activity, users, check-square
-
-Format response as a JSON object with this exact structure:
-{{
-    "insights": [
-        {{
-            "title": "string",
-            "description": "string",
-            "data": ["string"],
-            "icon": "string"
-        }}
-    ]
-}}"""
-
-        # Get insights from OpenAI
-        try:
-            app.logger.info("Sending request to OpenAI")
-            response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a security analyst. You must respond with a valid JSON object following the exact structure specified in the user's prompt. Do not include any additional text or explanation outside of the JSON object."
-                    },
-                    {"role": "user", "content": analysis_prompt}
-                ],
-                max_tokens=2000,
-                temperature=0.7
-            )
-            app.logger.info("Received response from OpenAI")
-        except Exception as openai_error:
-            app.logger.error(f"OpenAI API error: {str(openai_error)}")
-            return jsonify({
-                "status": "error",
-                "message": "Error communicating with AI service. Please try again."
-            }), 500
-
-        # Parse the response and save insights
-        try:
-            insights_data = json.loads(response.choices[0].message.content)
-            app.logger.info(f"Parsed OpenAI response: {insights_data}")
-
-            if not isinstance(insights_data, dict) or 'insights' not in insights_data:
-                raise ValueError("Invalid response format from OpenAI")
-
-            # Delete existing insights before adding new ones
-            SecurityInsight.query.delete()
-
-            # Save new insights to database
-            for insight_data in insights_data['insights']:
-                insight = SecurityInsight(
-                    title=insight_data.get('title', 'Untitled Insight')[:200],
-                    description=insight_data.get('description', '')[:500],
-                    key_findings=insight_data.get('data', []),
-                    icon=insight_data.get('icon', 'alert-circle')
-                )
-                db.session.add(insight)
-
-            db.session.commit()
-            app.logger.info("Successfully saved insights to database")
-            return jsonify({
-                "status": "success",
-                "message": "New insights generated successfully"
-            })
-
-        except json.JSONDecodeError as json_error:
-            app.logger.error(f"JSON parsing error: {str(json_error)}")
-            return jsonify({
-                "status": "error",
-                "message": "Error processing AI response. Please try again."
-            }), 500
-        except Exception as save_error:
-            app.logger.error(f"Database save error: {str(save_error)}")
-            return jsonify({
-                "status": "error",
-                "message": "Error saving insights. Please try again."
-            }), 500
-
-    except Exception as e:
-        app.logger.error(f"Unexpected error in generate_insights: {str(e)}")
-        return jsonify({
-            "status": "error",
-            "message": "An unexpected error occurred. Please try again."
-        }), 500
-
-
-def get_venue_types():
-    """Get unique venue types from the database"""
-    types = (
-        db.session.query(EventReport.venue_type)
-        .filter(EventReport.venue_type.isnot(None))
-        .distinct()
-        .order_by(EventReport.venue_type)
-        .all()
-    )
-    return [t[0] for t in types if t[0]]
-
-
-def get_event_types():
-    """Get unique event types from the database"""
-    types = (
-        db.session.query(EventReport.incident_type)
-        .filter(EventReport.incident_type.isnot(None))
-        .distinct()
-        .order_by(EventReport.incident_type)
-        .all()
-    )
-    return [t[0] for t in types if t[0]]
+        # Send the PDF file
+        return send_file(
+            tmp_path,
+            download_name=f"report_{report.id}_{datetime.now().strftime('%Y%m%d')}.pdf",
+            as_attachment=True,
+            mimetype="application/pdf",
+        )
+    finally:
+        # Clean up the temporary file after sending
+        os.unlink(tmp_path)

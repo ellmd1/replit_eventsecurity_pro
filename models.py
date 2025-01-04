@@ -1,6 +1,14 @@
 from datetime import datetime
 from app import db
 
+class ChatMessage(db.Model):
+    """Model for storing chat messages and history"""
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String(100), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    is_user = db.Column(db.Boolean, default=True)  # True if user message, False if AI response
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 class SecurityInsight(db.Model):
     """Model for storing AI-generated security insights"""
     id = db.Column(db.Integer, primary_key=True)

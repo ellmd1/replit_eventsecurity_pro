@@ -16,7 +16,7 @@ app = Flask(__name__)
 
 # Configuration
 app.config['TIMEOUT'] = 300  # 5 minutes timeout
-app.config['TEMPLATES_AUTO_RELOAD'] = False  # Disable in production
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -30,17 +30,15 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 # Create upload folder if it doesn't exist
-try:
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    logger.info(f"Upload folder created/verified at: {UPLOAD_FOLDER}")
-except Exception as e:
-    logger.error(f"Error creating upload folder: {str(e)}")
-    raise
-
-# Initialize extensions
-db.init_app(app)
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+logger.info(f"Upload folder created/verified at: {UPLOAD_FOLDER}")
 
 try:
+    # Initialize extensions
+    db.init_app(app)
+    logger.info("Database initialized successfully")
+
+    # Initialize database and import routes
     with app.app_context():
         # Import models here to avoid circular imports
         from models import (
@@ -50,6 +48,7 @@ try:
             SecurityInsight,
             RiskAssessment,
             AssessmentTemplate,
+            ChatMessage
         )
         logger.info("Successfully imported models")
 
@@ -60,6 +59,7 @@ try:
         # Import routes after models are set up
         import routes  # noqa: F401
         logger.info("Routes imported successfully")
+
 except Exception as e:
-    logger.error(f"Error initializing application: {str(e)}")
+    logger.error(f"Failed to initialize application: {str(e)}")
     raise
