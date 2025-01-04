@@ -22,7 +22,6 @@ class SecurityInsight(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False)
     key_findings = db.Column(db.JSON, default=list)
-    data = db.Column(db.JSON, default=list)
     icon = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
