@@ -43,12 +43,23 @@ db.init_app(app)
 try:
     with app.app_context():
         # Import models here to avoid circular imports
-        import models  # noqa: F401
-        import routes  # noqa: F401
+        from models import (
+            EventReport,
+            ActivityLog,
+            SecurityDecision,
+            SecurityInsight,
+            RiskAssessment,
+            AssessmentTemplate,
+        )
+        logger.info("Successfully imported models")
 
         # Create database tables
         db.create_all()
         logger.info("Database tables created successfully")
+
+        # Import routes after models are set up
+        import routes  # noqa: F401
+        logger.info("Routes imported successfully")
 except Exception as e:
     logger.error(f"Error initializing application: {str(e)}")
     raise

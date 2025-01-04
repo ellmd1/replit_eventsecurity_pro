@@ -2,12 +2,13 @@ from datetime import datetime
 from app import db
 
 class SecurityInsight(db.Model):
+    """Model for storing AI-generated security insights"""
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False)
     key_findings = db.Column(db.JSON, default=list)
+    data = db.Column(db.JSON, default=list)
     icon = db.Column(db.String(50))
-    data = db.Column(db.JSON, default=list)  # For storing structured insight data
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -42,7 +43,7 @@ class SecurityDecision(db.Model):
     description = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     author = db.Column(db.String(100))
-    attachments = db.Column(db.JSON, default=list)  # Store file metadata
+    attachments = db.Column(db.JSON, default=list)
     event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=True)
     event_report = db.relationship('EventReport', backref=db.backref('security_decisions', lazy=True))
 
