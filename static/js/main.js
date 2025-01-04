@@ -4,29 +4,56 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Chat functionality
     const chatForm = document.getElementById('chatForm');
+    const persistentChatForm = document.getElementById('persistentChatForm');
     const chatMessages = document.getElementById('chatMessages');
+    const chatHistory = document.getElementById('chatHistory');
     const queryInput = document.getElementById('queryInput');
+    const persistentChatInput = document.getElementById('persistentChatInput');
+    const chatSidebar = document.getElementById('chatSidebar');
+    const chatToggle = document.getElementById('chatToggle');
+    const mainContent = document.querySelector('.main-content');
 
-    // Example prompts functionality
-    document.querySelectorAll('.example-prompt').forEach(button => {
-        button.addEventListener('click', function() {
-            if (queryInput) {
-                queryInput.value = this.textContent.trim();
-                queryInput.focus();
-            }
+    // Load chat history from session storage
+    const loadChatHistory = () => {
+        const history = JSON.parse(sessionStorage.getItem('chatHistory') || '[]');
+        if (chatHistory) {
+            history.forEach(msg => {
+                addMessageToHistory(msg.role, msg.content, msg.isHTML, msg.addSaveButton, msg.question);
+            });
+        }
+    };
+
+    // Save chat history to session storage
+    const saveChatHistory = () => {
+        const messages = Array.from(chatHistory.children).map(msg => ({
+            role: msg.classList.contains('user') ? 'user' : 'assistant',
+            content: msg.querySelector('.message-content').getAttribute('data-content'),
+            isHTML: msg.querySelector('.message-content').getAttribute('data-is-html') === 'true',
+            addSaveButton: msg.querySelector('.message-content').getAttribute('data-save-button') === 'true',
+            question: msg.querySelector('.message-content').getAttribute('data-question') || ''
+        }));
+        sessionStorage.setItem('chatHistory', JSON.stringify(messages));
+    };
+
+    // Toggle chat sidebar
+    if (chatToggle) {
+        chatToggle.addEventListener('click', () => {
+            chatSidebar.classList.toggle('collapsed');
+            chatToggle.classList.toggle('collapsed');
+            mainContent.style.marginLeft = chatSidebar.classList.contains('collapsed') ? '0' : 'var(--chat-sidebar-width)';
         });
-    });
+    }
 
-    if (chatForm) {
-        chatForm.addEventListener('submit', async function(e) {
+    // Handle persistent chat form submission
+    if (persistentChatForm) {
+        persistentChatForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-
-            const query = queryInput.value.trim();
+            const query = persistentChatInput.value.trim();
             if (!query) return;
 
             // Add user message to chat
-            addMessageToChat('user', query);
-            queryInput.value = '';
+            addMessageToHistory('user', query);
+            persistentChatInput.value = '';
 
             try {
                 const response = await fetch('/chat_query', {
@@ -40,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
 
                 // Add response to chat
-                addMessageToChat('assistant', data.response, false, true, query);
+                addMessageToHistory('assistant', data.response, false, true, query);
 
                 // If there are events in the response, display them
                 if (data.events && data.events.length > 0) {
@@ -84,28 +111,76 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>`;
                     });
                     eventsHtml += '</div></div>';
-                    addMessageToChat('assistant', eventsHtml, true);
+                    addMessageToHistory('assistant', eventsHtml, true);
                 }
 
                 // Initialize Feather icons for new content
                 feather.replace();
 
-                // Focus input for next message
-                queryInput.focus();
+                // Save updated chat history
+                saveChatHistory();
 
             } catch (error) {
                 console.error('Error:', error);
-                addMessageToChat('assistant', 'Sorry, I encountered an error processing your query.');
+                addMessageToHistory('assistant', 'Sorry, I encountered an error processing your query.');
             }
         });
     }
 
+    // Example prompts functionality
+    document.querySelectorAll('.example-prompt').forEach(button => {
+        button.addEventListener('click', function() {
+            const input = document.getElementById('queryInput') || document.getElementById('persistentChatInput');
+            if (input) {
+                input.value = this.textContent.trim();
+                input.focus();
+            }
+        });
+    });
+
+    // Add message to chat history
+    function addMessageToHistory(role, content, isHTML = false, addSaveButton = false, question = '') {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${role}`;
+
+        const messageContent = document.createElement('div');
+        messageContent.className = `message-content rounded p-2`;
+        messageContent.setAttribute('data-content', content);
+        messageContent.setAttribute('data-is-html', isHTML);
+        messageContent.setAttribute('data-save-button', addSaveButton);
+        messageContent.setAttribute('data-question', question);
+
+        if (isHTML) {
+            messageContent.innerHTML = content;
+        } else {
+            if (addSaveButton) {
+                const saveButton = document.createElement('button');
+                saveButton.className = 'btn btn-sm btn-outline-light save-to-log';
+                saveButton.innerHTML = '<i data-feather="save"></i>';
+                saveButton.title = 'Save to Decision Log';
+                messageContent.appendChild(saveButton);
+            }
+            messageContent.appendChild(document.createTextNode(content));
+        }
+
+        messageDiv.appendChild(messageContent);
+        chatHistory.appendChild(messageDiv);
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+
+        if (addSaveButton) {
+            feather.replace();
+        }
+
+        // Save to session storage
+        saveChatHistory();
+    }
+
     // Add event delegation for save to log buttons
-    chatMessages.addEventListener('click', async function(e) {
+    document.addEventListener('click', async function(e) {
         if (e.target.classList.contains('save-to-log') || e.target.closest('.save-to-log')) {
             const button = e.target.classList.contains('save-to-log') ? e.target : e.target.closest('.save-to-log');
             const messageContent = button.closest('.message-content');
-            const responseText = messageContent.getAttribute('data-response');
+            const responseText = messageContent.getAttribute('data-content');
             const questionText = messageContent.getAttribute('data-question');
 
             try {
@@ -148,51 +223,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-});
 
-// Helper function to add messages to chat
-function addMessageToChat(role, content, isHTML = false, addSaveButton = false, question = '') {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `chat-message ${role}`;
-
-    const messageContent = document.createElement('div');
-    messageContent.className = `message-content rounded p-3`;
-
-    if (isHTML) {
-        messageContent.innerHTML = content;
-    } else {
-        if (addSaveButton) {
-            messageContent.setAttribute('data-response', content);
-            messageContent.setAttribute('data-question', question);
-            const saveButton = document.createElement('button');
-            saveButton.className = 'btn btn-sm btn-outline-light save-to-log';
-            saveButton.innerHTML = '<i data-feather="save"></i>';
-            saveButton.title = 'Save to Decision Log';
-            messageContent.appendChild(saveButton);
+    // Helper function to get Bootstrap color class based on risk level
+    function getRiskLevelClass(riskLevel) {
+        switch (riskLevel) {
+            case 'High':
+                return 'danger';
+            case 'Medium':
+                return 'warning';
+            case 'Low':
+                return 'success';
+            default:
+                return 'secondary';
         }
-        messageContent.appendChild(document.createTextNode(content));
     }
 
-    messageDiv.appendChild(messageContent);
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-
-    // Initialize Feather icons for new content
-    if (addSaveButton) {
-        feather.replace();
-    }
-}
-
-// Helper function to get Bootstrap color class based on risk level
-function getRiskLevelClass(riskLevel) {
-    switch (riskLevel) {
-        case 'High':
-            return 'danger';
-        case 'Medium':
-            return 'warning';
-        case 'Low':
-            return 'success';
-        default:
-            return 'secondary';
-    }
-}
+    // Load chat history when page loads
+    loadChatHistory();
+});

@@ -7,6 +7,7 @@ class SecurityInsight(db.Model):
     description = db.Column(db.Text, nullable=False)
     key_findings = db.Column(db.JSON, default=list)
     icon = db.Column(db.String(50))
+    data = db.Column(db.JSON, default=list)  # For storing structured insight data
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
