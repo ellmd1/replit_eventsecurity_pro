@@ -4,10 +4,17 @@ from app import db
 class ChatMessage(db.Model):
     """Model for storing chat messages and history"""
     id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.String(100), nullable=False)
+    session_id = db.Column(db.String(100), nullable=False, index=True)  # Added index for faster lookups
     message = db.Column(db.Text, nullable=False)
     is_user = db.Column(db.Boolean, default=True)  # True if user message, False if AI response
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    category = db.Column(db.String(50))  # For categorizing different types of messages
+    read = db.Column(db.Boolean, default=False)  # To track if message has been read
+
+    @property
+    def formatted_timestamp(self):
+        """Return a formatted timestamp for display"""
+        return self.created_at.strftime("%Y-%m-%d %H:%M")
 
 class SecurityInsight(db.Model):
     """Model for storing AI-generated security insights"""

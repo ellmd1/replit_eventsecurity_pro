@@ -5,9 +5,7 @@ import tempfile
 import uuid
 from datetime import datetime, timedelta
 
-from docx import Document
 from flask import (
-    Flask,
     abort,
     g,
     jsonify,
@@ -21,7 +19,6 @@ from flask import (
 )
 from openai import OpenAI
 from sqlalchemy import and_, extract, func, or_
-import weasyprint
 from werkzeug.utils import secure_filename
 
 from app import app, db
@@ -54,9 +51,11 @@ def after_request(response):
     return response
 
 def get_or_create_session_id():
-    if "session_id" not in session:
-        session["session_id"] = str(uuid.uuid4())
-    return session["session_id"]
+    """Get existing session ID or create new one"""
+    if 'session_id' not in session:
+        session['session_id'] = str(uuid.uuid4())
+        logger.info(f"Created new session: {session['session_id']}")
+    return session['session_id']
 
 def start_activity_tracking(activity_type, event_report_id=None):
     log = ActivityLog(
@@ -78,8 +77,19 @@ def end_activity_tracking(log):
 def chat():
     """Render the chat page with chat history"""
     session_id = get_or_create_session_id()
-    chat_messages = ChatMessage.query.filter_by(session_id=session_id).order_by(ChatMessage.created_at.desc()).all()
 
+    # Get chat messages for current session, ordered by creation time
+    chat_messages = ChatMessage.query.filter_by(
+        session_id=session_id
+    ).order_by(ChatMessage.created_at.asc()).all()
+
+    # Mark all messages as read
+    for msg in chat_messages:
+        if not msg.read:
+            msg.read = True
+    db.session.commit()
+
+    # Start activity tracking
     log = start_activity_tracking("chat")
     g.activity_log = log
 
@@ -102,9 +112,11 @@ def chat_query():
         user_message = ChatMessage(
             session_id=session_id,
             message=query,
-            is_user=True
+            is_user=True,
+            category="question"
         )
         db.session.add(user_message)
+        db.session.commit()  # Commit immediately to get message ID
 
         # Get recent events and decisions for context
         events = (
@@ -153,7 +165,6 @@ def chat_query():
                 {"role": "user", "content": f"""Context:
                    Recent Events: {json.dumps(events_data)}
                    Recent Decisions: {json.dumps(decisions_data)}
-
                    User Query: {query}"""}
             ]
 
@@ -169,7 +180,8 @@ def chat_query():
             assistant_message = ChatMessage(
                 session_id=session_id,
                 message=ai_response,
-                is_user=False
+                is_user=False,
+                category="answer"
             )
             db.session.add(assistant_message)
             db.session.commit()
@@ -854,7 +866,7 @@ def export_report_pdf(report_id):
             tmp_path,
             download_name=f"report_{report.id}_{datetime.now().strftime('%Y%m%d')}.pdf",
             as_attachment=True,
-            mimetype="application/pdf",
+            mimetype="application/pdf,",
         )
     finally:
         # Clean up the temporary file after sending
