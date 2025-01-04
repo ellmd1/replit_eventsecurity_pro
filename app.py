@@ -34,17 +34,12 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 logger.info(f"Upload folder created/verified at: {UPLOAD_FOLDER}")
 
 try:
-    # Initialize extensions
+    # Initialize database
     db.init_app(app)
     logger.info("Database initialized successfully")
 
-    # Import routes before creating tables to avoid circular imports
-    import routes  # noqa: F401
-    logger.info("Routes imported successfully")
-
-    # Initialize database and create tables
     with app.app_context():
-        # Import models here to avoid circular imports
+        # Import models first
         from models import (
             EventReport,
             ActivityLog,
@@ -59,6 +54,10 @@ try:
         # Create database tables
         db.create_all()
         logger.info("Database tables created successfully")
+
+        # Import routes after database initialization
+        import routes  # noqa: F401
+        logger.info("Routes imported successfully")
 
 except Exception as e:
     logger.error(f"Failed to initialize application: {str(e)}")
