@@ -93,11 +93,11 @@
                                     </div>
                                     <div class="card-body">
                                         <p class="card-text">{{ insight.description }}</p>
-                                        {% if insight.data %}
+                                        {% if insight.key_findings %}
                                             <div class="mt-3">
                                                 <strong>Key Findings:</strong>
                                                 <ul class="list-unstyled mt-2">
-                                                    {% for item in insight.data %}
+                                                    {% for item in insight.key_findings %}
                                                         <li class="mb-2">
                                                             <i data-feather="check-circle" class="feather-sm text-success me-2"></i>
                                                             {{ item }}
@@ -166,7 +166,7 @@
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+$(document).ready(function() {
     // Initialize variables
     const generateBtn = document.getElementById('generateInsights');
     const loadingIndicator = document.getElementById('loadingInsights');
@@ -182,8 +182,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Toggle chat visibility
     toggleChat.addEventListener('click', function() {
-        $(chatCard).collapse('toggle');
-        const isVisible = $(chatCard).is(':visible');
+        $('#chatCard').collapse('toggle');
+        const isVisible = $('#chatCard').is(':visible');
         toggleChat.innerHTML = `<i data-feather="${isVisible ? 'x' : 'message-square'}"></i> ${isVisible ? 'Hide' : 'Show'} Chat Assistant`;
         feather.replace();
     });
