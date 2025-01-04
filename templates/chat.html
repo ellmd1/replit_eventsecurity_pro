@@ -4,19 +4,28 @@
 <div class="container-fluid">
     <div class="row">
         <!-- Chat History Sidebar -->
-        <div class="col-md-3 border-end" style="height: calc(100vh - 56px); overflow-y: auto;">
-            <h5 class="p-3 border-bottom">Chat History</h5>
+        <div class="col-md-3 border-end bg-dark" style="height: calc(100vh - 56px); overflow-y: auto;">
+            <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+                <h5 class="mb-0">Chat History</h5>
+                <small class="text-muted" id="sessionId">Session: {{ session['session_id'][:8] }}</small>
+            </div>
             <div id="chatHistory" class="chat-history">
                 {% if chat_messages %}
                     {% for msg in chat_messages %}
-                        <div class="chat-history-item p-2 border-bottom {% if msg.is_user %}user-message{% else %}assistant-message{% endif %}">
-                            <small class="text-muted">{{ msg.created_at.strftime('%H:%M') }}</small>
-                            <div class="message-preview">{{ msg.message[:50] }}{% if msg.message|length > 50 %}...{% endif %}</div>
+                        <div class="chat-history-item p-2 border-bottom {% if msg.is_user %}user-message{% else %}assistant-message{% endif %}" 
+                             data-message-id="{{ msg.id }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">{{ msg.formatted_timestamp }}</small>
+                                <span class="badge {% if msg.is_user %}bg-primary{% else %}bg-secondary{% endif %}">
+                                    {{ 'You' if msg.is_user else 'AI' }}
+                                </span>
+                            </div>
+                            <div class="message-preview text-truncate">{{ msg.message }}</div>
                         </div>
                     {% endfor %}
                 {% else %}
                     <div class="p-3 text-muted">
-                        No previous messages
+                        Start a new conversation
                     </div>
                 {% endif %}
             </div>
@@ -24,105 +33,39 @@
 
         <!-- Main Chat Area -->
         <div class="col-md-9">
-            <div class="row h-100">
-                <div class="col-12">
-                    <h4 class="mb-4">Security Event Assistant</h4>
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span>Chat with AI Assistant</span>
-                                <small class="text-muted">Ask about events, security measures, and risk assessments</small>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="chat-messages mb-3" id="chatMessages" style="height: 400px; overflow-y: auto;">
-                                <!-- System welcome message -->
-                                <div class="chat-message assistant">
-                                    <div class="message-content bg-secondary text-white rounded p-2 mb-2">
-                                        Welcome! I can help you analyze security events and assess risks. Try asking questions like:
-                                        <ul class="mb-0 mt-2">
-                                            <li>What are the most common security measures used in high-risk events?</li>
-                                            <li>Show me events with valuable lessons learned from security incidents</li>
-                                            <li>Compare security staffing levels between different venue types</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                            <form id="chatForm" class="d-flex gap-2">
-                                <input type="text" 
-                                       class="form-control" 
-                                       id="queryInput" 
-                                       placeholder="Ask about security measures, risk assessments, or past incidents..." 
-                                       required
-                                       autocomplete="off">
-                                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
-                                    <i data-feather="send"></i>
-                                    Send
-                                </button>
-                            </form>
+            <div class="chat-container h-100 d-flex flex-column">
+                <div class="chat-header p-3">
+                    <h4 class="mb-0">Security Event Assistant</h4>
+                    <small class="text-muted">Ask about events, security measures, and risk assessments</small>
+                </div>
 
-                            <!-- Example prompts section -->
-                            <div class="mt-4">
-                                <h6 class="text-muted mb-3">Example Questions:</h6>
-                                <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <div class="card bg-dark h-100">
-                                            <div class="card-body">
-                                                <h6 class="card-title">
-                                                    <i data-feather="shield" class="text-primary me-2"></i>
-                                                    Security Analysis
-                                                </h6>
-                                                <div class="d-flex flex-column gap-2">
-                                                    <button type="button" class="example-prompt btn btn-outline-secondary btn-sm text-start">
-                                                        Show events with comprehensive security protocols
-                                                    </button>
-                                                    <button type="button" class="example-prompt btn btn-outline-secondary btn-sm text-start">
-                                                        List venues with most security staff deployed
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="card bg-dark h-100">
-                                            <div class="card-body">
-                                                <h6 class="card-title">
-                                                    <i data-feather="alert-triangle" class="text-warning me-2"></i>
-                                                    Risk Assessment
-                                                </h6>
-                                                <div class="d-flex flex-column gap-2">
-                                                    <button type="button" class="example-prompt btn btn-outline-secondary btn-sm text-start">
-                                                        Compare risk levels between indoor and outdoor events
-                                                    </button>
-                                                    <button type="button" class="example-prompt btn btn-outline-secondary btn-sm text-start">
-                                                        Analyze high-risk events from last month
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="card bg-dark h-100">
-                                            <div class="card-body">
-                                                <h6 class="card-title">
-                                                    <i data-feather="book-open" class="text-info me-2"></i>
-                                                    Insights & Learning
-                                                </h6>
-                                                <div class="d-flex flex-column gap-2">
-                                                    <button type="button" class="example-prompt btn btn-outline-secondary btn-sm text-start">
-                                                        What are the key lessons learned from recent incidents?
-                                                    </button>
-                                                    <button type="button" class="example-prompt btn btn-outline-secondary btn-sm text-start">
-                                                        Show successful emergency response examples
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                <div class="chat-messages flex-grow-1 p-3" id="chatMessages" style="height: calc(100vh - 250px); overflow-y: auto;">
+                    <!-- System welcome message -->
+                    <div class="chat-message assistant">
+                        <div class="message-content bg-secondary text-white rounded p-2 mb-2">
+                            Welcome! I can help you analyze security events and assess risks. Try asking questions like:
+                            <ul class="mb-0 mt-2">
+                                <li>What are the most common security measures used in high-risk events?</li>
+                                <li>Show me events with valuable lessons learned from security incidents</li>
+                                <li>Compare security staffing levels between different venue types</li>
+                            </ul>
                         </div>
                     </div>
+                </div>
+
+                <div class="chat-input p-3 border-top">
+                    <form id="chatForm" class="d-flex gap-2">
+                        <input type="text" 
+                               class="form-control" 
+                               id="queryInput" 
+                               placeholder="Ask about security measures, risk assessments, or past incidents..." 
+                               required
+                               autocomplete="off">
+                        <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
+                            <i data-feather="send"></i>
+                            Send
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -130,61 +73,40 @@
 </div>
 
 <style>
+.chat-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-messages {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
 .chat-message {
     margin-bottom: 1rem;
+    max-width: 80%;
 }
 
 .chat-message.user {
-    text-align: right;
+    margin-left: auto;
 }
 
 .chat-message .message-content {
-    display: inline-block;
-    max-width: 80%;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
 }
 
 .chat-message.user .message-content {
     background: var(--bs-primary);
     color: white;
-    text-align: left;
 }
 
 .chat-message.assistant .message-content {
     background: var(--bs-secondary);
     color: white;
-    position: relative;
-}
-
-.chat-message .event-card {
-    background: var(--bs-dark);
-    border: 1px solid var(--bs-gray-700);
-    margin-top: 0.5rem;
-}
-
-.chat-message .event-card:hover {
-    border-color: var(--bs-primary);
-}
-
-.example-prompt {
-    transition: all 0.2s ease;
-}
-
-.example-prompt:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.card {
-    border: 1px solid var(--bs-gray-700);
-}
-
-.bg-dark {
-    background: var(--bs-dark) !important;
-}
-
-/* Chat History Styles */
-.chat-history {
-    background: var(--bs-dark);
 }
 
 .chat-history-item {
@@ -202,29 +124,23 @@
 }
 
 .message-preview {
-    font-size: 0.9rem;
     color: var(--bs-gray-300);
+    font-size: 0.875rem;
     margin-top: 0.25rem;
 }
 
-.user-message {
-    border-left: 3px solid var(--bs-primary);
+/* Custom scrollbar for chat history */
+.chat-history::-webkit-scrollbar {
+    width: 5px;
 }
 
-.assistant-message {
-    border-left: 3px solid var(--bs-secondary);
+.chat-history::-webkit-scrollbar-track {
+    background: var(--bs-dark);
 }
 
-.save-to-log {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-}
-
-.save-to-log:hover {
-    opacity: 1;
+.chat-history::-webkit-scrollbar-thumb {
+    background: var(--bs-gray-700);
+    border-radius: 5px;
 }
 </style>
 
@@ -238,23 +154,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize feather icons
     feather.replace();
 
-    // Handle form submission
-    chatForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const query = queryInput.value.trim();
-        if (!query) return;
-
-        // Display user message
-        appendMessage(query, true);
-        queryInput.value = '';
-
+    // Function to save messages
+    async function saveMessage(message, isUser = true) {
         try {
             const response = await fetch('/chat_query', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ query: query })
+                body: JSON.stringify({ query: message })
             });
 
             if (!response.ok) {
@@ -262,20 +170,78 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error:', error);
+            throw error;
+        }
+    }
+
+    // Function to add message to chat window
+    function appendMessage(content, isUser = false) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${isUser ? 'user' : 'assistant'}`;
+        messageDiv.innerHTML = `
+            <div class="message-content rounded p-2 mb-2">
+                ${content}
+            </div>
+        `;
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Function to update chat history
+    function updateChatHistory(message, isUser = true) {
+        const timestamp = new Date().toLocaleTimeString();
+        const historyItem = document.createElement('div');
+        historyItem.className = `chat-history-item p-2 border-bottom ${isUser ? 'user-message' : 'assistant-message'}`;
+        historyItem.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <small class="text-muted">${timestamp}</small>
+                <span class="badge ${isUser ? 'bg-primary' : 'bg-secondary'}">
+                    ${isUser ? 'You' : 'AI'}
+                </span>
+            </div>
+            <div class="message-preview text-truncate">${message}</div>
+        `;
+        chatHistory.insertBefore(historyItem, chatHistory.firstChild);
+    }
+
+    // Handle form submission
+    chatForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const message = queryInput.value.trim();
+        if (!message) return;
+
+        // Clear input
+        queryInput.value = '';
+
+        // Display user message
+        appendMessage(message, true);
+        updateChatHistory(message, true);
+
+        try {
+            // Save message and get response
+            const data = await saveMessage(message);
 
             if (data.status === 'success') {
                 // Display AI response
                 appendMessage(data.response, false);
+                updateChatHistory(data.response, false);
 
-                // Update chat history in the sidebar
-                updateChatHistory(query, data.response);
-
-                // Display related events if any
+                // Handle related events if any
                 if (data.events && data.events.length > 0) {
-                    appendEventCards(data.events);
+                    const eventsHtml = data.events.map(event => `
+                        <div class="event-card card mt-2">
+                            <div class="card-body">
+                                <h6 class="card-title">${event.title}</h6>
+                                <p class="card-text small">${event.date} - ${event.location}</p>
+                                <span class="badge bg-${getRiskLevelClass(event.risk_level)}">${event.risk_level} Risk</span>
+                            </div>
+                        </div>
+                    `).join('');
+                    appendMessage(eventsHtml, false);
                 }
-            } else {
-                throw new Error(data.message || 'Failed to get response');
             }
         } catch (error) {
             console.error('Error:', error);
@@ -283,109 +249,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Handle example prompts
-    document.querySelectorAll('.example-prompt').forEach(button => {
-        button.addEventListener('click', () => {
-            queryInput.value = button.textContent.trim();
-            chatForm.dispatchEvent(new Event('submit'));
-        });
-    });
-
-    function appendMessage(content, isUser) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `chat-message ${isUser ? 'user' : 'assistant'}`;
-        messageDiv.innerHTML = `
-            <div class="message-content rounded p-2 mb-2">
-                ${content}
-                ${!isUser ? `
-                    <button class="btn btn-sm btn-outline-light save-to-log" title="Save to decision log">
-                        <i data-feather="save" class="feather-sm"></i>
-                    </button>
-                ` : ''}
-            </div>
-        `;
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-        feather.replace();
-
-        // Add event listener for save button if present
-        const saveBtn = messageDiv.querySelector('.save-to-log');
-        if (saveBtn) {
-            saveBtn.addEventListener('click', async () => {
-                try {
-                    const response = await fetch('/decisions', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            description: content,
-                            author: 'AI Assistant'
-                        })
-                    });
-
-                    if (response.ok) {
-                        saveBtn.innerHTML = '<i data-feather="check" class="feather-sm"></i>';
-                        feather.replace();
-                        saveBtn.disabled = true;
-                    }
-                } catch (error) {
-                    console.error('Error saving to decision log:', error);
-                }
-            });
-        }
-    }
-
-    function updateChatHistory(query, response) {
-        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        // Add user message to history
-        const userItem = document.createElement('div');
-        userItem.className = 'chat-history-item p-2 border-bottom user-message';
-        userItem.innerHTML = `
-            <small class="text-muted">${timestamp}</small>
-            <div class="message-preview">${query.substring(0, 50)}${query.length > 50 ? '...' : ''}</div>
-        `;
-
-        // Add AI response to history
-        const aiItem = document.createElement('div');
-        aiItem.className = 'chat-history-item p-2 border-bottom assistant-message';
-        aiItem.innerHTML = `
-            <small class="text-muted">${timestamp}</small>
-            <div class="message-preview">${response.substring(0, 50)}${response.length > 50 ? '...' : ''}</div>
-        `;
-
-        // Add to chat history
-        if (chatHistory.querySelector('.text-muted')) {
-            chatHistory.innerHTML = ''; // Remove "No previous messages" text
-        }
-        chatHistory.insertBefore(aiItem, chatHistory.firstChild);
-        chatHistory.insertBefore(userItem, chatHistory.firstChild);
-    }
-
-    function appendEventCards(events) {
-        const cardsContainer = document.createElement('div');
-        cardsContainer.className = 'related-events mt-2';
-
-        events.forEach(event => {
-            const card = document.createElement('div');
-            card.className = 'event-card card mb-2';
-            card.innerHTML = `
-                <div class="card-body">
-                    <h6 class="card-title">${event.title}</h6>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="badge bg-${getRiskLevelClass(event.risk_level)}">${event.risk_level} Risk</span>
-                        <small class="text-muted">${event.date}</small>
-                    </div>
-                    <p class="card-text small mt-2 mb-0">${event.location}</p>
-                </div>
-            `;
-            cardsContainer.appendChild(card);
-        });
-
-        chatMessages.lastElementChild.querySelector('.message-content').appendChild(cardsContainer);
-    }
-
+    // Helper function for risk level styling
     function getRiskLevelClass(risk) {
         switch(risk.toLowerCase()) {
             case 'high': return 'danger';
@@ -394,6 +258,25 @@ document.addEventListener('DOMContentLoaded', function() {
             default: return 'secondary';
         }
     }
+
+    // Make chat history items clickable to show full message
+    chatHistory.addEventListener('click', function(e) {
+        const historyItem = e.target.closest('.chat-history-item');
+        if (historyItem) {
+            const messagePreview = historyItem.querySelector('.message-preview');
+            const fullMessage = messagePreview.textContent;
+
+            // Highlight selected message
+            document.querySelectorAll('.chat-history-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            historyItem.classList.add('selected');
+
+            // Show full message in chat area
+            chatMessages.innerHTML = '';
+            appendMessage(fullMessage, historyItem.classList.contains('user-message'));
+        }
+    });
 });
 </script>
 {% endblock %}
