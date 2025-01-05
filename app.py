@@ -37,27 +37,26 @@ logger.info(f"Upload folder created/verified at: {UPLOAD_FOLDER}")
 db.init_app(app)
 
 with app.app_context():
-    # Import models
-    from models import (
-        EventReport,
-        ActivityLog,
-        SecurityDecision,
-        SecurityInsight,
-        RiskAssessment,
-        AssessmentTemplate,
-        ChatMessage
-    )
+    try:
+        # Import models
+        from models import (
+            EventReport,
+            ActivityLog,
+            SecurityDecision,
+            SecurityInsight,
+            RiskAssessment,
+            AssessmentTemplate,
+            ChatMessage
+        )
+        logger.info("Models imported successfully")
 
-    # Create tables without dropping existing ones
-    db.create_all()
-    logger.info("Database tables verified/created successfully")
+        # Create tables without dropping existing ones
+        db.create_all()
+        logger.info("Database tables verified/created successfully")
 
-    # Import routes after database initialization
-    import routes  # noqa: F401
-    logger.info("Routes imported successfully")
-
-try:
-    pass #The try-except block is no longer needed here because the database initialization is handled outside of it.
-except Exception as e:
-    logger.error(f"An unexpected error occurred after database initialization: {str(e)}")
-    raise
+        # Import routes after database initialization to avoid circular imports
+        import routes  # noqa: F401
+        logger.info("Routes imported successfully")
+    except Exception as e:
+        logger.error(f"Error during initialization: {str(e)}")
+        raise
