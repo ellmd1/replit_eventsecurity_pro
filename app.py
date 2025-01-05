@@ -8,55 +8,55 @@ from sqlalchemy.orm import DeclarativeBase
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-class Base(DeclarativeBase):
-    pass
-
-db = SQLAlchemy(model_class=Base)
+# Initialize Flask app
 app = Flask(__name__)
 
-# Configuration
-app.config['TIMEOUT'] = 300  # 5 minutes timeout
-app.config['TEMPLATES_AUTO_RELOAD'] = True
+# Configure secret key
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
+
+# Configure database
+if not os.environ.get("DATABASE_URL"):
+    logger.error("DATABASE_URL environment variable not set")
+    raise RuntimeError("DATABASE_URL must be set")
+
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
 }
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # File upload configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-
-# Create upload folder if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-logger.info(f"Upload folder created/verified at: {UPLOAD_FOLDER}")
 
-# Initialize database
+# Initialize SQLAlchemy with the app
+class Base(DeclarativeBase):
+    pass
+
+db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 
-with app.app_context():
-    try:
-        # Import models
-        from models import (
-            EventReport,
-            ActivityLog,
-            SecurityDecision,
-            SecurityInsight,
-            RiskAssessment,
-            AssessmentTemplate,
-            ChatMessage
-        )
-        logger.info("Models imported successfully")
-
-        # Create tables without dropping existing ones
+try:
+    # Create tables
+    with app.app_context():
+        # Import models here to avoid circular imports
+        import models  # noqa: F401
+        logger.info("Creating database tables...")
         db.create_all()
-        logger.info("Database tables verified/created successfully")
+        logger.info("Database tables created successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize database: {str(e)}")
+    raise
 
-        # Import routes after database initialization to avoid circular imports
-        import routes  # noqa: F401
-        logger.info("Routes imported successfully")
-    except Exception as e:
-        logger.error(f"Error during initialization: {str(e)}")
-        raise
+# Import routes after everything is initialized
+try:
+    import routes  # noqa: F401
+    logger.info("Routes imported successfully")
+except Exception as e:
+    logger.error(f"Failed to import routes: {str(e)}")
+    raise
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
