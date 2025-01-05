@@ -33,32 +33,31 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 logger.info(f"Upload folder created/verified at: {UPLOAD_FOLDER}")
 
+# Initialize database
+db.init_app(app)
+
+with app.app_context():
+    # Import models
+    from models import (
+        EventReport,
+        ActivityLog,
+        SecurityDecision,
+        SecurityInsight,
+        RiskAssessment,
+        AssessmentTemplate,
+        ChatMessage
+    )
+
+    # Create tables without dropping existing ones
+    db.create_all()
+    logger.info("Database tables verified/created successfully")
+
+    # Import routes after database initialization
+    import routes  # noqa: F401
+    logger.info("Routes imported successfully")
+
 try:
-    # Initialize database
-    db.init_app(app)
-    logger.info("Database initialized successfully")
-
-    with app.app_context():
-        # Import models first
-        from models import (
-            EventReport,
-            ActivityLog,
-            SecurityDecision,
-            SecurityInsight,
-            RiskAssessment,
-            AssessmentTemplate,
-            ChatMessage
-        )
-        logger.info("Successfully imported models")
-
-        # Create all tables
-        db.create_all()
-        logger.info("Database tables created successfully")
-
-        # Import routes after database initialization
-        import routes  # noqa: F401
-        logger.info("Routes imported successfully")
-
+    pass #The try-except block is no longer needed here because the database initialization is handled outside of it.
 except Exception as e:
-    logger.error(f"Failed to initialize application: {str(e)}")
+    logger.error(f"An unexpected error occurred after database initialization: {str(e)}")
     raise

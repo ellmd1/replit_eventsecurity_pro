@@ -2,7 +2,6 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Main Content Area -->
     <div class="col-12">
         <div class="d-flex flex-column h-100">
             <!-- Header Section -->
@@ -22,26 +21,28 @@
             <!-- Chat Interface -->
             <div class="chat-interface mb-4" id="chatInterface">
                 <div class="d-flex justify-content-end mb-2">
-                    <button id="toggleChat" class="btn btn-sm btn-outline-secondary">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#chatCard" aria-expanded="false" aria-controls="chatCard">
                         <i data-feather="message-square"></i> Show Chat Assistant
                     </button>
                 </div>
-                <div class="card collapse" id="chatCard">
-                    <div class="card-body">
-                        <div id="chatMessages" class="chat-messages mb-3" style="height: 300px; overflow-y: auto;">
-                            <!-- Chat messages will be dynamically added here -->
+                <div class="collapse" id="chatCard">
+                    <div class="card">
+                        <div class="card-body">
+                            <div id="chatMessages" class="chat-messages mb-3" style="height: 300px; overflow-y: auto;">
+                                <!-- Chat messages will be dynamically added here -->
+                            </div>
+                            <form id="persistentChatForm" class="d-flex gap-2">
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="persistentChatInput" 
+                                       placeholder="Ask about security trends and insights..." 
+                                       required 
+                                       autocomplete="off">
+                                <button type="submit" class="btn btn-primary">
+                                    <i data-feather="send"></i>
+                                </button>
+                            </form>
                         </div>
-                        <form id="persistentChatForm" class="d-flex gap-2">
-                            <input type="text" 
-                                   class="form-control" 
-                                   id="persistentChatInput" 
-                                   placeholder="Ask about security trends and insights..." 
-                                   required 
-                                   autocomplete="off">
-                            <button type="submit" class="btn btn-primary">
-                                <i data-feather="send"></i>
-                            </button>
-                        </form>
                     </div>
                 </div>
             </div>
@@ -150,19 +151,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatForm = document.getElementById('persistentChatForm');
     const chatInput = document.getElementById('persistentChatInput');
     const chatMessages = document.getElementById('chatMessages');
-    const toggleChat = document.getElementById('toggleChat');
-    const chatCard = document.getElementById('chatCard');
 
     // Initialize Feather icons
     feather.replace();
-
-    // Toggle chat visibility
-    toggleChat.addEventListener('click', function() {
-        $('#chatCard').collapse('toggle');
-        const isVisible = $('#chatCard').hasClass('show');
-        toggleChat.innerHTML = `<i data-feather="${isVisible ? 'x' : 'message-square'}"></i> ${isVisible ? 'Hide' : 'Show'} Chat Assistant`;
-        feather.replace();
-    });
 
     // Handle chat form submission
     chatForm.addEventListener('submit', async function(e) {
