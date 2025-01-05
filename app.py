@@ -3,6 +3,7 @@ import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import text
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -16,6 +17,12 @@ app = Flask(__name__)
 
 # Configuration
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
+
+# Configure database
+if not os.environ.get("DATABASE_URL"):
+    logger.error("DATABASE_URL environment variable not set")
+    raise ValueError("DATABASE_URL environment variable is required")
+
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
@@ -56,6 +63,14 @@ def init_app():
             logger.debug("Importing routes...")
             import routes  # noqa: F401
             logger.debug("Routes imported successfully")
+
+            # Verify database connection
+            try:
+                db.session.execute(text("SELECT 1"))
+                logger.info("Database connection verified successfully")
+            except Exception as e:
+                logger.error(f"Database connection failed: {str(e)}")
+                raise
 
     except Exception as e:
         logger.error(f"Error initializing application: {str(e)}")
