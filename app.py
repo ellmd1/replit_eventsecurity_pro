@@ -18,16 +18,15 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['DEBUG'] = True  # Enable debug mode
-
-if not app.config['SQLALCHEMY_DATABASE_URI']:
-    logger.error("No DATABASE_URL environment variable found!")
-    raise ValueError("DATABASE_URL environment variable is required")
 
 # File upload configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+if not app.config['SQLALCHEMY_DATABASE_URI']:
+    logger.error("No DATABASE_URL environment variable found!")
+    raise ValueError("DATABASE_URL environment variable is required")
 
 try:
     # Initialize db
