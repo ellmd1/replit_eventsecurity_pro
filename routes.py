@@ -212,15 +212,21 @@ def insights():
     """Display the AI insights page with chat history"""
     session_id = get_or_create_session_id()
 
-    # Get chat messages for current session, ordered by creation time
-    chat_messages = ChatMessage.query.filter_by(
-        session_id=session_id
-    ).order_by(ChatMessage.created_at.asc()).all()
+    try:
+        # Get insights
+        insights = SecurityInsight.query.order_by(SecurityInsight.created_at.desc()).limit(6).all()
+        logger.info(f"Retrieved {len(insights)} insights")
 
-    # Get insights
-    insights = SecurityInsight.query.order_by(SecurityInsight.created_at.desc()).limit(6).all()
+        # Get chat messages for current session, ordered by creation time
+        chat_messages = ChatMessage.query.filter_by(
+            session_id=session_id
+        ).order_by(ChatMessage.created_at.asc()).all()
+        logger.info(f"Retrieved {len(chat_messages)} chat messages")
 
-    return render_template("insights.html", insights=insights, chat_messages=chat_messages)
+        return render_template("insights.html", insights=insights or [], chat_messages=chat_messages or [])
+    except Exception as e:
+        logger.error(f"Error in insights route: {str(e)}")
+        return render_template("insights.html", insights=[], chat_messages=[])
 
 @app.route("/generate_insights", methods=["POST"])
 def generate_insights():
