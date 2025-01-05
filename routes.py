@@ -20,6 +20,8 @@ from flask import (
 from openai import OpenAI
 from sqlalchemy import and_, extract, func, or_
 from werkzeug.utils import secure_filename
+from docx import Document
+import weasyprint
 
 from app import app, db
 from models import (
@@ -73,7 +75,7 @@ def end_activity_tracking(log):
     db.session.commit()
     return log
 
-@app.route("/chat")
+@app.route("/chat", methods=["GET", "POST"])
 def chat():
     """Render the chat page with chat history"""
     session_id = get_or_create_session_id()
@@ -113,7 +115,8 @@ def chat_query():
             session_id=session_id,
             message=query,
             is_user=True,
-            category="question"
+            category="question",
+            read=True  # User's own messages are always read
         )
         db.session.add(user_message)
         db.session.commit()  # Commit immediately to get message ID
@@ -155,7 +158,6 @@ def chat_query():
                 }
                 for decision in decisions
             ]
-            logger.info("Data prepared for analysis")
 
             # Process the query using OpenAI
             messages = [
@@ -176,12 +178,13 @@ def chat_query():
 
             ai_response = response.choices[0].message.content
 
-            # Save AI response
+            # Save AI response with unread status
             assistant_message = ChatMessage(
                 session_id=session_id,
                 message=ai_response,
                 is_user=False,
-                category="answer"
+                category="answer",
+                read=False  # Mark AI responses as unread initially
             )
             db.session.add(assistant_message)
             db.session.commit()
@@ -189,7 +192,8 @@ def chat_query():
             return jsonify({
                 "status": "success",
                 "response": ai_response,
-                "events": events_data[:3]  # Limit to 3 events for demonstration
+                "events": events_data[:3],  # Limit to 3 events for demonstration
+                "message_id": assistant_message.id
             })
 
         except Exception as e:
@@ -206,6 +210,27 @@ def chat_query():
             "status": "error",
             "message": "An unexpected error occurred. Please try again."
         }), 500
+
+@app.route("/mark_message_read", methods=["POST"])
+def mark_message_read():
+    """Mark a chat message as read"""
+    try:
+        data = request.get_json()
+        message_id = data.get('message_id')
+
+        if not message_id:
+            return jsonify({"status": "error", "message": "No message ID provided"}), 400
+
+        message = ChatMessage.query.get(message_id)
+        if message:
+            message.read = True
+            db.session.commit()
+            return jsonify({"status": "success"})
+        return jsonify({"status": "error", "message": "Message not found"}), 404
+
+    except Exception as e:
+        logger.error(f"Error marking message as read: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/insights")
 def insights():

@@ -24,6 +24,7 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'upload
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Create database if it doesn't exist
 if not app.config['SQLALCHEMY_DATABASE_URI']:
     logger.error("No DATABASE_URL environment variable found!")
     raise ValueError("DATABASE_URL environment variable is required")
@@ -33,17 +34,23 @@ try:
     db.init_app(app)
 
     with app.app_context():
-        logger.info("Creating database tables...")
-        import models  # Import models here to avoid circular imports
-        db.create_all()  # Create database tables
+        # Import models here to avoid circular imports
+        import models
+        db.create_all()
         logger.info("Database tables created successfully")
 except Exception as e:
     logger.error(f"Error initializing database: {str(e)}")
     raise
 
-import routes  # Import routes after db initialization
+# Import routes after db initialization
+import routes
 
+# Only run the app if this file is run directly
 if __name__ == "__main__":
-    # Get port from environment variable or default to 3000 (Replit's preferred port)
     port = int(os.environ.get('PORT', 3000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(
+        host='0.0.0.0',
+        port=port,
+        debug=True,
+        use_reloader=True
+    )
