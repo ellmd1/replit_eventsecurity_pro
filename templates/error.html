@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="alert alert-danger" role="alert">
+        <h4 class="alert-heading">Error</h4>
+        <p>{{ error }}</p>
+        <hr>
+        <p class="mb-0">
+            <a href="{{ url_for('dashboard') }}" class="alert-link">Return to Dashboard</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

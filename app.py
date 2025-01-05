@@ -21,6 +21,7 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
 }
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # File upload configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -47,14 +48,15 @@ def init_app():
             from models import AssessmentTemplate, ActivityLog, EventReport, SecurityDecision, SecurityInsight  # noqa: F401
             logger.debug("Models imported successfully")
 
+            logger.debug("Creating database tables...")
+            db.create_all()
+            logger.info("Database tables created successfully")
+
+            # Import routes after models to avoid circular imports
             logger.debug("Importing routes...")
             import routes  # noqa: F401
             logger.debug("Routes imported successfully")
 
-            # Create database tables
-            logger.debug("Creating database tables...")
-            db.create_all()
-            logger.info("Database tables created successfully")
     except Exception as e:
         logger.error(f"Error initializing application: {str(e)}")
         logger.exception("Detailed traceback:")
