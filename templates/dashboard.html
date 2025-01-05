@@ -51,7 +51,7 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <a href="#" class="btn btn-sm btn-outline-secondary">View Details</a>
+                                        <a href="{{ url_for('view_event', event_id=event.id) }}" class="btn btn-sm btn-outline-secondary">View Details</a>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -92,52 +92,58 @@
         </div>
     </div>
 </div>
-{% endblock %}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('riskChart').getContext('2d');
-    const riskData = {{ risk_levels|tojson }};
+    const ctx = document.getElementById('riskChart')?.getContext('2d');
+    if (ctx) {
+        const riskData = {{ risk_levels|tojson|safe if risk_levels else '{}' }};
 
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['High Risk', 'Medium Risk', 'Low Risk'],
-            datasets: [{
-                data: [riskData.High, riskData.Medium, riskData.Low],
-                backgroundColor: [
-                    '#dc3545',  // Bootstrap danger red
-                    '#ffc107',  // Bootstrap warning yellow
-                    '#198754'   // Bootstrap success green
-                ],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['High Risk', 'Medium Risk', 'Low Risk'],
+                datasets: [{
+                    data: [
+                        riskData.High || 0,
+                        riskData.Medium || 0,
+                        riskData.Low || 0
+                    ],
+                    backgroundColor: [
+                        '#dc3545',  // Bootstrap danger red
+                        '#ffc107',  // Bootstrap warning yellow
+                        '#198754'   // Bootstrap success green
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#fff',
+                            padding: 10,
+                            usePointStyle: true
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Risk Level Distribution',
                         color: '#fff',
-                        padding: 10,
-                        usePointStyle: true
+                        font: {
+                            size: 14
+                        }
                     }
                 },
-                title: {
-                    display: true,
-                    text: 'Risk Level Distribution',
-                    color: '#fff',
-                    font: {
-                        size: 14
-                    }
-                }
-            },
-            cutout: '70%'
-        }
-    });
+                cutout: '70%'
+            }
+        });
+    }
+
 
     // Initialize Security Trend Charts
     const incidentCtx = document.getElementById('incidentTrendChart').getContext('2d');

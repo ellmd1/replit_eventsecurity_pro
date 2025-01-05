@@ -27,6 +27,10 @@ def create_app():
     app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    }
     app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 
     # Ensure upload directory exists
@@ -50,10 +54,10 @@ def create_app():
             db.create_all()
             logger.info("Database tables created successfully")
 
-            # Import routes after database is ready
+            # Import and register routes
             from routes import register_routes
             register_routes(app)
-            logger.info("Routes imported successfully")
+            logger.info("Routes registered successfully")
 
         except Exception as e:
             logger.error(f"Error during initialization: {str(e)}", exc_info=True)
@@ -65,10 +69,6 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    try:
-        port = int(os.environ.get('PORT', 5000))
-        logger.info(f"Starting Flask application on port {port}")
-        app.run(host='0.0.0.0', port=port, debug=True)
-    except Exception as e:
-        logger.error(f"Failed to start Flask application: {str(e)}", exc_info=True)
-        raise
+    port = int(os.environ.get('PORT', 5000))
+    logger.info(f"Starting Flask application on port {port}")
+    app.run(host='0.0.0.0', port=port, debug=True)

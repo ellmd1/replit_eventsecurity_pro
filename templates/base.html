@@ -69,6 +69,7 @@
             border-radius: 0.25rem;
             max-width: 100%;
             position: relative;
+            word-wrap: break-word;
         }
         .chat-message.user {
             background: var(--bs-primary);
@@ -76,6 +77,7 @@
             margin-left: auto;
             margin-right: 0;
             max-width: 85%;
+            align-self: flex-end;
         }
         .chat-message.assistant {
             background: var(--bs-secondary);
@@ -83,6 +85,7 @@
             margin-right: auto;
             margin-left: 0;
             max-width: 85%;
+            align-self: flex-start;
         }
         .chat-message.unread::before {
             content: '';
@@ -93,6 +96,11 @@
             height: 0.5rem;
             background: var(--bs-danger);
             border-radius: 50%;
+        }
+        .chat-input {
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid var(--bs-border-color);
         }
         @media (max-width: 768px) {
             .chat-sidebar {
@@ -145,7 +153,15 @@
     <!-- Chat Sidebar -->
     <div class="chat-sidebar" id="chatSidebar">
         <div class="chat-history" id="chatHistory">
-            <!-- Chat messages will be populated here -->
+            {% if chat_messages %}
+                {% for message in chat_messages %}
+                    <div class="chat-message {{ 'user' if message.is_user else 'assistant' }} {{ '' if message.read else 'unread' }}"
+                         data-message-id="{{ message.id }}"
+                         data-read="{{ message.read|lower }}">
+                        {{ message.message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
         </div>
         <div class="chat-input">
             <form id="persistentChatForm" class="d-flex gap-2">
@@ -206,5 +222,6 @@
             });
         });
     </script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 </body>
 </html>
