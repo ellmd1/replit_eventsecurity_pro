@@ -1,19 +1,15 @@
 import logging
 import os
-import tempfile
-import uuid
-from datetime import datetime, timedelta
-import json
-
 from flask import (
     abort, g, jsonify, redirect, render_template,
     request, send_file, send_from_directory,
     session, url_for,
 )
-from openai import OpenAI
-from sqlalchemy import and_, extract, func, or_
+from sqlalchemy import and_, extract, func, or_, text
 import weasyprint
 from werkzeug.utils import secure_filename
+import docx  # For handling .docx files
+from openai import OpenAI
 
 from app import app, db
 from models import (
@@ -31,8 +27,13 @@ logger = logging.getLogger(__name__)
 
 # Initialize OpenAI client with error handling
 try:
-    client = OpenAI()  # Will use OPENAI_API_KEY from environment
-    logger.info("OpenAI client initialized successfully")
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        logger.warning("OpenAI API key not found in environment variables")
+        client = None
+    else:
+        client = OpenAI(api_key=api_key)
+        logger.info("OpenAI client initialized successfully")
 except Exception as e:
     logger.error(f"Error initializing OpenAI client: {str(e)}")
     client = None
@@ -166,8 +167,7 @@ def summarize_file_content(file_path, file_type):
 
         elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             try:
-                from docx import Document #Import here to avoid unnecessary import at the top
-                doc = Document(file_path)
+                doc = docx.Document(file_path)
                 content = "\n".join([paragraph.text for paragraph in doc.paragraphs])
                 app.logger.info("Successfully extracted content from DOCX file")
             except Exception as e:
