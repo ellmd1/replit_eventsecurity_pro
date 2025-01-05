@@ -3,12 +3,15 @@ import os
 import logging
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     try:
-        port = int(os.environ.get('PORT', 3000))
+        port = int(os.environ.get('PORT', 5000))
         logger.info(f"Starting Flask application on port {port}")
 
         app.run(
@@ -18,5 +21,5 @@ if __name__ == "__main__":
             use_reloader=True
         )
     except Exception as e:
-        logger.error(f"Failed to start Flask application: {str(e)}")
+        logger.error(f"Failed to start Flask application: {str(e)}", exc_info=True)
         raise

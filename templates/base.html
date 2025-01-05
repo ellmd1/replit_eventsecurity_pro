@@ -12,63 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     <style>
         :root {
-            --primary-color: #4A90E2;
-            --secondary-color: #2C3E50;
-            --accent-color: #3498DB;
-            --background-dark: #1A2634;
-            --card-bg: #233446;
-            --text-primary: #ECF0F1;
-            --text-secondary: #B2BEC3;
             --chat-sidebar-width: 300px;
-        }
-        body {
-            background-color: var(--background-dark);
-            color: var(--text-primary);
-        }
-        .navbar {
-            background-color: var(--card-bg) !important;
-            border-bottom: 1px solid var(--secondary-color);
-        }
-        .card {
-            background-color: var(--card-bg);
-            border-color: var(--secondary-color);
-        }
-        .nav-link.active {
-            color: var(--primary-color) !important;
-        }
-        .btn-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-        }
-        .text-primary {
-            color: var(--primary-color) !important;
-        }
-        .footer {
-            background-color: var(--card-bg);
-            border-color: var(--secondary-color);
-        }
-        .navbar {
-            border-bottom: 1px solid var(--bs-border-color);
-            padding: 1rem 0;
-        }
-        .navbar-brand {
-            font-size: 1.5rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .nav-link {
-            font-weight: 500;
-        }
-        .nav-link.active {
-            color: var(--bs-primary) !important;
-        }
-        .footer {
-            margin-top: 4rem;
-            padding: 2rem 0;
-            background: var(--bs-dark);
-            border-top: 1px solid var(--bs-border-color);
         }
         .main-content {
             min-height: calc(100vh - 280px);
@@ -82,7 +26,7 @@
             top: 0;
             bottom: 0;
             width: var(--chat-sidebar-width);
-            background: var(--card-bg);
+            background: var(--bs-dark);
             border-right: 1px solid var(--bs-border-color);
             z-index: 1030;
             overflow-y: auto;
@@ -101,7 +45,7 @@
             top: 50%;
             transform: translateY(-50%);
             z-index: 1031;
-            background: var(--card-bg);
+            background: var(--bs-dark);
             border: 1px solid var(--bs-border-color);
             border-left: none;
             padding: 0.5rem;
@@ -150,12 +94,6 @@
             background: var(--bs-danger);
             border-radius: 50%;
         }
-        .chat-timestamp {
-            font-size: 0.7rem;
-            opacity: 0.7;
-            margin-top: 0.2rem;
-            text-align: right;
-        }
         @media (max-width: 768px) {
             .chat-sidebar {
                 transform: translateX(-100%);
@@ -167,7 +105,6 @@
                 margin-left: 0;
             }
         }
-
     </style>
 </head>
 <body>
@@ -189,18 +126,6 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">
-                            <i data-feather="file-text" class="feather-sm"></i>
-                            Reports
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'comparative_search' }}" href="{{ url_for('comparative_search') }}">
-                            <i data-feather="search" class="feather-sm"></i>
-                            Compare Events
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'chat' }}" href="{{ url_for('chat') }}">
                             <i data-feather="message-square" class="feather-sm"></i>
                             AI Assistant
@@ -210,12 +135,6 @@
                         <a class="nav-link {{ 'active' if request.endpoint == 'decision_log' }}" href="{{ url_for('decision_log') }}">
                             <i data-feather="check-square" class="feather-sm"></i>
                             Decision Log
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'view_access_logs' }}" href="{{ url_for('view_access_logs') }}">
-                            <i data-feather="activity" class="feather-sm"></i>
-                            Information Logs
                         </a>
                     </li>
                 </ul>
@@ -253,13 +172,13 @@
         </div>
     </main>
 
-    <footer class="footer">
+    <footer class="footer mt-5 py-3 bg-dark">
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
-                    <h5 class="text-primary mb-3">SecureEvent Pro</h5>
+                    <h5 class="text-primary">SecureEvent Pro</h5>
                     <p class="text-muted mb-0">
-                        Advanced risk assessment and security management platform for public event safety professionals.
+                        Advanced risk assessment and security management platform.
                     </p>
                 </div>
                 <div class="col-md-6 text-md-end">
@@ -271,12 +190,20 @@
         </div>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             feather.replace({ class: 'feather-sm' });
+
+            // Chat sidebar toggle functionality
+            const chatToggle = document.getElementById('chatToggle');
+            const chatSidebar = document.getElementById('chatSidebar');
+            const mainContent = document.querySelector('.main-content');
+
+            chatToggle.addEventListener('click', function() {
+                chatSidebar.classList.toggle('collapsed');
+                chatToggle.classList.toggle('collapsed');
+                mainContent.style.marginLeft = chatSidebar.classList.contains('collapsed') ? '0' : 'var(--chat-sidebar-width)';
+            });
         });
     </script>
 </body>
