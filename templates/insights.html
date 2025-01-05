@@ -1,230 +1,79 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Main Content Area -->
-    <div class="col-12">
-        <div class="d-flex flex-column h-100">
-            <!-- Header Section -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h2>AI-Powered Security Insights</h2>
-                        <button id="generateInsights" class="btn btn-primary">
-                            <i data-feather="refresh-cw" class="feather-sm me-2"></i>
-                            Generate New Insights
-                        </button>
-                    </div>
-                    <p class="text-muted">Get detailed insights and analysis of security trends across all event reports.</p>
-                </div>
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>AI-Powered Security Insights</h2>
+                <button id="generateInsights" class="btn btn-primary">
+                    <i data-feather="refresh-cw" class="feather-sm me-2"></i>
+                    Generate New Insights
+                </button>
             </div>
-
-            <!-- Chat Interface -->
-            <div class="chat-interface mb-4" id="chatInterface">
-                <div class="d-flex justify-content-end mb-2">
-                    <button id="toggleChat" class="btn btn-sm btn-outline-secondary">
-                        <i data-feather="message-square"></i> Show Chat Assistant
-                    </button>
-                </div>
-                <div class="card collapse" id="chatCard">
-                    <div class="card-body">
-                        <div id="chatMessages" class="chat-messages mb-3" style="height: 300px; overflow-y: auto;">
-                            <!-- Display existing chat messages -->
-                            {% if chat_messages %}
-                                {% for msg in chat_messages %}
-                                    <div class="chat-message {% if msg.is_user %}user{% else %}assistant{% endif %}">
-                                        <div class="message-content">
-                                            {{ msg.message }}
-                                        </div>
-                                    </div>
-                                {% endfor %}
-                            {% else %}
-                                <!-- System welcome message -->
-                                <div class="chat-message assistant">
-                                    <div class="message-content bg-secondary text-white rounded p-2 mb-2">
-                                        Welcome! I can help analyze security trends and generate insights. Try asking questions like:
-                                        <ul class="mb-0 mt-2">
-                                            <li>What are the emerging security trends in recent events?</li>
-                                            <li>Compare risk levels across different venue types</li>
-                                            <li>Analyze the effectiveness of security measures</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            {% endif %}
-                        </div>
-                        <form id="persistentChatForm" class="d-flex gap-2">
-                            <input type="text"
-                                   class="form-control"
-                                   id="persistentChatInput"
-                                   placeholder="Ask about security trends and insights..."
-                                   required
-                                   autocomplete="off">
-                            <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
-                                <i data-feather="send"></i>
-                                Send
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Loading Indicator -->
-            <div id="loadingInsights" class="d-none">
-                <div class="text-center p-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2">Analyzing security data...</p>
-                </div>
-            </div>
-
-            <!-- Insights Container -->
-            <div id="insightsContainer">
-                {% if insights %}
-                    <div class="row">
-                        {% for insight in insights %}
-                            <div class="col-md-6 mb-4">
-                                <div class="card h-100">
-                                    <div class="card-header bg-dark">
-                                        <div class="d-flex align-items-center">
-                                            <i data-feather="{{ insight.icon }}" class="me-2"></i>
-                                            <h5 class="card-title mb-0">{{ insight.title }}</h5>
-                                        </div>
-                                    </div>
-                                    <div class="card-body">
-                                        <p class="card-text">{{ insight.description }}</p>
-                                        {% if insight.key_findings %}
-                                            <div class="mt-3">
-                                                <strong>Key Findings:</strong>
-                                                <ul class="list-unstyled mt-2">
-                                                    {% for item in insight.key_findings %}
-                                                        <li class="mb-2">
-                                                            <i data-feather="check-circle" class="feather-sm text-success me-2"></i>
-                                                            {{ item }}
-                                                        </li>
-                                                    {% endfor %}
-                                                </ul>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="text-center p-5">
-                        <i data-feather="bar-chart-2" style="width: 48px; height: 48px;" class="text-muted mb-3"></i>
-                        <h4>No Insights Generated Yet</h4>
-                        <p class="text-muted">Click the button above to generate AI-powered insights from your security data.</p>
-                    </div>
-                {% endif %}
-            </div>
+            <p class="text-muted">Get detailed insights and analysis of security trends across all event reports.</p>
         </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingInsights" class="d-none">
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Analyzing security data...</p>
+        </div>
+    </div>
+
+    <!-- Insights Container -->
+    <div id="insightsContainer">
+        {% if insights %}
+        <div class="row">
+            {% for insight in insights %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-dark">
+                        <div class="d-flex align-items-center">
+                            <i data-feather="{{ insight.icon }}" class="me-2"></i>
+                            <h5 class="card-title mb-0">{{ insight.title }}</h5>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">{{ insight.description }}</p>
+                        {% if insight.data %}
+                        <div class="mt-3">
+                            <strong>Key Findings:</strong>
+                            <ul class="list-unstyled mt-2">
+                                {% for item in insight.data %}
+                                <li class="mb-2">
+                                    <i data-feather="check-circle" class="feather-sm text-success me-2"></i>
+                                    {{ item }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center p-5">
+            <i data-feather="bar-chart-2" style="width: 48px; height: 48px;" class="text-muted mb-3"></i>
+            <h4>No Insights Generated Yet</h4>
+            <p class="text-muted">Click the button above to generate AI-powered insights from your security data.</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 
-<style>
-/* Chat Interface Styles */
-.chat-message {
-    margin-bottom: 1rem;
-}
-
-.chat-message.user {
-    text-align: right;
-}
-
-.chat-message .message-content {
-    display: inline-block;
-    max-width: 80%;
-    padding: 0.75rem;
-    border-radius: 0.5rem;
-}
-
-.chat-message.user .message-content {
-    background: var(--bs-primary);
-    color: white;
-}
-
-.chat-message.assistant .message-content {
-    background: var(--bs-secondary);
-    color: white;
-}
-
-/* Custom Scrollbar */
-.chat-messages::-webkit-scrollbar {
-    width: 5px;
-}
-
-.chat-messages::-webkit-scrollbar-track {
-    background: var(--bs-dark);
-}
-
-.chat-messages::-webkit-scrollbar-thumb {
-    background: var(--bs-gray-700);
-    border-radius: 5px;
-}
-</style>
-
 <script>
-$(document).ready(function() {
-    // Initialize variables
+document.addEventListener('DOMContentLoaded', function() {
     const generateBtn = document.getElementById('generateInsights');
     const loadingIndicator = document.getElementById('loadingInsights');
     const insightsContainer = document.getElementById('insightsContainer');
-    const chatForm = document.getElementById('persistentChatForm');
-    const chatInput = document.getElementById('persistentChatInput');
-    const chatMessages = document.getElementById('chatMessages');
-    const toggleChat = document.getElementById('toggleChat');
-    const chatCard = document.getElementById('chatCard');
 
-    // Initialize Feather icons
-    feather.replace();
-
-    // Toggle chat visibility
-    toggleChat.addEventListener('click', function() {
-        $('#chatCard').collapse('toggle');
-        const isVisible = $('#chatCard').is(':visible');
-        toggleChat.innerHTML = `<i data-feather="${isVisible ? 'x' : 'message-square'}"></i> ${isVisible ? 'Hide' : 'Show'} Chat Assistant`;
-        feather.replace();
-    });
-
-    // Handle chat form submission
-    chatForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const query = chatInput.value.trim();
-        if (!query) return;
-
-        // Add user message to chat
-        appendMessage('user', query);
-        chatInput.value = '';
-
-        try {
-            const response = await fetch('/chat_query', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ query: query })
-            });
-
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-
-            const data = await response.json();
-            if (data.status === 'success') {
-                // Add AI response to chat
-                appendMessage('assistant', data.response);
-            } else {
-                throw new Error(data.message || 'Failed to get response');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            appendMessage('assistant', 'Sorry, there was an error processing your request. Please try again.');
-        }
-    });
-
-    // Handle insights generation
     generateBtn.addEventListener('click', async function() {
         try {
             generateBtn.disabled = true;
@@ -258,18 +107,8 @@ $(document).ready(function() {
         }
     });
 
-    // Helper function to append messages to chat
-    function appendMessage(role, content) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `chat-message ${role}`;
-        messageDiv.innerHTML = `
-            <div class="message-content">
-                ${content}
-            </div>
-        `;
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
+    // Initialize feather icons
+    feather.replace();
 });
 </script>
 {% endblock %}

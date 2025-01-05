@@ -1,17 +1,11 @@
-
-run = "python main.py"
 modules = ["python-3.11"]
 
 [nix]
-channel = "stable-23_05"
+channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-c", "python main.py"]
-deploymentTarget = "cloudrun"
-
-[[ports]]
-localPort = 5000
-externalPort = 80
+deploymentTarget = "autoscale"
+run = ["python", "main.py"]
 
 [workflows]
 runButton = "Project"
@@ -39,3 +33,7 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = "python main.py"
 waitForPort = 5000
+
+[[ports]]
+localPort = 5000
+externalPort = 80

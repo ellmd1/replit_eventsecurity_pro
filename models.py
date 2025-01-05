@@ -1,26 +1,11 @@
 from datetime import datetime
 from app import db
 
-class ChatMessage(db.Model):
-    """Model for storing chat messages and history"""
-    id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.String(100), nullable=False, index=True)
-    message = db.Column(db.Text, nullable=False)
-    is_user = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    category = db.Column(db.String(50))
-    read = db.Column(db.Boolean, default=False)
-
-    @property
-    def formatted_timestamp(self):
-        return self.created_at.strftime("%Y-%m-%d %H:%M")
-
 class SecurityInsight(db.Model):
-    """Model for storing AI-generated security insights"""
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False)
-    key_findings = db.Column(db.JSON, nullable=True)
+    key_findings = db.Column(db.JSON, default=list)
     icon = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -56,7 +41,7 @@ class SecurityDecision(db.Model):
     description = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     author = db.Column(db.String(100))
-    attachments = db.Column(db.JSON, default=list)
+    attachments = db.Column(db.JSON, default=list)  # Store file metadata
     event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=True)
     event_report = db.relationship('EventReport', backref=db.backref('security_decisions', lazy=True))
 
