@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0">Template Details</h4>
+                <div>
+                    <a href="{{ url_for('edit_template', template_id=template.id) }}" class="btn btn-outline-primary me-2">
+                        <i data-feather="edit-2" class="feather-sm"></i>
+                        Edit Template
+                    </a>
+                    <a href="{{ url_for('list_templates') }}" class="btn btn-outline-secondary">
+                        <i data-feather="arrow-left" class="feather-sm"></i>
+                        Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">{{ template.title }}</h5>
+                    <p class="text-muted mb-4">{{ template.description }}</p>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Template Type</label>
+                                <p class="mb-0">{{ template.template_type }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Capacity Range</label>
+                                <p class="mb-0">{{ template.min_capacity }} - {{ template.max_capacity }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h6 class="mb-3">Security Requirements</h6>
+                        <div class="list-group">
+                            {% for requirement in template.security_requirements %}
+                            <div class="list-group-item">
+                                <i data-feather="check-circle" class="feather-sm text-success me-2"></i>
+                                {{ requirement }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h6 class="mb-3">Risk Factors</h6>
+                        <div class="list-group">
+                            {% for factor in template.risk_factors %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i data-feather="alert-triangle" class="feather-sm text-warning me-2"></i>
+                                    {{ factor.description }}
+                                </span>
+                                <span class="badge bg-{{ 'danger' if factor.severity == 3 else 'warning' if factor.severity == 2 else 'success' }}">
+                                    {{ 'High' if factor.severity == 3 else 'Medium' if factor.severity == 2 else 'Low' }}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h6 class="mb-3">Mitigation Strategies</h6>
+                        <div class="list-group">
+                            {% for strategy in template.mitigation_strategies %}
+                            <div class="list-group-item">
+                                <i data-feather="shield" class="feather-sm text-primary me-2"></i>
+                                {{ strategy }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            Created: {{ template.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                            {% if template.updated_at != template.created_at %}
+                            <br>Last Updated: {{ template.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
