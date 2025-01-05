@@ -51,10 +51,6 @@ try:
         )
         logger.info("Successfully imported models")
 
-        # Drop and recreate SecurityInsight table
-        SecurityInsight.__table__.drop(db.engine, checkfirst=True)
-        logger.info("Dropped SecurityInsight table if it existed")
-
         # Create all tables
         db.create_all()
         logger.info("Database tables created successfully")
