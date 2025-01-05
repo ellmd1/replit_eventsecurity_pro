@@ -5,6 +5,7 @@ import os
 import tempfile
 import uuid
 
+from docx import Document
 from flask import (
     abort, g, jsonify, redirect, render_template,
     request, send_file, send_from_directory,
@@ -31,6 +32,39 @@ logging.basicConfig(level=logging.DEBUG)
 # Initialize OpenAI client
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+def get_venue_types():
+    """Get unique venue types from the database"""
+    types = (
+        db.session.query(EventReport.venue_type)
+        .filter(EventReport.venue_type.isnot(None))
+        .distinct()
+        .order_by(EventReport.venue_type)
+        .all()
+    )
+    return [t[0] for t in types if t[0]]
+
+def get_event_types():
+    """Get unique event types from the database"""
+    types = (
+        db.session.query(EventReport.incident_type)
+        .filter(EventReport.incident_type.isnot(None))
+        .distinct()
+        .order_by(EventReport.incident_type)
+        .all()
+    )
+    return [t[0] for t in types if t[0]]
+
+def get_decision_categories():
+    """Get unique decision categories from the database"""
+    categories = (
+        db.session.query(SecurityDecision.category)
+        .filter(SecurityDecision.category.isnot(None))
+        .distinct()
+        .all()
+    )
+    return [c[0] for c in categories if c[0]]
+
+# Template Management Routes
 @app.route("/templates")
 def list_templates():
     """List all assessment templates"""
@@ -60,7 +94,8 @@ def create_template():
                 max_capacity=int(data.get("max_capacity", 0)),
                 security_requirements=security_requirements,
                 risk_factors=risk_factors,
-                mitigation_strategies=mitigation_strategies
+                mitigation_strategies=mitigation_strategies,
+                configuration={}  # Initialize empty configuration
             )
 
             db.session.add(template)
@@ -74,6 +109,12 @@ def create_template():
             return jsonify({"status": "error", "message": str(e)}), 500
 
     return render_template("templates/create.html")
+
+@app.route("/templates/<int:template_id>")
+def view_template(template_id):
+    """View a template's details"""
+    template = AssessmentTemplate.query.get_or_404(template_id)
+    return render_template("templates/view.html", template=template)
 
 @app.route("/templates/<int:template_id>/edit", methods=["GET", "POST"])
 def edit_template(template_id):
@@ -399,17 +440,6 @@ def end_activity_tracking(log):
     return log
 
 
-def get_decision_categories():
-    """Get unique decision categories from the database"""
-    categories = (
-        db.session.query(SecurityDecision.category)
-        .filter(SecurityDecision.category.isnot(None))
-        .distinct()
-        .all()
-    )
-    return [c[0] for c in categories if c[0]]
-
-
 @app.route("/decision/<int:decision_id>")
 def view_decision(decision_id):
     decision = SecurityDecision.query.get_or_404(decision_id)
@@ -733,64 +763,6 @@ def chat_query():
                 "events": [],
             }
         ), 500
-
-
-
-@app.route("/templates/<int:template_id>")
-def view_template(template_id):
-    template = AssessmentTemplate.query.get_or_404(template_id)
-    return render_template("templates/view.html", template=template)
-
-
-@app.route("/templates/<int:template_id>/edit", methods=["GET", "POST"])
-def edit_template(template_id):
-    template = AssessmentTemplate.query.get_or_404(template_id)
-    if request.method == "POST":
-        try:
-            data = request.form
-
-            template.title = data["title"]
-            template.description = data["description"]
-            template.template_type = data["template_type"]
-            template.min_capacity = int(data.get("min_capacity", 0))
-            template.max_capacity = int(data.get("max_capacity", 0))
-            template.security_requirements = json.loads(data.get("security_requirements", "[]"))
-            template.risk_factors = json.loads(data.get("risk_factors", "[]"))
-            template.mitigation_strategies = json.loads(data.get("mitigation_strategies", "[]"))
-            template.updated_at = datetime.utcnow()
-
-            db.session.commit()
-            return jsonify({"status": "success"})
-
-        except Exception as e:
-            app.logger.error(f"Error updating template: {str(e)}")
-            return jsonify({"status": "error", "message": str(e)}), 500
-
-    return render_template("templates/edit.html", template=template)
-
-
-def get_venue_types():
-    """Get unique venue types from the database"""
-    types = (
-        db.session.query(EventReport.venue_type)
-        .filter(EventReport.venue_type.isnot(None))
-        .distinct()
-        .order_by(EventReport.venue_type)
-        .all()
-    )
-    return [t[0] for t in types if t[0]]
-
-
-def get_event_types():
-    """Get unique event types from the database"""
-    types = (
-        db.session.query(EventReport.incident_type)
-        .filter(EventReport.incident_type.isnot(None))
-        .distinct()
-        .order_by(EventReport.incident_type)
-        .all()
-    )
-    return [t[0] for t in types if t[0]]
 
 
 @app.route("/report/<int:report_id>/export")

@@ -38,15 +38,27 @@ except Exception as e:
 # Initialize extensions
 db.init_app(app)
 
-try:
-    with app.app_context():
-        # Import models here to avoid circular imports
-        import models  # noqa: F401
-        import routes  # noqa: F401
+def init_app():
+    """Initialize the application"""
+    try:
+        with app.app_context():
+            # Import models here to avoid circular imports
+            logger.debug("Importing models...")
+            from models import AssessmentTemplate, ActivityLog, EventReport, SecurityDecision, SecurityInsight  # noqa: F401
+            logger.debug("Models imported successfully")
 
-        # Create database tables
-        db.create_all()
-        logger.info("Database tables created successfully")
-except Exception as e:
-    logger.error(f"Error initializing application: {str(e)}")
-    raise
+            logger.debug("Importing routes...")
+            import routes  # noqa: F401
+            logger.debug("Routes imported successfully")
+
+            # Create database tables
+            logger.debug("Creating database tables...")
+            db.create_all()
+            logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.error(f"Error initializing application: {str(e)}")
+        logger.exception("Detailed traceback:")
+        raise
+
+# Initialize the application
+init_app()
