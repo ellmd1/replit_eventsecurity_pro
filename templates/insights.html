@@ -26,31 +26,10 @@
                         <i data-feather="message-square"></i> Show Chat Assistant
                     </button>
                 </div>
-                <div class="card" id="chatCard">
+                <div class="card collapse" id="chatCard">
                     <div class="card-body">
                         <div id="chatMessages" class="chat-messages mb-3" style="height: 300px; overflow-y: auto;">
-                            <!-- Display existing chat messages -->
-                            {% if chat_messages %}
-                                {% for msg in chat_messages %}
-                                    <div class="chat-message {% if msg.is_user %}user{% else %}assistant{% endif %}">
-                                        <div class="message-content">
-                                            {{ msg.message }}
-                                        </div>
-                                    </div>
-                                {% endfor %}
-                            {% else %}
-                                <!-- System welcome message -->
-                                <div class="chat-message assistant">
-                                    <div class="message-content bg-secondary text-white rounded p-2 mb-2">
-                                        Welcome! I can help analyze security trends and generate insights. Try asking questions like:
-                                        <ul class="mb-0 mt-2">
-                                            <li>What are the emerging security trends in recent events?</li>
-                                            <li>Compare risk levels across different venue types</li>
-                                            <li>Analyze the effectiveness of security measures</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            {% endif %}
+                            <!-- Chat messages will be dynamically added here -->
                         </div>
                         <form id="persistentChatForm" class="d-flex gap-2">
                             <input type="text"
@@ -124,7 +103,6 @@
 </div>
 
 <style>
-/* Chat Interface Styles */
 .chat-message {
     margin-bottom: 1rem;
 }
@@ -150,7 +128,6 @@
     color: white;
 }
 
-/* Custom Scrollbar */
 .chat-messages::-webkit-scrollbar {
     width: 5px;
 }
@@ -183,7 +160,7 @@ $(document).ready(function() {
     // Toggle chat visibility
     toggleChat.addEventListener('click', function() {
         $('#chatCard').collapse('toggle');
-        const isVisible = $('#chatCard').is(':visible');
+        const isVisible = $('#chatCard').hasClass('show');
         toggleChat.innerHTML = `<i data-feather="${isVisible ? 'x' : 'message-square'}"></i> ${isVisible ? 'Hide' : 'Show'} Chat Assistant`;
         feather.replace();
     });
