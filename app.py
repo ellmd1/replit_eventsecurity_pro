@@ -14,36 +14,51 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 app = Flask(__name__)
 
-# Basic Flask configuration
-app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Configuration
+app.config['TIMEOUT'] = 300  # 5 minutes timeout
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_recycle": 300,
+    "pool_pre_ping": True,
+}
 
 # File upload configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
-if not app.config['SQLALCHEMY_DATABASE_URI']:
-    logger.error("No DATABASE_URL environment variable found!")
-    raise ValueError("DATABASE_URL environment variable is required")
+# Create upload folder if it doesn't exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+logger.info(f"Upload folder created/verified at: {UPLOAD_FOLDER}")
 
 try:
-    # Initialize db
+    # Initialize database
     db.init_app(app)
+    logger.info("Database initialized successfully")
 
     with app.app_context():
-        logger.info("Creating database tables...")
-        import models  # Import models here to avoid circular imports
-        db.create_all()  # Create database tables
+        # Import models first
+        from models import (
+            EventReport,
+            ActivityLog,
+            SecurityDecision,
+            SecurityInsight,
+            RiskAssessment,
+            AssessmentTemplate,
+            ChatMessage
+        )
+        logger.info("Successfully imported models")
+
+        # Create database tables
+        db.create_all()
         logger.info("Database tables created successfully")
+
+        # Import routes after database initialization
+        import routes  # noqa: F401
+        logger.info("Routes imported successfully")
+
 except Exception as e:
-    logger.error(f"Error initializing database: {str(e)}")
+    logger.error(f"Failed to initialize application: {str(e)}")
     raise
-
-import routes  # Import routes after db initialization
-
-if __name__ == "__main__":
-    # Get port from environment variable or default to 3000 (Replit's preferred port)
-    port = int(os.environ.get('PORT', 3000))
-    app.run(host='0.0.0.0', port=port)

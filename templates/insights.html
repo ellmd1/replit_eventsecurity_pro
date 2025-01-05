@@ -2,6 +2,7 @@
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Main Content Area -->
     <div class="col-12">
         <div class="d-flex flex-column h-100">
             <!-- Header Section -->
@@ -21,28 +22,48 @@
             <!-- Chat Interface -->
             <div class="chat-interface mb-4" id="chatInterface">
                 <div class="d-flex justify-content-end mb-2">
-                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#chatCard" aria-expanded="false" aria-controls="chatCard">
+                    <button id="toggleChat" class="btn btn-sm btn-outline-secondary">
                         <i data-feather="message-square"></i> Show Chat Assistant
                     </button>
                 </div>
-                <div class="collapse" id="chatCard">
-                    <div class="card">
-                        <div class="card-body">
-                            <div id="chatMessages" class="chat-messages mb-3" style="height: 300px; overflow-y: auto;">
-                                <!-- Chat messages will be dynamically added here -->
-                            </div>
-                            <form id="persistentChatForm" class="d-flex gap-2">
-                                <input type="text" 
-                                       class="form-control" 
-                                       id="persistentChatInput" 
-                                       placeholder="Ask about security trends and insights..." 
-                                       required 
-                                       autocomplete="off">
-                                <button type="submit" class="btn btn-primary">
-                                    <i data-feather="send"></i>
-                                </button>
-                            </form>
+                <div class="card collapse" id="chatCard">
+                    <div class="card-body">
+                        <div id="chatMessages" class="chat-messages mb-3" style="height: 300px; overflow-y: auto;">
+                            <!-- Display existing chat messages -->
+                            {% if chat_messages %}
+                                {% for msg in chat_messages %}
+                                    <div class="chat-message {% if msg.is_user %}user{% else %}assistant{% endif %}">
+                                        <div class="message-content">
+                                            {{ msg.message }}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <!-- System welcome message -->
+                                <div class="chat-message assistant">
+                                    <div class="message-content bg-secondary text-white rounded p-2 mb-2">
+                                        Welcome! I can help analyze security trends and generate insights. Try asking questions like:
+                                        <ul class="mb-0 mt-2">
+                                            <li>What are the emerging security trends in recent events?</li>
+                                            <li>Compare risk levels across different venue types</li>
+                                            <li>Analyze the effectiveness of security measures</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            {% endif %}
                         </div>
+                        <form id="persistentChatForm" class="d-flex gap-2">
+                            <input type="text"
+                                   class="form-control"
+                                   id="persistentChatInput"
+                                   placeholder="Ask about security trends and insights..."
+                                   required
+                                   autocomplete="off">
+                            <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
+                                <i data-feather="send"></i>
+                                Send
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -64,7 +85,7 @@
                         {% for insight in insights %}
                             <div class="col-md-6 mb-4">
                                 <div class="card h-100">
-                                    <div class="card-header">
+                                    <div class="card-header bg-dark">
                                         <div class="d-flex align-items-center">
                                             <i data-feather="{{ insight.icon }}" class="me-2"></i>
                                             <h5 class="card-title mb-0">{{ insight.title }}</h5>
@@ -103,6 +124,7 @@
 </div>
 
 <style>
+/* Chat Interface Styles */
 .chat-message {
     margin-bottom: 1rem;
 }
@@ -128,6 +150,7 @@
     color: white;
 }
 
+/* Custom Scrollbar */
 .chat-messages::-webkit-scrollbar {
     width: 5px;
 }
@@ -143,7 +166,7 @@
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+$(document).ready(function() {
     // Initialize variables
     const generateBtn = document.getElementById('generateInsights');
     const loadingIndicator = document.getElementById('loadingInsights');
@@ -151,9 +174,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatForm = document.getElementById('persistentChatForm');
     const chatInput = document.getElementById('persistentChatInput');
     const chatMessages = document.getElementById('chatMessages');
+    const toggleChat = document.getElementById('toggleChat');
+    const chatCard = document.getElementById('chatCard');
 
     // Initialize Feather icons
     feather.replace();
+
+    // Toggle chat visibility
+    toggleChat.addEventListener('click', function() {
+        $('#chatCard').collapse('toggle');
+        const isVisible = $('#chatCard').is(':visible');
+        toggleChat.innerHTML = `<i data-feather="${isVisible ? 'x' : 'message-square'}"></i> ${isVisible ? 'Hide' : 'Show'} Chat Assistant`;
+        feather.replace();
+    });
 
     // Handle chat form submission
     chatForm.addEventListener('submit', async function(e) {
