@@ -17,9 +17,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadChatHistory = () => {
         const history = JSON.parse(sessionStorage.getItem('chatHistory') || '[]');
         if (chatHistory) {
-            chatHistory.innerHTML = ''; // Clear existing messages
             history.forEach(msg => {
-                addMessageToHistory(msg.role, msg.content, msg.isHTML, msg.addSaveButton, msg.question, msg.timestamp);
+                addMessageToHistory(msg.role, msg.content, msg.isHTML, msg.addSaveButton, msg.question);
             });
         }
     };
@@ -31,65 +30,10 @@ document.addEventListener('DOMContentLoaded', function() {
             content: msg.querySelector('.message-content').getAttribute('data-content'),
             isHTML: msg.querySelector('.message-content').getAttribute('data-is-html') === 'true',
             addSaveButton: msg.querySelector('.message-content').getAttribute('data-save-button') === 'true',
-            question: msg.querySelector('.message-content').getAttribute('data-question') || '',
-            timestamp: msg.querySelector('.chat-timestamp')?.textContent || new Date().toLocaleString()
+            question: msg.querySelector('.message-content').getAttribute('data-question') || ''
         }));
         sessionStorage.setItem('chatHistory', JSON.stringify(messages));
     };
-
-    // Add message to chat history
-    function addMessageToHistory(role, content, isHTML = false, addSaveButton = false, question = '', timestamp = null) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `chat-message ${role}`;
-        if (!sessionStorage.getItem(`read_${timestamp}`)) {
-            messageDiv.classList.add('unread');
-        }
-
-        const messageContent = document.createElement('div');
-        messageContent.className = `message-content rounded p-2`;
-        messageContent.setAttribute('data-content', content);
-        messageContent.setAttribute('data-is-html', isHTML);
-        messageContent.setAttribute('data-save-button', addSaveButton);
-        messageContent.setAttribute('data-question', question);
-
-        if (isHTML) {
-            messageContent.innerHTML = content;
-        } else {
-            if (addSaveButton) {
-                const saveButton = document.createElement('button');
-                saveButton.className = 'btn btn-sm btn-outline-light save-to-log';
-                saveButton.innerHTML = '<i data-feather="save"></i>';
-                saveButton.title = 'Save to Decision Log';
-                messageContent.appendChild(saveButton);
-            }
-            messageContent.appendChild(document.createTextNode(content));
-        }
-
-        // Add timestamp
-        const timestampDiv = document.createElement('div');
-        timestampDiv.className = 'chat-timestamp';
-        timestampDiv.textContent = timestamp || new Date().toLocaleString();
-        messageContent.appendChild(timestampDiv);
-
-        messageDiv.appendChild(messageContent);
-        chatHistory.appendChild(messageDiv);
-        chatHistory.scrollTop = chatHistory.scrollHeight;
-
-        if (addSaveButton) {
-            feather.replace();
-        }
-
-        // Mark message as read when clicked
-        messageDiv.addEventListener('click', function() {
-            if (this.classList.contains('unread')) {
-                this.classList.remove('unread');
-                sessionStorage.setItem(`read_${timestamp}`, 'true');
-            }
-        });
-
-        // Save to session storage
-        saveChatHistory();
-    }
 
     // Toggle chat sidebar
     if (chatToggle) {
@@ -194,6 +138,42 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Add message to chat history
+    function addMessageToHistory(role, content, isHTML = false, addSaveButton = false, question = '') {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${role}`;
+
+        const messageContent = document.createElement('div');
+        messageContent.className = `message-content rounded p-2`;
+        messageContent.setAttribute('data-content', content);
+        messageContent.setAttribute('data-is-html', isHTML);
+        messageContent.setAttribute('data-save-button', addSaveButton);
+        messageContent.setAttribute('data-question', question);
+
+        if (isHTML) {
+            messageContent.innerHTML = content;
+        } else {
+            if (addSaveButton) {
+                const saveButton = document.createElement('button');
+                saveButton.className = 'btn btn-sm btn-outline-light save-to-log';
+                saveButton.innerHTML = '<i data-feather="save"></i>';
+                saveButton.title = 'Save to Decision Log';
+                messageContent.appendChild(saveButton);
+            }
+            messageContent.appendChild(document.createTextNode(content));
+        }
+
+        messageDiv.appendChild(messageContent);
+        chatHistory.appendChild(messageDiv);
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+
+        if (addSaveButton) {
+            feather.replace();
+        }
+
+        // Save to session storage
+        saveChatHistory();
+    }
 
     // Add event delegation for save to log buttons
     document.addEventListener('click', async function(e) {
