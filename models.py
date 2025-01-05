@@ -20,10 +20,16 @@ class SecurityInsight(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False)
-    key_findings = db.Column(db.JSON, nullable=True)
+    key_findings = db.Column(db.JSON)
     icon = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __init__(self, title, description, key_findings=None, icon="alert-circle"):
+        self.title = title
+        self.description = description
+        self.key_findings = key_findings or []
+        self.icon = icon
 
 class EventReport(db.Model):
     id = db.Column(db.Integer, primary_key=True)
