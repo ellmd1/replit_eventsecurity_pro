@@ -851,8 +851,7 @@ def compare_reports():
         report1=report1,
         report2=report2,
         report1_id=report1_id,
-        report2_id=report2_id,)
-    
+        report2_id=report2id,)
 
 # Access Logs and Chat Routes
 @app.route("/access_logs")

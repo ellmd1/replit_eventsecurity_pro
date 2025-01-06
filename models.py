@@ -41,13 +41,18 @@ class SecurityDecision(db.Model):
     description = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     author = db.Column(db.String(100))
-    attachments = db.Column(db.JSON, default=list)  # Store file metadata
-    supporting_documents = db.Column(db.JSON, default=list)  # Added column
+    attachments = db.Column(db.JSON, default=list)
+    supporting_documents = db.Column(db.JSON, default=list)
     event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=True)
     event_report = db.relationship('EventReport', backref=db.backref('security_decisions', lazy=True))
-    decision_type = db.Column(db.String(50))
-    outcome = db.Column(db.Text)
-    effectiveness = db.Column(db.String(50))
+    decision_type = db.Column(db.String(50), default='General')
+    impact_level = db.Column(db.String(50), default='Medium')
+    status = db.Column(db.String(50), default='Documented')
+    implementation_date = db.Column(db.DateTime)
+    expected_outcome = db.Column(db.Text)
+    actual_outcome = db.Column(db.Text)
+    effectiveness_rating = db.Column(db.Integer)
+    lessons_learned = db.Column(db.Text)
 
     def add_attachment(self, filename, file_path, file_type, file_size):
         """Add a new file attachment to the decision"""
@@ -64,14 +69,41 @@ class SecurityDecision(db.Model):
         })
 
     @classmethod
-    def from_report(cls, report, description="", decision_type="Report Documentation", author="System"):
-        """Create a SecurityDecision from an EventReport"""
-        return cls(
+    def from_report(cls, report, description="", author="System"):
+        """Create a SecurityDecision from an EventReport with comprehensive data transfer"""
+        # Create base decision text from report details
+        if not description:
+            description = f"Security Report Documentation\n\n"
+            description += f"Event: {report.title}\n"
+            description += f"Date: {report.date.strftime('%Y-%m-%d')}\n"
+            description += f"Location: {report.location}\n\n"
+            description += f"Risk Level: {report.risk_level}\n"
+            if hasattr(report, 'security_staff_count') and report.security_staff_count:
+                description += f"Security Staff Count: {report.security_staff_count}\n\n"
+            description += f"Description:\n{report.description}\n\n"
+            if report.security_measures:
+                description += f"Security Measures:\n{report.security_measures}\n\n"
+            if report.lessons_learned:
+                description += f"Lessons Learned:\n{report.lessons_learned}"
+
+        # Create new decision with comprehensive data
+        decision = cls(
             event_report_id=report.id,
             description=description,
-            decision_type=decision_type,
-            author=author
+            decision_type="Event Report Documentation",
+            author=author,
+            impact_level=report.risk_level if report.risk_level else 'Medium',
+            status="Documented",
+            implementation_date=report.date,
+            expected_outcome=report.security_measures if report.security_measures else None,
+            lessons_learned=report.lessons_learned if report.lessons_learned else None
         )
+
+        # Add any existing documents or files as attachments
+        if hasattr(report, 'documents') and report.documents:
+            decision.supporting_documents = report.documents
+
+        return decision
 
 class ActivityLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
