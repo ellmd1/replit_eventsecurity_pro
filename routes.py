@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 # Initialize OpenAI client
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+# Template Management Routes
 @app.route("/templates")
 def list_templates():
     templates = AssessmentTemplate.query.order_by(
@@ -119,6 +120,7 @@ def edit_template(template_id):
 
     return render_template("templates/edit.html", template=template)
 
+# Report and Export Routes
 @app.route("/report/<int:report_id>/export")
 def export_report_pdf(report_id):
     """Export a report as PDF"""
@@ -149,6 +151,317 @@ def export_report_pdf(report_id):
     finally:
         # Clean up the temporary file after sending
         os.unlink(tmp_path)
+
+
+@app.route("/export-decisions")
+def export_decisions():
+    """Export all decisions as PDF"""
+    try:
+        decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).all()
+
+        # Log the export activity
+        log = start_activity_tracking("export_decisions_pdf")
+        g.activity_log = log
+
+        # Generate HTML content
+        html = render_template(
+            "pdf/decision_log_pdf.html",
+            decisions=decisions,
+            datetime=datetime
+        )
+
+        # Create a temporary file for the PDF
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            # Generate PDF from HTML
+            pdf = weasyprint.HTML(string=html).write_pdf()
+            tmp.write(pdf)
+            tmp_path = tmp.name
+
+        try:
+            # Send the PDF file
+            return send_file(
+                tmp_path,
+                download_name=f"decision_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                as_attachment=True,
+                mimetype="application/pdf",
+            )
+        finally:
+            # Clean up the temporary file after sending
+            os.unlink(tmp_path)
+    except Exception as e:
+        logger.error(f"Error exporting decisions: {str(e)}")
+        abort(500)
+
+# Activity Tracking Functions
+def get_or_create_session_id():
+    if "session_id" not in session:
+        session["session_id"] = str(uuid.uuid4())
+    return session["session_id"]
+
+
+def start_activity_tracking(activity_type, event_report_id=None):
+    log = ActivityLog(
+        activity_type=activity_type,
+        event_report_id=event_report_id,
+        session_id=get_or_create_session_id(),
+        user_identifier=request.remote_addr,
+    )
+    db.session.add(log)
+    db.session.commit()
+    return log
+
+
+def end_activity_tracking(log):
+    log.end_activity()
+    db.session.commit()
+    return log
+
+# Request Hooks
+@app.before_request
+def before_request():
+    g.start_time = datetime.utcnow()
+    g.activity_log = None
+
+
+@app.after_request
+def after_request(response):
+    if hasattr(g, "activity_log") and g.activity_log:
+        end_activity_tracking(g.activity_log)
+    return response
+
+# Main Routes
+@app.route("/")
+def dashboard():
+    log = start_activity_tracking("dashboard_view")
+    g.activity_log = log
+
+    upcoming_events = EventReport.query.order_by(EventReport.date.desc()).limit(5).all()
+    recent_decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).limit(5).all()
+
+    # Get high-risk events and security threats
+    high_risk_events = EventReport.query.filter(
+        EventReport.risk_level == "High", EventReport.date >= datetime.utcnow()
+    ).order_by(EventReport.date).limit(3).all()
+
+    security_threats = []
+    for event in high_risk_events:
+        if event.security_measures:
+            threats = {
+                "event": event.title,
+                "date": event.date,
+                "location": event.location,
+                "risk_level": event.risk_level,
+                "measures": event.security_measures[:200] + "..."
+                if len(event.security_measures) > 200
+                else event.security_measures,
+            }
+            security_threats.append(threats)
+
+    risk_levels = {
+        "High": len([e for e in upcoming_events if e.risk_level == "High"]),
+        "Medium": len([e for e in upcoming_events if e.risk_level == "Medium"]),
+        "Low": len([e for e in upcoming_events if e.risk_level == "Low"]),
+    }
+
+    log.interaction_details = {
+        "viewed_events_count": len(upcoming_events),
+        "viewed_decisions_count": len(recent_decisions),
+        "security_threats_count": len(security_threats),
+    }
+    db.session.commit()
+
+    return render_template(
+        "dashboard.html",
+        upcoming_events=upcoming_events,
+        recent_decisions=recent_decisions,
+        risk_levels=risk_levels,
+        security_threats=security_threats,
+    )
+
+# Insights Routes and Functions
+@app.route("/insights")
+def insights():
+    """Display the AI insights page"""
+    insights = SecurityInsight.query.order_by(SecurityInsight.created_at.desc()).limit(6).all()
+    return render_template("insights.html", insights=insights)
+
+
+@app.route("/generate_insights", methods=["POST"])
+def generate_insights():
+    """Generate new AI-powered insights from security data"""
+    try:
+        logger.info("Starting insights generation process")
+
+        # Verify OpenAI API key
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            logger.error("OpenAI API key not found")
+            return jsonify({"status": "error",
+                            "message": "OpenAI API key not configured. Please check your environment settings."
+                           }), 500
+
+        # Fetch relevant data from database
+        try:
+            events = EventReport.query.order_by(EventReport.date.desc()).limit(50).all()
+            decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).limit(50).all()
+            logger.info(f"Retrieved {len(events)} events and {len(decisions)} decisions for analysis")
+        except Exception as db_error:
+            logger.error(f"Database error: {str(db_error)}")
+            return jsonify({
+                "status": "error",
+                "message": "Error accessing database. Please try again."
+            }), 500
+
+        # Prepare data for analysis
+        try:
+            events_data = [
+                {
+                    "title": event.title,
+                    "date": event.date.strftime("%Y-%m-%d"),
+                    "risk_level": event.risk_level,
+                    "location": event.location,
+                    "attendance": event.attendance,
+                    "incidents_reported": event.incidents_reported,
+                    "incident_summary": event.incident_summary[:200] if event.incident_summary else None,
+                    "security_measures": event.security_measures[:200] if event.security_measures else None,
+                    "venue_type": event.venue_type
+                }
+                for event in events
+            ]
+
+            decisions_data = [
+                {
+                    "description": decision.description[:200] if decision.description else None,
+                    "created_at": decision.created_at.strftime("%Y-%m-%d"),
+                    "outcome": decision.outcome[:200] if hasattr(decision, "outcome") and decision.outcome else None,
+                    "effectiveness": decision.effectiveness if hasattr(decision, "effectiveness") else None
+                }
+                for decision in decisions
+            ]
+            logger.info("Data prepared for analysis")
+        except Exception as prep_error:
+            logger.error(f"Error preparing data: {str(prep_error)}")
+            return jsonify({
+                "status": "error",
+                "message": "Error preparing data for analysis. Please try again."
+            }), 500
+
+        # Create prompt for OpenAI
+        analysis_prompt = f"""As a security analyst, analyze this event and decision data:
+
+Events Data: {json.dumps(events_data)}
+Decisions Data: {json.dumps(decisions_data)}
+
+Generate security insights following this JSON structure:
+{{
+    "insights": [
+        {{
+            "title": "Brief insight title",
+            "description": "Detailed analysis of the insight",
+            "data": [
+                "Key finding 1",
+                "Key finding 2",
+                "Key finding 3"
+            ],
+            "icon": "One of: alert-circle, trending-up, shield, users, calendar"
+        }}
+    ]
+}}"""
+
+        # Get insights from OpenAI
+        try:
+            logger.info("Sending request to OpenAI")
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a security analyst. You must respond with a valid JSON object following the exact structure specified in the user's prompt. Do not include any additional text or explanation outside of the JSON object."
+                    },
+                    {"role": "user", "content": analysis_prompt}
+                ],
+                max_tokens=2000,
+                temperature=0.7
+            )
+            logger.info("Received response from OpenAI")
+        except Exception as openai_error:
+            logger.error(f"OpenAI API error: {str(openai_error)}")
+            return jsonify({
+                "status": "error",
+                "message": "Error communicating with AI service. Please try again."
+            }), 500
+
+        # Parse the response and save insights
+        try:
+            insights_data = json.loads(response.choices[0].message.content)
+            logger.info(f"Parsed OpenAI response: {insights_data}")
+
+            if not isinstance(insights_data, dict) or 'insights' not in insights_data:
+                raise ValueError("Invalid response format from OpenAI")
+
+            # Delete existing insights before adding new ones
+            SecurityInsight.query.delete()
+
+            # Save new insights to database
+            for insight_data in insights_data['insights']:
+                insight = SecurityInsight(
+                    title=insight_data.get('title', 'Untitled Insight')[:200],
+                    description=insight_data.get('description', '')[:500],
+                    key_findings=insight_data.get('data', []),
+                    icon=insight_data.get('icon', 'alert-circle')
+                )
+                db.session.add(insight)
+
+            db.session.commit()
+            logger.info("Successfully saved insights to database")
+            return jsonify({
+                "status": "success",
+                "message": "New insights generated successfully"
+            })
+
+        except json.JSONDecodeError as json_error:
+            logger.error(f"JSON parsing error: {str(json_error)}")
+            return jsonify({
+                "status": "error",
+                "message": "Error processing AI response. Please try again."
+            }), 500
+        except Exception as save_error:
+            logger.error(f"Database save error: {str(save_error)}")
+            return jsonify({
+                "status": "error",
+                "message": "Error saving insights. Please try again."
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Unexpected error in generate_insights: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "An unexpected error occurred. Please try again."
+        }), 500
+
+# Utility Functions
+def get_venue_types():
+    """Get unique venue types from the database"""
+    types = (
+        db.session.query(EventReport.venue_type)
+        .filter(EventReport.venue_type.isnot(None))
+        .distinct()
+        .order_by(EventReport.venue_type)
+        .all()
+    )
+    return [t[0] for t in types if t[0]]
+
+
+def get_event_types():
+    """Get unique event types from the database"""
+    types = (
+        db.session.query(EventReport.incident_type)
+        .filter(EventReport.incident_type.isnot(None))
+        .distinct()
+        .order_by(EventReport.incident_type)
+        .all()
+    )
+    return [t[0] for t in types if t[0]]
 
 
 def summarize_file_content(file_path, file_type):
@@ -360,170 +673,6 @@ def download_attachment(filename):
         abort(404)
 
 
-@app.before_request
-def before_request():
-    g.start_time = datetime.utcnow()
-    g.activity_log = None
-
-
-@app.after_request
-def after_request(response):
-    if hasattr(g, "activity_log") and g.activity_log:
-        end_activity_tracking(g.activity_log)
-    return response
-
-
-@app.route("/")
-def dashboard():
-    log = start_activity_tracking("dashboard_view")
-    g.activity_log = log
-
-    upcoming_events = EventReport.query.order_by(EventReport.date.desc()).limit(5).all()
-    recent_decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).limit(5).all()
-
-    # Get high-risk events and security threats
-    high_risk_events = EventReport.query.filter(
-        EventReport.risk_level == "High", EventReport.date >= datetime.utcnow()
-    ).order_by(EventReport.date).limit(3).all()
-
-    security_threats = []
-    for event in high_risk_events:
-        if event.security_measures:
-            threats = {
-                "event": event.title,
-                "date": event.date,
-                "location": event.location,
-                "risk_level": event.risk_level,
-                "measures": event.security_measures[:200] + "..."
-                if len(event.security_measures) > 200
-                else event.security_measures,
-            }
-            security_threats.append(threats)
-
-    risk_levels = {
-        "High": len([e for e in upcoming_events if e.risk_level == "High"]),
-        "Medium": len([e for e in upcoming_events if e.risk_level == "Medium"]),
-        "Low": len([e for e in upcoming_events if e.risk_level == "Low"]),
-    }
-
-    log.interaction_details = {
-        "viewed_events_count": len(upcoming_events),
-        "viewed_decisions_count": len(recent_decisions),
-        "security_threats_count": len(security_threats),
-    }
-    db.session.commit()
-
-    return render_template(
-        "dashboard.html",
-        upcoming_events=upcoming_events,
-        recent_decisions=recent_decisions,
-        risk_levels=risk_levels,
-        security_threats=security_threats,
-    )
-
-
-def get_or_create_session_id():
-    if "session_id" not in session:
-        session["session_id"] = str(uuid.uuid4())
-    return session["session_id"]
-
-
-def start_activity_tracking(activity_type, event_report_id=None):
-    log = ActivityLog(
-        activity_type=activity_type,
-        event_report_id=event_report_id,
-        session_id=get_or_create_session_id(),
-        user_identifier=request.remote_addr,
-    )
-    db.session.add(log)
-    db.session.commit()
-    return log
-
-
-def end_activity_tracking(log):
-    log.end_activity()
-    db.session.commit()
-    return log
-
-
-def get_decision_categories():
-    """Get unique decision categories from the database"""
-    categories = (
-        db.session.query(SecurityDecision.category)
-        .filter(SecurityDecision.category.isnot(None))
-        .distinct()
-        .all()
-    )
-    return [c[0] for c in categories if c[0]]
-
-
-@app.route("/decision/<int:decision_id>")
-def view_decision(decision_id):
-    decision = SecurityDecision.query.get_or_404(decision_id)
-    log = start_activity_tracking(
-        "view_decision_details",
-        decision.event_report_id if decision.event_report else None,
-    )
-    g.activity_log = log
-
-    related_decisions = []
-    if decision.related_decisions:
-        related_ids = [rd["decision_id"] for rd in decision.related_decisions]
-        related_decisions = SecurityDecision.query.filter(
-            SecurityDecision.id.in_(related_ids)
-        ).all()
-
-    return render_template(
-        "view_decision.html", decision=decision, related_decisions=related_decisions
-    )
-
-
-@app.route("/log_decision", methods=["POST"])
-def log_decision():
-    try:
-        decision = SecurityDecision(
-            event_report_id=request.form.get("event_report_id"),
-            decision_type=request.form["decision_type"],
-            description=request.form["description"],
-            impact_level=request.form["impact_level"],
-            implementation_date=datetime.strptime(
-                request.form["implementation_date"], "%Y-%m-%d"
-            )
-            if request.form.get("implementation_date")
-            else None,
-            expected_outcome=request.form.get("expected_outcome"),
-        )
-        db.session.add(decision)
-        db.session.commit()
-
-        return redirect(url_for("decision_log"))
-    except Exception as e:
-        logger.error(f"Error logging decision: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
-@app.route("/update_decision/<int:decision_id>", methods=["POST"])
-def update_decision(decision_id):
-    try:
-        decision = SecurityDecision.query.get_or_404(decision_id)
-
-        if "outcome" in request.form:
-            decision.update_outcome(
-                request.form["outcome"],
-                request.form["outcome_type"],
-                int(request.form["effectiveness"]),
-            )
-
-        if "lesson" in request.form:
-            decision.add_lesson_learned(request.form["lesson"])
-
-        db.session.commit()
-        return redirect(url_for("view_decision", decision_id=decision_id))
-    except Exception as e:
-        logger.error(f"Error updating decision: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
 @app.route("/browse")
 def index():
     search_query = request.args.get("search", "")
@@ -708,12 +857,8 @@ def chat_query():
                 "venue_type": event.venue_type,
                 "attendance": event.attendance,
                 "incidents_reported": event.incidents_reported,
-                "incident_summary": event.incident_summary[:150]
-                if event.incident_summary
-                else None,
-                "security_measures": event.security_measures[:150]
-                if event.security_measures
-                else None,
+                "incident_summary": event.incident_summary[:150] if event.incident_summary else None,
+                "security_measures": event.security_measures[:150] if event.security_measures else None,
             }
             events_context.append(event_info)
 
@@ -782,232 +927,80 @@ def chat_query():
         ), 500
 
 
-@app.route("/insights")
-def insights():
-    """Display the AI insights page"""
-    insights = SecurityInsight.query.order_by(SecurityInsight.created_at.desc()).limit(6).all()
-    return render_template("insights.html", insights=insights)
+@app.route("/decision/<int:decision_id>")
+def view_decision(decision_id):
+    decision = SecurityDecision.query.get_or_404(decision_id)
+    log = start_activity_tracking(
+        "view_decision_details",
+        decision.event_report_id if decision.event_report else None,
+    )
+    g.activity_log = log
+
+    related_decisions = []
+    if decision.related_decisions:
+        related_ids = [rd["decision_id"] for rd in decision.related_decisions]
+        related_decisions = SecurityDecision.query.filter(
+            SecurityDecision.id.in_(related_ids)
+        ).all()
+
+    return render_template(
+        "view_decision.html", decision=decision, related_decisions=related_decisions
+    )
 
 
-@app.route("/generate_insights", methods=["POST"])
-def generate_insights():
-    """Generate new AI-powered insights from security data"""
+@app.route("/log_decision", methods=["POST"])
+def log_decision():
     try:
-        logger.info("Starting insights generation process")
-
-        # Verify OpenAI API key
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            logger.error("OpenAI API key not found")
-            return jsonify({"status": "error",
-                "message": "OpenAI API key not configured. Please check your environment settings."
-            }), 500
-
-        # Fetch relevant data from database
-        try:
-            events = EventReport.query.order_by(EventReport.date.desc()).limit(50).all()
-            decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).limit(50).all()
-            logger.info(f"Retrieved {len(events)} events and {len(decisions)} decisions for analysis")
-        except Exception as db_error:
-            logger.error(f"Database error: {str(db_error)}")
-            return jsonify({
-                "status": "error",
-                "message": "Error accessing database. Please try again."
-            }), 500
-
-        # Prepare data for analysis
-        try:
-            events_data = [
-                {
-                    "title": event.title,
-                    "date": event.date.strftime("%Y-%m-%d"),
-                    "risk_level": event.risk_level,
-                    "location": event.location,
-                    "attendance": event.attendance,
-                    "incidents_reported": event.incidents_reported,
-                    "incident_summary": event.incident_summary[:200] if event.incident_summary else None,
-                    "security_measures": event.security_measures[:200] if event.security_measures else None,
-                    "venue_type": event.venue_type
-                }
-                for event in events
-            ]
-
-            decisions_data = [
-                {
-                    "description": decision.description[:200] if decision.description else None,
-                    "created_at": decision.created_at.strftime("%Y-%m-%d"),
-                    "outcome": decision.outcome[:200] if hasattr(decision, "outcome") and decision.outcome else None,
-                    "effectiveness": decision.effectiveness if hasattr(decision, "effectiveness") else None
-                }
-                for decision in decisions
-            ]
-            logger.info("Data prepared for analysis")
-        except Exception as prep_error:
-            logger.error(f"Error preparing data: {str(prep_error)}")
-            return jsonify({
-                "status": "error",
-                "message": "Error preparing data for analysis. Please try again."
-            }), 500
-
-        # Create prompt for OpenAI
-        analysis_prompt = f"""As a security analyst, analyze this event and decision data:
-
-Events Data: {json.dumps(events_data)}
-Decisions Data: {json.dumps(decisions_data)}
-
-Generate security insights following this JSON structure:
-{{
-    "insights": [
-        {{
-            "title": "Brief insight title",
-            "description": "Detailed analysis of the insight",
-            "data": [
-                "Key finding 1",
-                "Key finding 2",
-                "Key finding 3"
-            ],
-            "icon": "One of: alert-circle, trending-up, shield, users, calendar"
-        }}
-    ]
-}}"""
-
-        # Get insights from OpenAI
-        try:
-            logger.info("Sending request to OpenAI")
-            response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a security analyst. You must respond with a valid JSON object following the exact structure specified in the user's prompt. Do not include any additional text or explanation outside of the JSON object."
-                    },
-                    {"role": "user", "content": analysis_prompt}
-                ],
-                max_tokens=2000,
-                temperature=0.7
+        decision = SecurityDecision(
+            event_report_id=request.form.get("event_report_id"),
+            decision_type=request.form["decision_type"],
+            description=request.form["description"],
+            impact_level=request.form["impact_level"],
+            implementation_date=datetime.strptime(
+                request.form["implementation_date"], "%Y-%m-%d"
             )
-            logger.info("Received response from OpenAI")
-        except Exception as openai_error:
-            logger.error(f"OpenAI API error: {str(openai_error)}")
-            return jsonify({
-                "status": "error",
-                "message": "Error communicating with AI service. Please try again."
-            }), 500
-
-        # Parse the response and save insights
-        try:
-            insights_data = json.loads(response.choices[0].message.content)
-            logger.info(f"Parsed OpenAI response: {insights_data}")
-
-            if not isinstance(insights_data, dict) or 'insights' not in insights_data:
-                raise ValueError("Invalid response format from OpenAI")
-
-            # Delete existing insights before adding new ones
-            SecurityInsight.query.delete()
-
-            # Save new insights to database
-            for insight_data in insights_data['insights']:
-                insight = SecurityInsight(
-                    title=insight_data.get('title', 'Untitled Insight')[:200],
-                    description=insight_data.get('description', '')[:500],
-                    key_findings=insight_data.get('data', []),
-                    icon=insight_data.get('icon', 'alert-circle')
-                )
-                db.session.add(insight)
-
-            db.session.commit()
-            logger.info("Successfully saved insights to database")
-            return jsonify({
-                "status": "success",
-                "message": "New insights generated successfully"
-            })
-
-        except json.JSONDecodeError as json_error:
-            logger.error(f"JSON parsing error: {str(json_error)}")
-            return jsonify({
-                "status": "error",
-                "message": "Error processing AI response. Please try again."
-            }), 500
-        except Exception as save_error:
-            logger.error(f"Database save error: {str(save_error)}")
-            return jsonify({
-                "status": "error",
-                "message": "Error saving insights. Please try again."
-            }), 500
-
-    except Exception as e:
-        logger.error(f"Unexpected error in generate_insights: {str(e)}")
-        return jsonify({
-            "status": "error",
-            "message": "An unexpected error occurred. Please try again."
-        }), 500
-
-
-def get_venue_types():
-    """Get unique venue types from the database"""
-    types = (
-        db.session.query(EventReport.venue_type)
-        .filter(EventReport.venue_type.isnot(None))
-        .distinct()
-        .order_by(EventReport.venue_type)
-        .all()
-    )
-    return [t[0] for t in types if t[0]]
-
-
-def get_event_types():
-    """Get unique event types from the database"""
-    types = (
-        db.session.query(EventReport.incident_type)
-        .filter(EventReport.incident_type.isnot(None))
-        .distinct()
-        .order_by(EventReport.incident_type)
-        .all()
-    )
-    return [t[0] for t in types if t[0]]
-
-@app.route("/export-decisions")
-def export_decisions():
-    """Export all decisions as PDF"""
-    try:
-        decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).all()
-
-        # Log the export activity
-        log = start_activity_tracking("export_decisions_pdf")
-        g.activity_log = log
-
-        # Generate HTML content
-        html = render_template(
-            "pdf/decision_log_pdf.html",
-            decisions=decisions,
-            datetime=datetime
+            if request.form.get("implementation_date")
+            else None,
+            expected_outcome=request.form.get("expected_outcome"),
         )
+        db.session.add(decision)
+        db.session.commit()
 
-        # Create a temporary file for the PDF
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-            # Generate PDF from HTML
-            pdf = weasyprint.HTML(string=html).write_pdf()
-            tmp.write(pdf)
-            tmp_path = tmp.name
-
-        try:
-            # Send the PDF file
-            return send_file(
-                tmp_path,
-                download_name=f"decision_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                as_attachment=True,
-                mimetype="application/pdf",
-            )
-        finally:
-            # Clean up the temporary file after sending
-            os.unlink(tmp_path)
+        return redirect(url_for("decision_log"))
     except Exception as e:
-        logger.error(f"Error exporting decisions: {str(e)}")
-        abort(500)
+        logger.error(f"Error logging decision: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
-@app.route("/insights")
-def insights():
-    """Display the AI insights page"""
-    insights = SecurityInsight.query.order_by(SecurityInsight.created_at.desc()).limit(6).all()
-    return render_template("insights.html", insights=insights)
+@app.route("/update_decision/<int:decision_id>", methods=["POST"])
+def update_decision(decision_id):
+    try:
+        decision = SecurityDecision.query.get_or_404(decision_id)
+
+        if "outcome" in request.form:
+            decision.update_outcome(
+                request.form["outcome"],
+                request.form["outcome_type"],
+                int(request.form["effectiveness"]),
+            )
+
+        if "lesson" in request.form:
+            decision.add_lesson_learned(request.form["lesson"])
+
+        db.session.commit()
+        return redirect(url_for("view_decision", decision_id=decision_id))
+    except Exception as e:
+        logger.error(f"Error updating decision: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/get_decision_categories")
+def get_decision_categories():
+    """Get unique decision categories from the database"""
+    categories = (
+        db.session.query(SecurityDecision.category)
+        .filter(SecurityDecision.category.isnot(None))
+        .distinct()
+        .all()
+    )
+    return [c[0] for c in categories if c[0]]
