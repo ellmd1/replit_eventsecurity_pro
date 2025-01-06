@@ -3,7 +3,6 @@ import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import text
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -16,19 +15,14 @@ db = SQLAlchemy(model_class=Base)
 app = Flask(__name__)
 
 # Configuration
+app.config['TIMEOUT'] = 300  # 5 minutes timeout
+app.config['TEMPLATES_AUTO_RELOAD'] = False  # Disable in production
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
-
-# Configure database
-if not os.environ.get("DATABASE_URL"):
-    logger.error("DATABASE_URL environment variable not set")
-    raise ValueError("DATABASE_URL environment variable is required")
-
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
 }
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # File upload configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -46,36 +40,15 @@ except Exception as e:
 # Initialize extensions
 db.init_app(app)
 
-def init_app():
-    """Initialize the application"""
-    try:
-        with app.app_context():
-            # Import models here to avoid circular imports
-            logger.debug("Importing models...")
-            from models import AssessmentTemplate, ActivityLog, EventReport, SecurityDecision, SecurityInsight  # noqa: F401
-            logger.debug("Models imported successfully")
+try:
+    with app.app_context():
+        # Import models here to avoid circular imports
+        import models  # noqa: F401
+        import routes  # noqa: F401
 
-            logger.debug("Creating database tables...")
-            db.create_all()
-            logger.info("Database tables created successfully")
-
-            # Import routes after models to avoid circular imports
-            logger.debug("Importing routes...")
-            import routes  # noqa: F401
-            logger.debug("Routes imported successfully")
-
-            # Verify database connection
-            try:
-                db.session.execute(text("SELECT 1"))
-                logger.info("Database connection verified successfully")
-            except Exception as e:
-                logger.error(f"Database connection failed: {str(e)}")
-                raise
-
-    except Exception as e:
-        logger.error(f"Error initializing application: {str(e)}")
-        logger.exception("Detailed traceback:")
-        raise
-
-# Initialize the application
-init_app()
+        # Create database tables
+        db.create_all()
+        logger.info("Database tables created successfully")
+except Exception as e:
+    logger.error(f"Error initializing application: {str(e)}")
+    raise
