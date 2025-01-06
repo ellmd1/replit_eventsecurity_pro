@@ -16,6 +16,7 @@ from flask import (
     send_from_directory,
     session,
     url_for,
+    flash,
 )
 from openai import OpenAI
 from sqlalchemy import and_, extract, func, or_
@@ -219,11 +220,21 @@ Additional Notes: {request.form.get('description', '')}""",
         db.session.commit()
 
         logger.info(f"Saved report {report_id} to decision log as decision {decision.id}")
-        return jsonify({"status": "success", "decision_id": decision.id})
+
+        # For AJAX requests, return JSON response
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({"status": "success", "decision_id": decision.id})
+
+        # For regular form submissions, redirect back to report view
+        flash("Report successfully saved to decision log", "success")
+        return redirect(url_for('view_report', report_id=report_id))
 
     except Exception as e:
         logger.error(f"Error saving report to decision: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({"status": "error", "message": str(e)}), 500
+        flash(f"Error saving to decision log: {str(e)}", "error")
+        return redirect(url_for('view_report', report_id=report_id))
 
 # Activity Tracking Functions
 def get_or_create_session_id():
