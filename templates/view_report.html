@@ -9,10 +9,26 @@
                 <span class="badge bg-{{ 'danger' if report.risk_level == 'High' else 'warning' if report.risk_level == 'Medium' else 'success' }}">
                     {{ report.risk_level }} Risk
                 </span>
-                <a href="{{ url_for('export_report_pdf', report_id=report.id) }}" class="btn btn-outline-secondary">
-                    <i data-feather="download" class="feather-sm me-1"></i>
-                    Export PDF
-                </a>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i data-feather="save" class="feather-sm me-1"></i>
+                        Save Options
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('export_report_pdf', report_id=report.id) }}">
+                                <i data-feather="file-text" class="feather-sm me-2"></i>
+                                Save as PDF
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#saveToDecisionModal">
+                                <i data-feather="book" class="feather-sm me-2"></i>
+                                Save to Decision Log
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -198,6 +214,41 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for saving to decision log -->
+<div class="modal fade" id="saveToDecisionModal" tabindex="-1" aria-labelledby="saveToDecisionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="saveToDecisionModalLabel">Save to Decision Log</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('save_report_to_decision', report_id=report.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Additional Notes</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" 
+                                placeholder="Add any additional context or notes for this decision..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="decision_type" class="form-label">Decision Type</label>
+                        <select class="form-select" id="decision_type" name="decision_type" required>
+                            <option value="">Select a type...</option>
+                            <option value="Report Documentation">Report Documentation</option>
+                            <option value="Risk Assessment">Risk Assessment</option>
+                            <option value="Security Measure">Security Measure</option>
+                            <option value="Follow-up Action">Follow-up Action</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save to Decision Log</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
