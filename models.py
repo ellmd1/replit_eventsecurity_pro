@@ -42,9 +42,12 @@ class SecurityDecision(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     author = db.Column(db.String(100))
     attachments = db.Column(db.JSON, default=list)  # Store file metadata
+    supporting_documents = db.Column(db.JSON, default=list)  # Added column
     event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=True)
     event_report = db.relationship('EventReport', backref=db.backref('security_decisions', lazy=True))
     decision_type = db.Column(db.String(50))
+    outcome = db.Column(db.Text)
+    effectiveness = db.Column(db.String(50))
 
     def add_attachment(self, filename, file_path, file_type, file_size):
         """Add a new file attachment to the decision"""
@@ -59,6 +62,16 @@ class SecurityDecision(db.Model):
             'uploaded_at': datetime.utcnow().isoformat(),
             'upload_by': self.author
         })
+
+    @classmethod
+    def from_report(cls, report, description="", decision_type="Report Documentation", author="System"):
+        """Create a SecurityDecision from an EventReport"""
+        return cls(
+            event_report_id=report.id,
+            description=description,
+            decision_type=decision_type,
+            author=author
+        )
 
 class ActivityLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)

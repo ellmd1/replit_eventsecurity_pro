@@ -199,8 +199,8 @@ def save_report_to_decision(report_id):
         report = EventReport.query.get_or_404(report_id)
 
         # Create the decision entry
-        decision = SecurityDecision(
-            event_report_id=report_id,
+        decision = SecurityDecision.from_report(
+            report,
             description=f"""Report Documentation: {report.title}
 
 Risk Level: {report.risk_level}
@@ -211,14 +211,14 @@ Description: {report.description}
 
 Additional Notes: {request.form.get('description', '')}""",
             decision_type=request.form.get("decision_type", "Report Documentation"),
-            author="System (Report Save)",
+            author=request.form.get("author", "System (Report Save)")
         )
 
         db.session.add(decision)
         db.session.commit()
 
         logger.info(f"Saved report {report_id} to decision log as decision {decision.id}")
-        return redirect(url_for("view_decision", decision_id=decision.id))
+        return jsonify({"status": "success", "decision_id": decision.id})
 
     except Exception as e:
         logger.error(f"Error saving report to decision: {str(e)}")
@@ -851,10 +851,10 @@ def compare_reports():
         report1=report1,
         report2=report2,
         report1_id=report1_id,
-        report2_id=report2_id,
-    )
+        report2_id=report2_id,)
+    
 
-
+# Access Logs and Chat Routes
 @app.route("/access_logs")
 def view_access_logs():
     logs = ActivityLog.query.order_by(ActivityLog.started_at.desc()).all()
@@ -968,15 +968,8 @@ def view_decision(decision_id):
     )
     g.activity_log = log
 
-    related_decisions = []
-    if decision.related_decisions:
-        related_ids = [rd["decision_id"] for rd in decision.related_decisions]
-        related_decisions = SecurityDecision.query.filter(
-            SecurityDecision.id.in_(related_ids)
-        ).all()
-
     return render_template(
-        "view_decision.html", decision=decision, related_decisions=related_decisions
+        "view_decision.html", decision=decision
     )
 
 
