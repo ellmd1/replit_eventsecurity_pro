@@ -192,6 +192,7 @@ def export_decisions():
         logger.error(f"Error exporting decisions: {str(e)}")
         abort(500)
 
+
 @app.route("/report/<int:report_id>/save-to-decision", methods=["POST"])
 def save_report_to_decision(report_id):
     """Save a report as a decision in the decision log"""
@@ -851,7 +852,8 @@ def compare_reports():
         report1=report1,
         report2=report2,
         report1_id=report1_id,
-        report2_id=report2id,)
+        report2_id=report2_id,
+    )
 
 # Access Logs and Chat Routes
 @app.route("/access_logs")

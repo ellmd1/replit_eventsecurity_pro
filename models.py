@@ -69,7 +69,7 @@ class SecurityDecision(db.Model):
         })
 
     @classmethod
-    def from_report(cls, report, description="", author="System"):
+    def from_report(cls, report, description="", decision_type="Report Documentation", author="System"):
         """Create a SecurityDecision from an EventReport with comprehensive data transfer"""
         # Create base decision text from report details
         if not description:
@@ -90,7 +90,7 @@ class SecurityDecision(db.Model):
         decision = cls(
             event_report_id=report.id,
             description=description,
-            decision_type="Event Report Documentation",
+            decision_type=decision_type,
             author=author,
             impact_level=report.risk_level if report.risk_level else 'Medium',
             status="Documented",
