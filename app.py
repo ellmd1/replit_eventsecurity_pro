@@ -38,17 +38,26 @@ except Exception as e:
     raise
 
 # Initialize extensions
-db.init_app(app)
-
 try:
+    logger.info("Initializing database...")
+    db.init_app(app)
+    logger.info("Database initialization successful")
+
     with app.app_context():
         # Import models here to avoid circular imports
+        logger.info("Importing models...")
         import models  # noqa: F401
+        logger.info("Models imported successfully")
+
+        logger.info("Importing routes...")
         import routes  # noqa: F401
+        logger.info("Routes imported successfully")
 
         # Create database tables
+        logger.info("Creating database tables...")
         db.create_all()
         logger.info("Database tables created successfully")
+
 except Exception as e:
-    logger.error(f"Error initializing application: {str(e)}")
+    logger.error(f"Error initializing application: {str(e)}", exc_info=True)
     raise
