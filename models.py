@@ -44,6 +44,7 @@ class SecurityDecision(db.Model):
     attachments = db.Column(db.JSON, default=list)  # Store file metadata
     event_report_id = db.Column(db.Integer, db.ForeignKey('event_report.id'), nullable=True)
     event_report = db.relationship('EventReport', backref=db.backref('security_decisions', lazy=True))
+    decision_type = db.Column(db.String(50))
 
     def add_attachment(self, filename, file_path, file_type, file_size):
         """Add a new file attachment to the decision"""

@@ -192,6 +192,38 @@ def export_decisions():
         logger.error(f"Error exporting decisions: {str(e)}")
         abort(500)
 
+@app.route("/report/<int:report_id>/save-to-decision", methods=["POST"])
+def save_report_to_decision(report_id):
+    """Save a report as a decision in the decision log"""
+    try:
+        report = EventReport.query.get_or_404(report_id)
+
+        # Create the decision entry
+        decision = SecurityDecision(
+            event_report_id=report_id,
+            description=f"""Report Documentation: {report.title}
+
+Risk Level: {report.risk_level}
+Location: {report.location}
+Date: {report.date.strftime('%Y-%m-%d')}
+
+Description: {report.description}
+
+Additional Notes: {request.form.get('description', '')}""",
+            decision_type=request.form.get("decision_type", "Report Documentation"),
+            author="System (Report Save)",
+        )
+
+        db.session.add(decision)
+        db.session.commit()
+
+        logger.info(f"Saved report {report_id} to decision log as decision {decision.id}")
+        return redirect(url_for("view_decision", decision_id=decision.id))
+
+    except Exception as e:
+        logger.error(f"Error saving report to decision: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 # Activity Tracking Functions
 def get_or_create_session_id():
     if "session_id" not in session:
