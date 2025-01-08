@@ -4,9 +4,11 @@ import os
 import tempfile
 import uuid
 from datetime import datetime, timedelta
+from docx import Document
 
 from flask import (
     abort,
+    flash,
     g,
     jsonify,
     redirect,
@@ -16,7 +18,6 @@ from flask import (
     send_from_directory,
     session,
     url_for,
-    flash,
 )
 from openai import OpenAI
 from sqlalchemy import and_, extract, func, or_
@@ -1041,3 +1042,16 @@ def get_decision_categories():
         .all()
     )
     return [c[0] for c in categories if c[0]]
+@app.route("/modeling")
+def modeling():
+    """Display the modeling page"""
+    log = start_activity_tracking("modeling_view")
+    g.activity_log = log
+
+    log.interaction_details = {
+        "page_view": "modeling",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    db.session.commit()
+
+    return render_template("modeling.html")
