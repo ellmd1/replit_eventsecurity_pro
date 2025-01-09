@@ -1044,14 +1044,8 @@ def get_decision_categories():
     return [c[0] for c in categories if c[0]]
 @app.route("/modeling")
 def modeling():
-    """Display the modeling page"""
-    log = start_activity_tracking("modeling_view")
+    """Handle modeling page functionality"""
+    log = start_activity_tracking("view_modeling")
     g.activity_log = log
-
-    log.interaction_details = {
-        "page_view": "modeling",
-        "timestamp": datetime.utcnow().isoformat()
-    }
-    db.session.commit()
 
     return render_template("modeling.html")
