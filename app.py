@@ -16,7 +16,7 @@ app = Flask(__name__)
 
 # Configuration
 app.config['TIMEOUT'] = 300  # 5 minutes timeout
-app.config['TEMPLATES_AUTO_RELOAD'] = False  # Disable in production
+app.config['TEMPLATES_AUTO_RELOAD'] = True  # Enable for development
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -49,14 +49,15 @@ try:
         import models  # noqa: F401
         logger.info("Models imported successfully")
 
-        logger.info("Importing routes...")
-        import routes  # noqa: F401
-        logger.info("Routes imported successfully")
-
         # Create database tables
         logger.info("Creating database tables...")
         db.create_all()
         logger.info("Database tables created successfully")
+
+        # Import routes after models are loaded
+        logger.info("Importing routes...")
+        import routes  # noqa: F401
+        logger.info("Routes imported successfully")
 
 except Exception as e:
     logger.error(f"Error initializing application: {str(e)}", exc_info=True)

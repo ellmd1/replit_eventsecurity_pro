@@ -124,6 +124,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'modeling' }}" href="{{ url_for('modeling') }}">
+                            <i data-feather="trending-up" class="feather-sm"></i>
+                            Modeling
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">
                             <i data-feather="file-text" class="feather-sm"></i>
                             Reports
@@ -151,12 +157,6 @@
                         <a class="nav-link {{ 'active' if request.endpoint == 'insights' }}" href="{{ url_for('insights') }}">
                             <i data-feather="bar-chart-2" class="feather-sm"></i>
                             Insights
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'modeling' }}" href="{{ url_for('modeling') }}">
-                            <i data-feather="trending-up" class="feather-sm"></i>
-                            Modeling
                         </a>
                     </li>
                 </ul>
