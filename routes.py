@@ -717,6 +717,11 @@ def download_attachment(filename):
         abort(404)
 
 
+@app.route("/view-all-events")
+def view_all_events():
+    events = EventReport.query.all()
+    return render_template("index.html", reports=events)
+
 @app.route("/browse")
 def index():
     search_query = request.args.get("search", "")
