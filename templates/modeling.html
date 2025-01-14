@@ -9,17 +9,144 @@
                     <h4 class="mb-0">Security Risk Modeling</h4>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted">
+                    <p class="text-muted mb-4">
                         Welcome to the Security Risk Modeling interface. This tool helps you analyze and visualize security risks for your events.
                     </p>
-                    <!-- Placeholder for modeling content -->
-                    <div class="alert alert-info">
-                        <i data-feather="info" class="feather-sm me-2"></i>
-                        Modeling features will be implemented here.
+
+                    <div class="row">
+                        <div class="col-12 mb-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Event Type Distribution</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Event Type</th>
+                                                    <th>Count</th>
+                                                    <th>Average Risk Level</th>
+                                                    <th>Historical Incidents</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for type in event_types %}
+                                                <tr>
+                                                    <td>{{ type.name }}</td>
+                                                    <td>{{ type.count }}</td>
+                                                    <td>
+                                                        <span class="badge bg-{{ type.risk_level_class }}">
+                                                            {{ type.risk_level }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ type.incidents }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Security Level Distribution</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="securityLevelChart" style="height: 300px;">
+                                        <!-- Chart will be rendered here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Historical Incident Analysis</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="incidentChart" style="height: 300px;">
+                                        <!-- Chart will be rendered here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Event Security Recommendations</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="list-group">
+                                        {% for recommendation in recommendations %}
+                                        <div class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">{{ recommendation.title }}</h6>
+                                                <small class="text-muted">Priority: {{ recommendation.priority }}</small>
+                                            </div>
+                                            <p class="mb-1">{{ recommendation.description }}</p>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Chart initialization code will go here
+    document.addEventListener('DOMContentLoaded', function() {
+        // Security Level Chart
+        const securityCtx = document.getElementById('securityLevelChart').getContext('2d');
+        new Chart(securityCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Low', 'Medium', 'High', 'Very High'],
+                datasets: [{
+                    data: {{ security_levels_data | tojson }},
+                    backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#6610f2']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // Incident Chart
+        const incidentCtx = document.getElementById('incidentChart').getContext('2d');
+        new Chart(incidentCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ incident_labels | tojson }},
+                datasets: [{
+                    label: 'Number of Incidents',
+                    data: {{ incident_data | tojson }},
+                    backgroundColor: '#4A90E2'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}
