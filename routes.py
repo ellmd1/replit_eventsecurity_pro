@@ -5,7 +5,6 @@ import tempfile
 import uuid
 from datetime import datetime, timedelta
 from docx import Document
-
 from flask import (
     abort,
     flash,
@@ -20,7 +19,7 @@ from flask import (
     url_for,
 )
 from openai import OpenAI
-from sqlalchemy import and_, extract, func, or_
+from sqlalchemy import and_, extract, func, or_, case
 import weasyprint
 from werkzeug.utils import secure_filename
 
@@ -1044,14 +1043,112 @@ def get_decision_categories():
     return [c[0] for c in categories if c[0]]
 @app.route("/modeling")
 def modeling():
-    """Display the modeling page"""
-    log = start_activity_tracking("modeling_view")
-    g.activity_log = log
+    """Display security risk modeling page"""
+    try:
+        logger.info("Starting modeling page view")
+        log = start_activity_tracking("modeling_view")
+        g.activity_log = log
 
-    log.interaction_details = {
-        "page_view": "modeling",
-        "timestamp": datetime.utcnow().isoformat()
-    }
-    db.session.commit()
+        # Get event types and their statistics
+        logger.info("Querying event statistics...")
+        event_stats = db.session.query(
+            EventReport.venue_type,
+            func.count().label('count'),
+            func.avg(
+                case(
+                    (EventReport.risk_level == 'High', 3),
+                    (EventReport.risk_level == 'Medium', 2),
+                    (EventReport.risk_level == 'Low', 1),
+                    else_=0
+                )
+            ).label('avg_risk')
+        ).group_by(EventReport.venue_type).all()
+        logger.info(f"Retrieved {len(event_stats)} event statistics records")
 
-    return render_template("modeling.html")
+        event_types = []
+        for stat in event_stats:
+            risk_level = 'Low'
+            risk_level_class = 'success'
+            if stat.avg_risk > 2:
+                risk_level = 'High'
+                risk_level_class = 'danger'
+            elif stat.avg_risk > 1:
+                risk_level = 'Medium'
+                risk_level_class = 'warning'
+
+            event_types.append({
+                'name': stat.venue_type or 'Unspecified',
+                'count': stat.count,
+                'risk_level': risk_level,
+                'risk_level_class': risk_level_class,
+                'incidents': db.session.query(func.sum(EventReport.incidents_reported))
+                    .filter(EventReport.venue_type == stat.venue_type)
+                    .scalar() or 0
+            })
+
+        # Security levels distribution data
+        logger.info("Querying security levels distribution...")
+        security_levels = db.session.query(
+            EventReport.risk_level,
+            func.count().label('count')
+        ).group_by(EventReport.risk_level).all()
+        logger.info(f"Retrieved {len(security_levels)} security level records")
+
+        security_levels_data = [0, 0, 0, 0]  # [Low, Medium, High, Very High]
+        for level in security_levels:
+            if level.risk_level == 'Low':
+                security_levels_data[0] = level.count
+            elif level.risk_level == 'Medium':
+                security_levels_data[1] = level.count
+            elif level.risk_level == 'High':
+                security_levels_data[2] = level.count
+            elif level.risk_level == 'Very High':
+                security_levels_data[3] = level.count
+
+        # Historical incident data
+        logger.info("Querying historical incident data...")
+        incidents_by_month = db.session.query(
+            func.date_trunc('month', EventReport.date).label('month'),
+            func.coalesce(func.sum(EventReport.incidents_reported), 0).label('incidents')
+        ).group_by('month').order_by('month').limit(6).all()
+        logger.info(f"Retrieved {len(incidents_by_month)} monthly incident records")
+
+        incident_labels = [i.month.strftime('%B %Y') if i.month else 'Unknown' for i in incidents_by_month]
+        incident_data = [int(i.incidents or 0) for i in incidents_by_month]
+
+        # Generate recommendations based on the data
+        recommendations = [
+            {
+                'title': 'High-Risk Venue Assessment',
+                'description': 'Conduct detailed risk assessments for venues with consistently high risk ratings.',
+                'priority': 'High'
+            },
+            {
+                'title': 'Seasonal Security Planning',
+                'description': 'Adjust security measures based on historical incident patterns during peak seasons.',
+                'priority': 'Medium'
+            },
+            {
+                'title': 'Staff Training Program',
+                'description': 'Implement regular security training programs focusing on common incident types.',
+                'priority': 'High'
+            }
+        ]
+
+        logger.info("Rendering modeling template with data")
+        return render_template('modeling.html',
+                             event_types=event_types,
+                             security_levels_data=security_levels_data,
+                             incident_labels=incident_labels,
+                             incident_data=incident_data,
+                             recommendations=recommendations)
+
+    except Exception as e:
+        logger.error(f"Error in modeling route: {str(e)}", exc_info=True)
+        flash("Error loading modeling data", "error")
+        return render_template('modeling.html', 
+                             event_types=[],
+                             security_levels_data=[0,0,0,0],
+                             incident_labels=[],
+                             incident_data=[],
+                             recommendations=[])
