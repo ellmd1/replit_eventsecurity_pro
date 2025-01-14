@@ -1043,112 +1043,91 @@ def get_decision_categories():
     return [c[0] for c in categories if c[0]]
 @app.route("/modeling")
 def modeling():
-    """Display security risk modeling page"""
+    """Display the modeling interface with risk analysis data"""
     try:
-        logger.info("Starting modeling page view")
-        log = start_activity_tracking("modeling_view")
-        g.activity_log = log
-
-        # Get event types and their statistics
-        logger.info("Querying event statistics...")
-        event_stats = db.session.query(
-            EventReport.venue_type,
-            func.count().label('count'),
-            func.avg(
-                case(
-                    (EventReport.risk_level == 'High', 3),
-                    (EventReport.risk_level == 'Medium', 2),
-                    (EventReport.risk_level == 'Low', 1),
-                    else_=0
-                )
-            ).label('avg_risk')
-        ).group_by(EventReport.venue_type).all()
-        logger.info(f"Retrieved {len(event_stats)} event statistics records")
-
+        # Get event type distribution data
         event_types = []
-        for stat in event_stats:
-            risk_level = 'Low'
-            risk_level_class = 'success'
-            if stat.avg_risk > 2:
-                risk_level = 'High'
-                risk_level_class = 'danger'
-            elif stat.avg_risk > 1:
+        event_type_query = db.session.query(
+            EventReport.incident_type,
+            func.count(EventReport.id).label('count'),
+            func.avg(case(
+                {'High': 3, 'Medium': 2, 'Low': 1},
+                value=EventReport.risk_level
+            )).label('avg_risk'),
+            func.count(case([(EventReport.incidents_reported > 0, 1)])).label('incidents')
+        ).group_by(EventReport.incident_type).all()
+
+        for event_type in event_type_query:
+            if event_type.incident_type:  # Skip None values
                 risk_level = 'Medium'
-                risk_level_class = 'warning'
+                if event_type.avg_risk:
+                    if event_type.avg_risk >= 2.5:
+                        risk_level = 'High'
+                    elif event_type.avg_risk <= 1.5:
+                        risk_level = 'Low'
 
-            event_types.append({
-                'name': stat.venue_type or 'Unspecified',
-                'count': stat.count,
-                'risk_level': risk_level,
-                'risk_level_class': risk_level_class,
-                'incidents': db.session.query(func.sum(EventReport.incidents_reported))
-                    .filter(EventReport.venue_type == stat.venue_type)
-                    .scalar() or 0
-            })
+                event_types.append({
+                    'name': event_type.incident_type,
+                    'count': event_type.count,
+                    'risk_level': risk_level,
+                    'risk_level_class': {
+                        'High': 'danger',
+                        'Medium': 'warning',
+                        'Low': 'success'
+                    }[risk_level],
+                    'incidents': event_type.incidents
+                })
 
-        # Security levels distribution data
-        logger.info("Querying security levels distribution...")
+        # Get security level distribution data
         security_levels = db.session.query(
             EventReport.risk_level,
-            func.count().label('count')
+            func.count(EventReport.id)
         ).group_by(EventReport.risk_level).all()
-        logger.info(f"Retrieved {len(security_levels)} security level records")
 
-        security_levels_data = [0, 0, 0, 0]  # [Low, Medium, High, Very High]
-        for level in security_levels:
-            if level.risk_level == 'Low':
-                security_levels_data[0] = level.count
-            elif level.risk_level == 'Medium':
-                security_levels_data[1] = level.count
-            elif level.risk_level == 'High':
-                security_levels_data[2] = level.count
-            elif level.risk_level == 'Very High':
-                security_levels_data[3] = level.count
+        security_levels_data = [count for _, count in security_levels]
 
-        # Historical incident data
-        logger.info("Querying historical incident data...")
-        incidents_by_month = db.session.query(
-            func.date_trunc('month', EventReport.date).label('month'),
-            func.coalesce(func.sum(EventReport.incidents_reported), 0).label('incidents')
-        ).group_by('month').order_by('month').limit(6).all()
-        logger.info(f"Retrieved {len(incidents_by_month)} monthly incident records")
+        # Get incident data for the chart
+        incident_data = db.session.query(
+            extract('month', EventReport.date).label('month'),
+            func.count(EventReport.id)
+        ).filter(
+            EventReport.incidents_reported > 0
+        ).group_by('month').order_by('month').all()
 
-        incident_labels = [i.month.strftime('%B %Y') if i.month else 'Unknown' for i in incidents_by_month]
-        incident_data = [int(i.incidents or 0) for i in incidents_by_month]
+        incident_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        incident_counts = [0] * 12
+        for month, count in incident_data:
+            if month:  # Skip None values
+                incident_counts[month - 1] = count
 
-        # Generate recommendations based on the data
+        # Generate security recommendations
         recommendations = [
             {
-                'title': 'High-Risk Venue Assessment',
-                'description': 'Conduct detailed risk assessments for venues with consistently high risk ratings.',
+                'title': 'Enhanced Security Staffing',
+                'description': 'Increase security personnel for high-risk events',
                 'priority': 'High'
             },
             {
-                'title': 'Seasonal Security Planning',
-                'description': 'Adjust security measures based on historical incident patterns during peak seasons.',
+                'title': 'Emergency Response Planning',
+                'description': 'Update emergency protocols based on recent incidents',
                 'priority': 'Medium'
             },
             {
                 'title': 'Staff Training Program',
-                'description': 'Implement regular security training programs focusing on common incident types.',
-                'priority': 'High'
+                'description': 'Conduct regular security awareness training sessions',
+                'priority': 'Medium'
             }
         ]
 
-        logger.info("Rendering modeling template with data")
-        return render_template('modeling.html',
-                             event_types=event_types,
-                             security_levels_data=security_levels_data,
-                             incident_labels=incident_labels,
-                             incident_data=incident_data,
-                             recommendations=recommendations)
-
+        return render_template(
+            'modeling.html',
+            event_types=event_types,
+            security_levels_data=security_levels_data,
+            incident_labels=incident_labels,
+            incident_data=incident_counts,
+            recommendations=recommendations
+        )
     except Exception as e:
-        logger.error(f"Error in modeling route: {str(e)}", exc_info=True)
-        flash("Error loading modeling data", "error")
-        return render_template('modeling.html', 
-                             event_types=[],
-                             security_levels_data=[0,0,0,0],
-                             incident_labels=[],
-                             incident_data=[],
-                             recommendations=[])
+        logger.error(f"Error in modeling route: {str(e)}")
+        return render_template('modeling.html', error=str(e))
