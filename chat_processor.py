@@ -88,7 +88,9 @@ def process_natural_language_query(query: str, db_query):
 
     except Exception as e:
         logging.error(f"Error processing query with AI: {str(e)}")
-        return db_query, "I had trouble understanding that query. Please try rephrasing it."
+        if "openai" in str(e).lower():
+            return db_query, "Error: OpenAI API configuration issue. Please verify the API key."
+        return db_query, "I had trouble understanding that query. Please try again."
 
 def generate_response_summary(events, query_explanation):
     """Generate a natural language summary of the search results"""

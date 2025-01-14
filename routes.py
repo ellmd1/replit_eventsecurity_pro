@@ -967,10 +967,12 @@ def chat_query():
         )
     except Exception as e:
         logger.error(f"Error processing chat query: {str(e)}")
+        logger.error(f"Error processing chat query: {str(e)}")
+        error_message = "API configuration error. Please check the OpenAI API key." if "openai" in str(e).lower() else "I encountered an error processing your query. Please try again."
         return jsonify(
             {
                 "status": "error",
-                "response": "I apologize, but I encountered an error processing your query. Please try rephrasing your question.",
+                "response": error_message,
                 "events": [],
             }
         ), 500
