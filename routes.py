@@ -416,7 +416,7 @@ Generate security insights following this JSON structure:
         try:
             logger.info("Sending request to OpenAI")
             response = client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4-turbo-preview",
                 messages=[
                     {
                         "role": "system",
@@ -924,7 +924,7 @@ def chat_query():
 
         logger.info("Sending request to GPT")
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4-turbo-preview",
             messages=[
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": context_message},

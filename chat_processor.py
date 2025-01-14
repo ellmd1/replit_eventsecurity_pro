@@ -38,7 +38,7 @@ def process_natural_language_query(query: str, db_query):
 
         # Get AI response
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4-turbo-preview",
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"}
         )
@@ -110,7 +110,7 @@ def generate_response_summary(events, query_explanation):
         Keep the response concise and friendly. Mention the total number of events and briefly highlight key patterns."""
 
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4-turbo-preview",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=150
         )
