@@ -65,10 +65,34 @@
             padding: 2rem;
             background: var(--card-bg);
             border-top: 1px solid var(--secondary-color);
+            transition: margin-left 0.3s ease;
+        }
+        
+        .footer.collapsed {
+            margin-left: 60px;
+        }
+        
+        .sidebar-toggle-btn {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.25rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .sidebar-toggle-btn:hover {
+            background-color: rgba(74, 144, 226, 0.1);
         }
         
         @media (max-width: 768px) {
             .footer {
+                margin-left: 0;
+            }
+            
+            .footer.collapsed {
                 margin-left: 0;
             }
         }
@@ -89,7 +113,11 @@
             border-right: 1px solid var(--secondary-color);
             z-index: 1000;
             overflow-y: auto;
-            transition: transform 0.3s ease;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar.collapsed {
+            width: 60px;
         }
         
         .sidebar-header {
@@ -125,6 +153,20 @@
             text-decoration: none;
             transition: all 0.2s ease;
             border-left: 3px solid transparent;
+            white-space: nowrap;
+        }
+        
+        .sidebar.collapsed .sidebar-nav .nav-link {
+            padding: 0.75rem;
+            justify-content: center;
+        }
+        
+        .sidebar.collapsed .sidebar-nav .nav-link span {
+            display: none;
+        }
+        
+        .sidebar.collapsed .sidebar-brand span {
+            display: none;
         }
         
         .sidebar-nav .nav-link:hover {
@@ -155,6 +197,11 @@
             display: flex;
             align-items: center;
             padding: 0 2rem;
+            transition: left 0.3s ease;
+        }
+        
+        .top-header.collapsed {
+            left: 60px;
         }
         
         .header-title {
@@ -178,6 +225,11 @@
             margin-left: 280px;
             min-height: calc(100vh - 70px);
             padding: 2rem;
+            transition: margin-left 0.3s ease;
+        }
+        
+        .main-content.collapsed {
+            margin-left: 60px;
         }
         
         .sidebar-toggle {
@@ -251,7 +303,7 @@
         <div class="sidebar-header">
             <a href="/" class="sidebar-brand">
                 <i data-feather="shield"></i>
-                SecureEvent Pro
+                <span>SecureEvent Pro</span>
             </a>
         </div>
         <nav class="sidebar-nav">
@@ -259,55 +311,55 @@
                 <li class="nav-item">
                     <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}">
                         <i data-feather="home"></i>
-                        Dashboard
+                        <span>Dashboard</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">
                         <i data-feather="file-text"></i>
-                        Event Reports
+                        <span>Event Reports</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {{ 'active' if request.endpoint == 'comparative_search' }}" href="{{ url_for('comparative_search') }}">
                         <i data-feather="search"></i>
-                        Compare Events
+                        <span>Compare Events</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {{ 'active' if request.endpoint == 'modeling' }}" href="{{ url_for('modeling') }}">
                         <i data-feather="trending-up"></i>
-                        Risk Modeling
+                        <span>Risk Modeling</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {{ 'active' if request.endpoint == 'insights' }}" href="{{ url_for('insights') }}">
                         <i data-feather="bar-chart-2"></i>
-                        AI Insights
+                        <span>AI Insights</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {{ 'active' if request.endpoint == 'chat' }}" href="{{ url_for('chat') }}">
                         <i data-feather="message-square"></i>
-                        AI Assistant
+                        <span>AI Assistant</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {{ 'active' if request.endpoint == 'decision_log' }}" href="{{ url_for('decision_log') }}">
                         <i data-feather="check-square"></i>
-                        Decision Log
+                        <span>Decision Log</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {{ 'active' if request.endpoint == 'view_access_logs' }}" href="{{ url_for('view_access_logs') }}">
                         <i data-feather="activity"></i>
-                        Access Logs
+                        <span>Access Logs</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {{ 'active' if request.endpoint == 'list_templates' }}" href="{{ url_for('list_templates') }}">
                         <i data-feather="layers"></i>
-                        Templates
+                        <span>Templates</span>
                     </a>
                 </li>
             </ul>
@@ -315,8 +367,8 @@
     </div>
 
     <!-- Top Header -->
-    <header class="top-header">
-        <button class="sidebar-toggle" onclick="toggleSidebar()">
+    <header class="top-header" id="topHeader">
+        <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
             <i data-feather="menu"></i>
         </button>
         <h1 class="header-title">Security Operations Center</h1>
@@ -326,7 +378,7 @@
         </div>
     </header>
 
-    <main class="main-content">
+    <main class="main-content" id="mainContent">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -340,7 +392,7 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="footer">
+    <footer class="footer" id="footer">
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
@@ -364,7 +416,14 @@
     <script>
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('show');
+            const mainContent = document.getElementById('mainContent');
+            const topHeader = document.getElementById('topHeader');
+            const footer = document.getElementById('footer');
+            
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('collapsed');
+            topHeader.classList.toggle('collapsed');
+            footer.classList.toggle('collapsed');
         }
         
         document.addEventListener('DOMContentLoaded', function() {
