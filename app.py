@@ -20,7 +20,7 @@ app = Flask(__name__)
 # Configuration
 app.config['TIMEOUT'] = 300  # 5 minutes timeout
 app.config['TEMPLATES_AUTO_RELOAD'] = True  # Enable for development
-app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "development_key"
+app.secret_key = os.environ.get("SESSION_SECRET") or "dev-secret-key-change-in-production"
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
