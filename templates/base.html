@@ -61,13 +61,205 @@
         }
         .footer {
             margin-top: 4rem;
-            padding: 2rem 0;
-            background: var(--bs-dark);
-            border-top: 1px solid var(--bs-border-color);
+            margin-left: 280px;
+            padding: 2rem;
+            background: var(--card-bg);
+            border-top: 1px solid var(--secondary-color);
+            transition: margin-left 0.3s ease;
+        }
+        
+        .footer.collapsed {
+            margin-left: 60px;
+        }
+        
+        .sidebar-toggle-btn {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.25rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .sidebar-toggle-btn:hover {
+            background-color: rgba(74, 144, 226, 0.1);
+        }
+        
+        @media (max-width: 768px) {
+            .footer {
+                margin-left: 0;
+            }
+            
+            .footer.collapsed {
+                margin-left: 0;
+            }
         }
         .main-content {
             min-height: calc(100vh - 280px);
             padding: 2rem 0;
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+        }
+        
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 280px;
+            background-color: var(--card-bg);
+            border-right: 1px solid var(--secondary-color);
+            z-index: 1000;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar.collapsed {
+            width: 60px;
+        }
+        
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--secondary-color);
+            background-color: var(--background-dark);
+        }
+        
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+        
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+        
+        .sidebar-nav .nav-item {
+            margin-bottom: 0.25rem;
+        }
+        
+        .sidebar-nav .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+            white-space: nowrap;
+        }
+        
+        .sidebar.collapsed .sidebar-nav .nav-link {
+            padding: 0.75rem;
+            justify-content: center;
+        }
+        
+        .sidebar.collapsed .sidebar-nav .nav-link span {
+            display: none;
+        }
+        
+        .sidebar.collapsed .sidebar-brand span {
+            display: none;
+        }
+        
+        .sidebar-nav .nav-link:hover {
+            background-color: rgba(74, 144, 226, 0.1);
+            color: var(--text-primary);
+        }
+        
+        .sidebar-nav .nav-link.active {
+            background-color: rgba(74, 144, 226, 0.15);
+            color: var(--primary-color);
+            border-left-color: var(--primary-color);
+        }
+        
+        .sidebar-nav .nav-link i {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .top-header {
+            position: fixed;
+            top: 0;
+            left: 280px;
+            right: 0;
+            height: 70px;
+            background-color: var(--background-dark);
+            border-bottom: 1px solid var(--secondary-color);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            padding: 0 2rem;
+            transition: left 0.3s ease;
+        }
+        
+        .top-header.collapsed {
+            left: 60px;
+        }
+        
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        
+        .header-meta {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .main-content {
+            margin-top: 70px;
+            margin-left: 280px;
+            min-height: calc(100vh - 70px);
+            padding: 2rem;
+            transition: margin-left 0.3s ease;
+        }
+        
+        .main-content.collapsed {
+            margin-left: 60px;
+        }
+        
+        .sidebar-toggle {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .top-header {
+                left: 0;
+            }
+            
+            .sidebar-toggle {
+                display: block;
+                background: none;
+                border: none;
+                color: var(--text-primary);
+                font-size: 1.25rem;
+            }
         }
         .card {
             border: 1px solid var(--bs-border-color);
@@ -106,81 +298,101 @@
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="/">
-                <i data-feather="shield" class="text-primary"></i>
-                SecureEvent Pro
+    <!-- Sidebar Navigation -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="/" class="sidebar-brand">
+                <i data-feather="shield"></i>
+                <span>SecureEvent Pro</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}">
-                            <i data-feather="home" class="feather-sm"></i>
-                            Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'modeling' }}" href="{{ url_for('modeling') }}">
-                            <i data-feather="trending-up" class="feather-sm"></i>
-                            Modeling
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">
-                            <i data-feather="file-text" class="feather-sm"></i>
-                            Reports
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'comparative_search' }}" href="{{ url_for('comparative_search') }}">
-                            <i data-feather="search" class="feather-sm"></i>
-                            Compare Events
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'chat' }}" href="{{ url_for('chat') }}">
-                            <i data-feather="message-square" class="feather-sm"></i>
-                            AI Assistant
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'decision_log' }}" href="{{ url_for('decision_log') }}">
-                            <i data-feather="check-square" class="feather-sm"></i>
-                            Decision Log
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'insights' }}" href="{{ url_for('insights') }}">
-                            <i data-feather="bar-chart-2" class="feather-sm"></i>
-                            Insights
-                        </a>
-                    </li>
-                </ul>
-            </div>
         </div>
-    </nav>
+        <nav class="sidebar-nav">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' }}" href="{{ url_for('dashboard') }}">
+                        <i data-feather="home"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">
+                        <i data-feather="file-text"></i>
+                        <span>Event Reports</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'comparative_search' }}" href="{{ url_for('comparative_search') }}">
+                        <i data-feather="search"></i>
+                        <span>Compare Events</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'modeling' }}" href="{{ url_for('modeling') }}">
+                        <i data-feather="trending-up"></i>
+                        <span>Risk Modeling</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'insights' }}" href="{{ url_for('insights') }}">
+                        <i data-feather="bar-chart-2"></i>
+                        <span>AI Insights</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'chat' }}" href="{{ url_for('chat') }}">
+                        <i data-feather="message-square"></i>
+                        <span>AI Assistant</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'decision_log' }}" href="{{ url_for('decision_log') }}">
+                        <i data-feather="check-square"></i>
+                        <span>Decision Log</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'view_access_logs' }}" href="{{ url_for('view_access_logs') }}">
+                        <i data-feather="activity"></i>
+                        <span>Access Logs</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'list_templates' }}" href="{{ url_for('list_templates') }}">
+                        <i data-feather="layers"></i>
+                        <span>Templates</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
 
-    <main class="main-content">
-        <div class="container">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-            {% block content %}{% endblock %}
+    <!-- Top Header -->
+    <header class="top-header" id="topHeader">
+        <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
+            <i data-feather="menu"></i>
+        </button>
+        <h1 class="header-title">Security Operations Center</h1>
+        <div class="header-meta">
+            <span><i data-feather="clock"></i> <span id="current-date"></span></span>
+            <span class="badge bg-success">System Online</span>
         </div>
+    </header>
+
+    <main class="main-content" id="mainContent">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
     </main>
 
-    <footer class="footer">
+    <footer class="footer" id="footer">
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
@@ -202,8 +414,31 @@
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const topHeader = document.getElementById('topHeader');
+            const footer = document.getElementById('footer');
+            
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('collapsed');
+            topHeader.classList.toggle('collapsed');
+            footer.classList.toggle('collapsed');
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             feather.replace({ class: 'feather-sm' });
+            
+            // Set current date in header
+            const currentDate = new Date().toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            const dateElement = document.getElementById('current-date');
+            if (dateElement) {
+                dateElement.textContent = currentDate;
+            }
         });
     </script>
 </body>
