@@ -39,6 +39,13 @@ logger = logging.getLogger(__name__)
 # Initialize OpenAI client
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+
+@app.route("/create-risk-assessment")
+def create_risk_assessment():
+    """Render the page to create a new risk assessment"""
+    return render_template("create_risk_assessment.html")
+
+
 # Template Management Routes
 @app.route("/templates")
 def list_templates():
@@ -1048,6 +1055,7 @@ def get_decision_categories():
         .all()
     )
     return [c[0] for c in categories if c[0]]
+
 @app.route("/modeling")
 def modeling():
     """Display the modeling interface with risk analysis data"""

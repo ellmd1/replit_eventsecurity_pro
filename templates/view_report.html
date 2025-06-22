@@ -54,7 +54,13 @@
 
         <div class="row mt-4">
             <div class="col-md-12">
-                <h6>Risk Assessments</h6>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Risk Assessments</h6>
+                    <a href="{{ url_for('create_risk_assessment', report_id=report.id) }}" class="btn btn-sm btn-primary">
+                        <i data-feather="plus" class="feather-sm me-1"></i>
+                        New Assessment
+                    </a>
+                </div>
                 <div class="table-responsive">
                     {% if report.risk_assessments %}
                     <table class="table table-bordered">
@@ -116,8 +122,12 @@
                         </tbody>
                     </table>
                     {% else %}
-                    <div class="alert alert-info">
-                        No risk assessments have been recorded for this event.
+                    <div class="alert alert-info d-flex justify-content-between align-items-center">
+                        <span>No risk assessments have been recorded for this event.</span>
+                        <a href="{{ url_for('create_risk_assessment', report_id=report.id) }}" class="btn btn-sm btn-primary">
+                            <i data-feather="plus" class="feather-sm me-1"></i>
+                            Create First Assessment
+                        </a>
                     </div>
                     {% endif %}
                 </div>

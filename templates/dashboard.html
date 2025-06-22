@@ -11,7 +11,11 @@
                 Make data-driven decisions to ensure safer public events.
             </p>
             <div class="d-flex gap-3">
-                <a href="{{ url_for('compare_reports') }}" class="btn btn-primary">
+                <a href="{{ url_for('create_risk_assessment') }}" class="btn btn-primary">
+                    <i data-feather="shield" class="feather-sm"></i>
+                    Create Risk Assessment
+                </a>
+                <a href="{{ url_for('compare_reports') }}" class="btn btn-outline-secondary">
                     <i data-feather="file-text" class="feather-sm"></i>
                     Compare Reports
                 </a>
