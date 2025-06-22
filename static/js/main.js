@@ -1,4 +1,28 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Sidebar toggle functionality
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    const topHeader = document.getElementById('topHeader');
+    const footer = document.getElementById('footer');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', () => {
+            if (window.matchMedia('(max-width: 768px)').matches) {
+                // Mobile behavior: slide in/out as an overlay
+                sidebar.classList.toggle('show');
+            } else {
+                // Desktop behavior: collapse/expand inline
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('collapsed');
+                topHeader.classList.toggle('collapsed');
+                if (footer) {
+                    footer.classList.toggle('collapsed');
+                }
+            }
+        });
+    }
+
     // Initialize Feather icons
     feather.replace();
 
