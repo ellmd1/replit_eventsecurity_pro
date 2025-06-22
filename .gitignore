@@ -2,5 +2,6 @@
 .DS_Store
 .venv
 .vscode
+.replit
 __pycache__
 requirements.txt

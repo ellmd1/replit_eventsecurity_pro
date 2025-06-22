@@ -224,10 +224,13 @@ The application uses 6 main database tables:
 - `main.py` - Application entry point
 
 ### Frontend Structure
-- `templates/base.html` - Base template with common layout
-- `templates/*.html` - Individual page templates
+- `templates/base.html` - Base template with common layout (header, footer, sidebar).
+  - **Header**: Contains a central search bar, notification icon, user icon, and a collapsible menu (hamburger) icon.
+  - **Sidebar**: Collapsible navigation menu.
+  - **Footer**: Displays copyright info, current date/time, and system status ("All Systems Online").
+- `templates/*.html` - Individual page templates that extend `base.html`.
 - `templates/pdf/*.html` - PDF export templates
-- `static/js/main.js` - Main JavaScript functionality, chat interface
+- `static/js/main.js` - Main JavaScript functionality. Handles sidebar collapse/expand logic for both mobile and desktop views, and powers the AI chat interface.
 - `static/js/scenario_builder.js` - Scenario builder interactive features
 
 ### Data Management
