@@ -4,6 +4,48 @@
 <div class="container">
     <div class="row">
         <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Predictive Risk Model</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Select event parameters to calculate a predictive risk score.
+                    </p>
+                    <form id="riskModelForm">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="eventType" class="form-label">Event Type</label>
+                                <select class="form-select" id="eventType" name="event_type">
+                                    {% for type in event_types %}
+                                        <option value="{{ type.name }}">{{ type.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="attendance" class="form-label">Expected Attendance</label>
+                                <input type="number" class="form-control" id="attendance" name="attendance" placeholder="e.g., 5000" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="venueType" class="form-label">Venue Type</label>
+                                <select class="form-select" id="venueType" name="venue_type">
+                                    <option value="stadium">Stadium</option>
+                                    <option value="arena">Arena</option>
+                                    <option value="outdoor">Outdoor</option>
+                                    <option value="theater">Theater</option>
+                                    <option value="conference_center">Conference Center</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3">Calculate Risk</button>
+                    </form>
+                    <div id="riskModelResult" class="mt-4" style="display: none;">
+                        <h5>Predicted Risk Score: <span id="riskScore"></span></h5>
+                        <div id="riskBreakdown"></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header">
                     <h4 class="mb-0">Security Risk Modeling</h4>
@@ -108,6 +150,33 @@
 <script>
     // Chart initialization code will go here
     document.addEventListener('DOMContentLoaded', function() {
+        // Handle risk model form submission
+        document.getElementById('riskModelForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+
+            fetch('/calculate_risk', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            })
+            .then(response => response.json())
+            .then(result => {
+                document.getElementById('riskModelResult').style.display = 'block';
+                document.getElementById('riskScore').textContent = result.risk_score;
+                const breakdown = document.getElementById('riskBreakdown');
+                breakdown.innerHTML = '';
+                for (const [key, value] of Object.entries(result.breakdown)) {
+                    const p = document.createElement('p');
+                    p.textContent = `${key}: ${value}`;
+                    breakdown.appendChild(p);
+                }
+            });
+        });
+
         // Security Level Chart
         const securityCtx = document.getElementById('securityLevelChart').getContext('2d');
         new Chart(securityCtx, {

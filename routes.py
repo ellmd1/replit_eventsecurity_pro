@@ -25,12 +25,12 @@ from werkzeug.utils import secure_filename
 
 from app import app, db
 from models import (
-    ActivityLog,
-    AssessmentTemplate,
     EventReport,
     SecurityDecision,
+    AssessmentTemplate,
     SecurityInsight,
     RiskAssessment,
+    ActivityLog,
 )
 
 # Configure logging
@@ -51,23 +51,29 @@ def create_event_report():
     """Render the page to create a new event report and handle form submission"""
     if request.method == "POST":
         try:
-            new_report = EventReport(
-                title=request.form.get("title"),
-                date=datetime.strptime(request.form.get("date"), "%Y-%m-%d"),
-                location=request.form.get("location"),
-                description=request.form.get("description"),
-                risk_level=request.form.get("risk_level"),
-                incident_type=request.form.get("incident_type"),
-                venue_type=request.form.get("venue_type"),
-                attendance=int(request.form.get("attendance")) if request.form.get("attendance") else None,
-                security_staff_count=int(request.form.get("security_staff_count", 0)),
-                incidents_reported=int(request.form.get("incidents_reported", 0)),
-                security_measures=request.form.get("security_measures"),
-                security_protocols=request.form.get("security_protocols"),
-                emergency_response_plan=request.form.get("emergency_response_plan"),
-                lessons_learned=request.form.get("lessons_learned"),
-                recommendations=request.form.get("recommendations"),
-            )
+            date_str = request.form.get("date")
+            attendance_str = request.form.get("attendance")
+            staff_count_str = request.form.get("security_staff_count")
+            incidents_str = request.form.get("incidents_reported")
+
+            report_data = {
+                'title': request.form.get("title"),
+                'date': datetime.strptime(date_str, "%Y-%m-%d") if date_str else None,
+                'location': request.form.get("location"),
+                'description': request.form.get("description"),
+                'risk_level': request.form.get("risk_level"),
+                'incident_type': request.form.get("incident_type"),
+                'venue_type': request.form.get("venue_type"),
+                'attendance': int(attendance_str) if attendance_str and attendance_str.isdigit() else 0,
+                'security_staff_count': int(staff_count_str) if staff_count_str and staff_count_str.isdigit() else 0,
+                'incidents_reported': int(incidents_str) if incidents_str and incidents_str.isdigit() else 0,
+                'security_measures': request.form.get("security_measures"),
+                'security_protocols': request.form.get("security_protocols"),
+                'emergency_response_plan': request.form.get("emergency_response_plan"),
+                'lessons_learned': request.form.get("lessons_learned"),
+                'recommendations': request.form.get("recommendations"),
+            }
+            new_report = EventReport(**report_data)
             db.session.add(new_report)
             db.session.commit()
             flash("Event report created successfully!", "success")
@@ -97,22 +103,24 @@ def create_template():
             risk_factors = json.loads(data.get("risk_factors", "[]"))
             mitigation_strategies = json.loads(data.get("mitigation_strategies", "[]"))
 
-            template = AssessmentTemplate(
-                title=data["title"],
-                description=data["description"],
-                template_type=data["template_type"],
-                min_capacity=int(data.get("min_capacity", 0)),
-                max_capacity=int(data.get("max_capacity", 0)),
-                security_requirements=security_requirements,
-                risk_factors=risk_factors,
-                mitigation_strategies=mitigation_strategies,
-                is_default=False,
-                configuration={
+            template_data = {
+                "title": data.get("title"),
+                "description": data.get("description"),
+                "template_type": data.get("template_type"),
+                "min_capacity": int(data.get("min_capacity", 0)),
+                "max_capacity": int(data.get("max_capacity", 0)),
+                "security_requirements": security_requirements,
+                "risk_factors": risk_factors,
+                "mitigation_strategies": mitigation_strategies,
+                "is_default": False,
+                "configuration": {
                     "version": "1.0",
                     "created_at": datetime.utcnow().isoformat(),
                     "last_modified": datetime.utcnow().isoformat()
                 }
-            )
+            }
+
+            template = AssessmentTemplate(**template_data)
 
             db.session.add(template)
             db.session.commit()
@@ -138,19 +146,22 @@ def edit_template(template_id):
     template = AssessmentTemplate.query.get_or_404(template_id)
     if request.method == "POST":
         try:
-            template.title = request.form["title"]
-            template.description = request.form["description"]
-            template.template_type = request.form["template_type"]
-            template.min_capacity = int(request.form.get("min_capacity", 0))
-            template.max_capacity = int(request.form.get("max_capacity", 0))
-            template.configuration = request.json.get("configuration", {})
-            template.security_requirements = request.json.get(
-                "security_requirements", []
-            )
-            template.risk_factors = request.json.get("risk_factors", [])
-            template.mitigation_strategies = request.json.get(
-                "mitigation_strategies", []
-            )
+            data = request.form
+            config = request.json
+            template.title = data.get("title", template.title)
+            template.description = data.get("description", template.description)
+            template.template_type = data.get("template_type", template.template_type)
+            template.min_capacity = int(data.get("min_capacity", template.min_capacity))
+            template.max_capacity = int(data.get("max_capacity", template.max_capacity))
+            if config:
+                template.configuration = config.get("configuration", template.configuration)
+                template.security_requirements = config.get(
+                    "security_requirements", template.security_requirements
+                )
+                template.risk_factors = config.get("risk_factors", template.risk_factors)
+                template.mitigation_strategies = config.get(
+                    "mitigation_strategies", template.mitigation_strategies
+                )
             template.updated_at = datetime.utcnow()
 
             db.session.commit()
@@ -168,7 +179,7 @@ def export_report_pdf(report_id):
     report = EventReport.query.get_or_404(report_id)
 
     # Log the export activity
-    log = start_activity_tracking("export_report_pdf", report_id)
+    log = start_activity_tracking("export_report_pdf", event_report_id=report_id)
     g.activity_log = log
 
     # Generate HTML content
@@ -178,7 +189,8 @@ def export_report_pdf(report_id):
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         # Generate PDF from HTML
         pdf = weasyprint.HTML(string=html).write_pdf()
-        tmp.write(pdf)
+        if pdf:
+            tmp.write(pdf)
         tmp_path = tmp.name
 
     try:
@@ -201,7 +213,7 @@ def export_decisions():
         decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).all()
 
         # Log the export activity
-        log = start_activity_tracking("export_decisions_pdf")
+        log = start_activity_tracking(activity_type="export_decisions_pdf")
         g.activity_log = log
 
         # Generate HTML content
@@ -215,7 +227,8 @@ def export_decisions():
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
             # Generate PDF from HTML
             pdf = weasyprint.HTML(string=html).write_pdf()
-            tmp.write(pdf)
+            if pdf:
+                tmp.write(pdf)
             tmp_path = tmp.name
 
         try:
@@ -284,12 +297,17 @@ def get_or_create_session_id():
 
 
 def start_activity_tracking(activity_type, event_report_id=None):
-    log = ActivityLog(
-        activity_type=activity_type,
-        event_report_id=event_report_id,
-        session_id=get_or_create_session_id(),
-        user_identifier=request.remote_addr,
-    )
+    """Start tracking a user activity and return the log entry"""
+    log_data = {
+        "activity_type": activity_type,
+        "event_report_id": event_report_id,
+        "user_identifier": request.remote_addr,
+        "session_id": get_or_create_session_id(),
+        "interaction_details": {
+            "user_agent": request.user_agent.string
+        }
+    }
+    log = ActivityLog(**log_data)
     db.session.add(log)
     db.session.commit()
     return log
@@ -372,8 +390,17 @@ def insights():
 
 @app.route("/generate_insights", methods=["POST"])
 def generate_insights():
-    """Generate new AI-powered insights from security data"""
+    """Generate AI-powered insights for selected events"""
     try:
+        json_data = request.get_json()
+        if not json_data:
+            return jsonify({"status": "error", "message": "Invalid JSON payload"}), 400
+
+        event_ids = json_data.get("event_ids", [])
+        if not event_ids:
+            return jsonify({"status": "error", "message": "No event IDs provided"}), 400
+
+        insights_request = json_data.get("request", "general")
         logger.info("Starting insights generation process")
 
         # Verify OpenAI API key
@@ -386,8 +413,8 @@ def generate_insights():
 
         # Fetch relevant data from database
         try:
-            events = EventReport.query.order_by(EventReport.date.desc()).limit(50).all()
-            decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).limit(50).all()
+            events = EventReport.query.filter(EventReport.id.in_(event_ids)).all()
+            decisions = SecurityDecision.query.filter(SecurityDecision.event_report_id.in_(event_ids)).all()
             logger.info(f"Retrieved {len(events)} events and {len(decisions)} decisions for analysis")
         except Exception as db_error:
             logger.error(f"Database error: {str(db_error)}")
@@ -487,13 +514,18 @@ Generate security insights following this JSON structure:
             SecurityInsight.query.delete()
 
             # Save new insights to database
-            for insight_data in insights_data['insights']:
-                insight = SecurityInsight(
-                    title=insight_data.get('title', 'Untitled Insight')[:200],
-                    description=insight_data.get('description', '')[:500],
-                    key_findings=insight_data.get('data', []),
-                    icon=insight_data.get('icon', 'alert-circle')
-                )
+            for result in insights_data['insights']:
+                key_findings_str = result.get("data")
+                key_findings = json.loads(key_findings_str) if isinstance(key_findings_str, str) else []
+
+                # Store the generated insight
+                insight_data = {
+                    "title": f"AI Insight for Events: {', '.join(map(str, event_ids))}",
+                    "description": result.get('description', ''),
+                    "key_findings": key_findings,
+                    "icon": "cpu",
+                }
+                insight = SecurityInsight(**insight_data)
                 db.session.add(insight)
 
             db.session.commit()
@@ -615,30 +647,24 @@ def summarize_file_content(file_path, file_type):
 def decision_log():
     if request.method == "POST":
         try:
-            logger.info("Processing POST request to /decisions")
-
             # Handle JSON requests from chat save functionality
             if request.is_json:
                 data = request.get_json()
+                if not data:
+                    return jsonify({"status": "error", "message": "Invalid JSON"}), 400
                 decision = SecurityDecision(
                     description=data.get("description", ""),
                     author=data.get("author", "Anonymous"),
                 )
                 db.session.add(decision)
                 db.session.commit()
-                logger.info("Decision saved from chat successfully")
                 return jsonify({"status": "success", "id": decision.id})
 
             # Handle form data and file uploads
-            logger.debug(f"Request form data: {request.form}")
-            logger.debug(f"Request files: {request.files}")
-
             if not os.path.exists(app.config["UPLOAD_FOLDER"]):
                 os.makedirs(app.config["UPLOAD_FOLDER"])
-                logger.info(f"Created upload folder: {app.config['UPLOAD_FOLDER']}")
 
             uploaded_files = request.files.getlist("attachments")
-            logger.info(f"Number of files received: {len(uploaded_files)}")
             file_metadata = []
             summaries = []
 
@@ -648,102 +674,67 @@ def decision_log():
                         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S_")
                         original_filename = secure_filename(file.filename)
                         filename = timestamp + original_filename
-                        logger.info(f"Processing file: {original_filename} -> {filename}")
-
                         file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
                         file.save(file_path)
-                        logger.info(f"File saved successfully to: {file_path}")
 
-                        # Get file summary
                         summary = summarize_file_content(file_path, file.content_type)
                         summaries.append(summary)
 
-                        file_metadata.append(
-                            {
+                        file_metadata.append({
                                 "filename": filename,
                                 "original_filename": original_filename,
                                 "file_path": file_path,
                                 "file_type": file.content_type,
                                 "file_size": os.path.getsize(file_path),
                                 "uploaded_at": datetime.utcnow().isoformat(),
-                            }
-                        )
-                        logger.info(f"File metadata stored for: {filename}")
+                            })
                     except Exception as e:
                         logger.error(f"Error processing file {file.filename}: {str(e)}")
-                        return (
-                            jsonify({"status": "error", "message": f"Error processing file {file.filename}"}),
-                            500,
-                        )
+                        return jsonify({"status": "error", "message": f"Error processing file {file.filename}"}), 500
 
-            # Create new decision entry
-            try:
-                description = request.form.get("description", "")
-                if summaries:  # Add summaries to description if files were processed
-                    description = description or "File upload"
-                    description += "\n\nFile Summaries:\n" + "\n\n".join(summaries)
+            description = request.form.get("description", "")
+            if summaries:
+                description = description or "File upload"
+                description += "\\n\\nFile Summaries:\\n" + "\\n\\n".join(summaries)
 
-                decision = SecurityDecision(
-                    description=description,
-                    author=request.form.get("author", "Anonymous"),
+            decision_data = {
+                "description": description,
+                "author": request.form.get("author", "Anonymous"),
+            }
+            decision = SecurityDecision(**decision_data)
+
+            for metadata in file_metadata:
+                decision.add_attachment(
+                    metadata["filename"],
+                    metadata["file_path"],
+                    metadata["file_type"],
+                    metadata["file_size"],
                 )
-                logger.info("Created new SecurityDecision object")
 
-                for metadata in file_metadata:
-                    decision.add_attachment(
-                        metadata["filename"],
-                        metadata["file_path"],
-                        metadata["file_type"],
-                        metadata["file_size"],
-                    )
-                logger.info(f"Added {len(file_metadata)} attachments to decision")
+            db.session.add(decision)
+            db.session.commit()
 
-                db.session.add(decision)
-                db.session.commit()
-                logger.info("Decision saved to database successfully")
-
-                return jsonify(
-                    {
-                        "status": "success",
-                        "decision": {
-                            "id": decision.id,
-                            "description": decision.description,
-                            "author": decision.author,
-                            "created_at": decision.created_at.strftime("%d/%m/%Y, %H:%M:%S"),
-                            "attachments": [
-                                {
-                                    "filename": att["filename"],
-                                    "uploaded_at": att["uploaded_at"],
-                                    "file_type": att["file_type"],
-                                }
-                                for att in decision.attachments
-                            ]
-                            if decision.attachments
-                            else [],
-                        },
-                    }
-                )
-            except Exception as e:
-                logger.error(f"Error creating decision: {str(e)}")
-                # Cleanup any uploaded files if decision creation fails
-                for metadata in file_metadata:
-                    try:
-                        os.remove(metadata["file_path"])
-                        logger.info(f"Cleaned up file: {metadata['file_path']}")
-                    except Exception as cleanup_error:
-                        logger.error(f"Error cleaning up file: {str(cleanup_error)}")
-                return (
-                    jsonify({"status": "error", "message": "Error creating decision entry"}),
-                    500,
-                )
+            return jsonify({
+                    "status": "success",
+                    "decision": {
+                        "id": decision.id,
+                        "description": decision.description,
+                        "author": decision.author,
+                        "created_at": decision.created_at.strftime("%d/%m/%Y, %H:%M:%S"),
+                        "attachments": [
+                            {"filename": att["filename"], "uploaded_at": att["uploaded_at"], "file_type": att["file_type"]}
+                            for att in decision.attachments
+                        ] if decision.attachments else [],
+                    },
+                })
         except Exception as e:
             logger.error(f"Error in decision_log POST handler: {str(e)}")
-            return jsonify({"status": "error", "message": str(e)}), 500
+            # For now, we'll just log the error and continue
+            pass
 
     # GET request - display the log
     decisions = SecurityDecision.query.order_by(SecurityDecision.created_at.desc()).all()
     return render_template("decision_log.html", decisions=decisions)
-
 
 @app.route("/decision/attachment/<path:filename>")
 def download_attachment(filename):
@@ -934,7 +925,10 @@ def chat():
 @app.route("/chat_query", methods=["POST"])
 def chat_query():
     try:
-        query = request.json.get("query", "")
+        json_data = request.get_json()
+        if not json_data:
+            return jsonify({"status": "error", "message": "Invalid JSON payload"}), 400
+        query = json_data.get("query")
         logger.info(f"Received chat query: {query}")
 
         # First, get relevant events
@@ -1041,18 +1035,19 @@ def view_decision(decision_id):
 @app.route("/log_decision", methods=["POST"])
 def log_decision():
     try:
-        decision = SecurityDecision(
-            event_report_id=request.form.get("event_report_id"),
-            decision_type=request.form["decision_type"],
-            description=request.form["description"],
-            impact_level=request.form["impact_level"],
-            implementation_date=datetime.strptime(
+        decision_data = {
+            "event_report_id": request.form.get("event_report_id"),
+            "decision_type": request.form.get("decision_type"),
+            "description": request.form.get("description"),
+            "impact_level": request.form.get("impact_level"),
+            "implementation_date": datetime.strptime(
                 request.form["implementation_date"], "%Y-%m-%d"
             )
             if request.form.get("implementation_date")
             else None,
-            expected_outcome=request.form.get("expected_outcome"),
-        )
+            "expected_outcome": request.form.get("expected_outcome"),
+        }
+        decision = SecurityDecision(**decision_data)
         db.session.add(decision)
         db.session.commit()
 
@@ -1088,8 +1083,8 @@ def update_decision(decision_id):
 def get_decision_categories():
     """Get unique decision categories from the database"""
     categories = (
-        db.session.query(SecurityDecision.category)
-        .filter(SecurityDecision.category.isnot(None))
+        db.session.query(SecurityDecision.decision_type)
+        .filter(SecurityDecision.decision_type.isnot(None))
         .distinct()
         .all()
     )
@@ -1108,7 +1103,7 @@ def modeling():
                 {'High': 3, 'Medium': 2, 'Low': 1},
                 value=EventReport.risk_level
             )).label('avg_risk'),
-            func.count(case([(EventReport.incidents_reported > 0, 1)])).label('incidents')
+            func.count(case((EventReport.incidents_reported > 0, 1))).label('incidents')
         ).group_by(EventReport.incident_type).all()
 
         for event_type in event_type_query:
@@ -1185,3 +1180,59 @@ def modeling():
     except Exception as e:
         logger.error(f"Error in modeling route: {str(e)}")
         return render_template('modeling.html', error=str(e))
+
+@app.route("/calculate_risk", methods=["POST"])
+def calculate_risk():
+    """Calculate a predictive risk score based on event parameters"""
+    try:
+        data = request.get_json()
+        event_type = data.get("event_type")
+        attendance = int(data.get("attendance", 0))
+        venue_type = data.get("venue_type")
+
+        # Base score
+        score = 10
+        breakdown = {"Base Score": score}
+
+        # Event type contribution
+        event_type_query = db.session.query(
+            func.avg(case(
+                {'High': 3, 'Medium': 2, 'Low': 1},
+                value=EventReport.risk_level
+            )).label('avg_risk')
+        ).filter(EventReport.incident_type == event_type).first()
+
+        avg_risk = event_type_query.avg_risk if event_type_query and event_type_query.avg_risk else 2
+        
+        if avg_risk >= 2.5:
+            event_risk_contribution = 30
+            breakdown["Event Type Risk (High)"] = event_risk_contribution
+        elif avg_risk <= 1.5:
+            event_risk_contribution = 5
+            breakdown["Event Type Risk (Low)"] = event_risk_contribution
+        else:
+            event_risk_contribution = 15
+            breakdown["Event Type Risk (Medium)"] = event_risk_contribution
+        score += event_risk_contribution
+
+        # Attendance contribution
+        attendance_contribution = min(int(attendance / 1000), 50)
+        breakdown["Attendance Contribution"] = attendance_contribution
+        score += attendance_contribution
+
+        # Venue type contribution
+        venue_scores = {
+            "stadium": 20, "arena": 15, "outdoor": 10,
+            "theater": 5, "conference_center": 5
+        }
+        venue_contribution = venue_scores.get(venue_type, 0)
+        breakdown["Venue Contribution"] = venue_contribution
+        score += venue_contribution
+        
+        return jsonify({
+            "risk_score": score,
+            "breakdown": breakdown
+        })
+    except Exception as e:
+        logger.error(f"Error in calculate_risk route: {str(e)}")
+        return jsonify({"error": str(e)}), 500
