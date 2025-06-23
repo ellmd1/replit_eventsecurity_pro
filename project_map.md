@@ -198,7 +198,13 @@ The application uses 6 main database tables:
 - Scenario saving and management
 **Database Tables**: EventReport (for scenario storage)
 
-### 11. Access Logs (`/access_logs` - access_log.html)
+### 11. Create Risk Assessment (`/create-risk-assessment` - create_risk_assessment.html)
+**Files Involved**: `routes.py` (create_risk_assessment function), `templates/create_risk_assessment.html`
+**Functionality**:
+- Page to create a new risk assessment. (Placeholder for now)
+**Database Tables**: RiskAssessment (intended)
+
+### 12. Access Logs (`/access_logs` - access_log.html)
 **Files Involved**: `routes.py` (view_access_logs function), `templates/access_log.html`
 **Functionality**:
 - User activity monitoring
@@ -206,7 +212,7 @@ The application uses 6 main database tables:
 - System usage analytics
 **Database Tables**: ActivityLog
 
-### 12. Template Management (`/templates/*` - templates/list.html, templates/create.html)
+### 13. Template Management (`/templates/*` - templates/list.html, templates/create.html)
 **Files Involved**: `routes.py` (list_templates, create_template, view_template, edit_template functions)
 **Functionality**:
 - Create assessment templates
