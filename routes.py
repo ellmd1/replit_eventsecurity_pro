@@ -46,6 +46,39 @@ def create_risk_assessment():
     return render_template("create_risk_assessment.html")
 
 
+@app.route("/create-event-report", methods=["GET", "POST"])
+def create_event_report():
+    """Render the page to create a new event report and handle form submission"""
+    if request.method == "POST":
+        try:
+            new_report = EventReport(
+                title=request.form.get("title"),
+                date=datetime.strptime(request.form.get("date"), "%Y-%m-%d"),
+                location=request.form.get("location"),
+                description=request.form.get("description"),
+                risk_level=request.form.get("risk_level"),
+                incident_type=request.form.get("incident_type"),
+                venue_type=request.form.get("venue_type"),
+                attendance=int(request.form.get("attendance")) if request.form.get("attendance") else None,
+                security_staff_count=int(request.form.get("security_staff_count", 0)),
+                incidents_reported=int(request.form.get("incidents_reported", 0)),
+                security_measures=request.form.get("security_measures"),
+                security_protocols=request.form.get("security_protocols"),
+                emergency_response_plan=request.form.get("emergency_response_plan"),
+                lessons_learned=request.form.get("lessons_learned"),
+                recommendations=request.form.get("recommendations"),
+            )
+            db.session.add(new_report)
+            db.session.commit()
+            flash("Event report created successfully!", "success")
+            return redirect(url_for("view_report", report_id=new_report.id))
+        except Exception as e:
+            logger.error(f"Error creating event report: {e}")
+            flash("Error creating report. Please check the data and try again.", "danger")
+
+    return render_template("create_event_report.html")
+
+
 # Template Management Routes
 @app.route("/templates")
 def list_templates():
