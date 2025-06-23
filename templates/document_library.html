@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h2 mb-4">Document Library</h1>
+
+    <!-- Cloud Storage Connection -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Connect Cloud Storage</h5>
+        </div>
+        <div class="card-body">
+            <p class="card-text text-muted">Connect your cloud storage accounts to automatically sync documents.</p>
+            <div class="d-flex gap-3">
+                <a href="#" class="btn btn-outline-secondary">
+                    <i data-feather="hard-drive" class="feather-sm me-2"></i>
+                    Connect Google Drive
+                </a>
+                <a href="#" class="btn btn-outline-secondary">
+                    <i data-feather="hard-drive" class="feather-sm me-2"></i>
+                    Connect Dropbox
+                </a>
+                <a href="#" class="btn btn-outline-secondary">
+                    <i data-feather="hard-drive" class="feather-sm me-2"></i>
+                    Connect OneDrive
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Upload -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Manual Upload</h5>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('document_library') }}" method="POST" enctype="multipart/form-data">
+                <div class="input-group">
+                    <input type="file" class="form-control" id="fileUpload" name="fileUpload">
+                    <button class="btn btn-primary" type="submit">
+                        <i data-feather="upload" class="feather-sm me-2"></i>
+                        Upload
+                    </button>
+                </div>
+                <div class="form-text">Upload documents directly from your computer (PDF, DOCX, etc.).</div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Document Viewer -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Uploaded Documents</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Source</th>
+                            <th>Date Added</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Placeholder Row 1 -->
+                        <tr>
+                            <td>Annual Security Report 2023.pdf</td>
+                            <td>
+                                <span class="badge bg-primary">Manual Upload</span>
+                            </td>
+                            <td>2024-07-28</td>
+                            <td>
+                                <a href="#" class="btn btn-sm btn-outline-secondary">View</a>
+                                <a href="#" class="btn btn-sm btn-outline-danger">Delete</a>
+                            </td>
+                        </tr>
+                        <!-- Placeholder Row 2 -->
+                        <tr>
+                            <td>Event_Layout_Music_Festival.docx</td>
+                            <td>
+                                <span class="badge bg-success">Google Drive</span>
+                            </td>
+                            <td>2024-07-27</td>
+                            <td>
+                                <a href="#" class="btn btn-sm btn-outline-secondary">View</a>
+                                <a href="#" class="btn btn-sm btn-outline-danger">Delete</a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

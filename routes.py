@@ -885,6 +885,12 @@ def view_access_logs():
     return render_template("access_log.html", logs=logs)
 
 
+@app.route("/document-library")
+def document_library():
+    """Render the document library page"""
+    return render_template("document_library.html")
+
+
 @app.route("/chat")
 def chat():
     log = start_activity_tracking("chat")

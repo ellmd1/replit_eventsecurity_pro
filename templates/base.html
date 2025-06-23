@@ -386,13 +386,19 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {{ 'active' if request.endpoint == 'decision_log' }}" href="{{ url_for('decision_log') }}">
+                    <a class="nav-link {{ 'active' if request.path == url_for('decision_log') }}" href="{{ url_for('decision_log') }}">
                         <i data-feather="check-square"></i>
                         <span>Decision Log</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {{ 'active' if request.endpoint == 'view_access_logs' }}" href="{{ url_for('view_access_logs') }}">
+                    <a class="nav-link {{ 'active' if request.path == url_for('document_library') }}" href="{{ url_for('document_library') }}">
+                        <i data-feather="folder"></i>
+                        <span>Document Library</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.path == url_for('view_access_logs') }}" href="{{ url_for('view_access_logs') }}">
                         <i data-feather="activity"></i>
                         <span>Access Logs</span>
                     </a>

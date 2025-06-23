@@ -212,7 +212,15 @@ The application uses 6 main database tables:
 - System usage analytics
 **Database Tables**: ActivityLog
 
-### 13. Template Management (`/templates/*` - templates/list.html, templates/create.html)
+### 13. Document Library (`/document-library` - document_library.html)
+**Files Involved**: `routes.py` (document_library function), `templates/document_library.html`
+**Functionality**:
+- Connect to cloud storage (Google Drive, Dropbox, etc.).
+- Manually upload documents.
+- View and manage all documents in a central library.
+**Database Tables**: (A new table would be needed, e.g., `Document`)
+
+### 14. Template Management (`/templates/*` - templates/list.html, templates/create.html)
 **Files Involved**: `routes.py` (list_templates, create_template, view_template, edit_template functions)
 **Functionality**:
 - Create assessment templates
