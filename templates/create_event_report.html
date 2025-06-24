@@ -7,6 +7,7 @@
             <h4 class="mb-0">{{ 'Edit Event Report' if report else 'Create New Event Report' }}</h4>
         </div>
         <div class="card-body">
+            <h5 class="mb-3">Event Card</h5>
             <form action="{% if report %}{{ url_for('edit_event_report', report_id=report.id) }}{% else %}{{ url_for('create_event_report') }}{% endif %}" method="POST">
                 <div class="row">
                     <div class="col-md-6 mb-3">
@@ -91,7 +92,7 @@
                 </div>
 
                 <hr>
-                <h5 class="mt-4">Security Details</h5>
+                <h5 class="mt-4">Security Recommendations</h5>
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
@@ -105,11 +106,6 @@
                 </div>
 
                 <div class="mb-3">
-                    <label for="security_measures" class="form-label">Security Measures</label>
-                    <textarea class="form-control" id="security_measures" name="security_measures" rows="3">{{ report.security_measures if report else '' }}</textarea>
-                </div>
-
-                <div class="mb-3">
                     <label for="security_protocols" class="form-label">Security Protocols</label>
                     <textarea class="form-control" id="security_protocols" name="security_protocols" rows="3">{{ report.security_protocols if report else '' }}</textarea>
                 </div>
@@ -120,7 +116,17 @@
                 </div>
 
                 <hr>
-                <h5 class="mt-4">Post-Event Analysis</h5>
+                <h5 class="mt-4">Post-Event Report</h5>
+
+                <div class="mb-3">
+                    <label for="security_measures" class="form-label">Security Measures</label>
+                    <textarea class="form-control" id="security_measures" name="security_measures" rows="3">{{ report.security_measures if report else '' }}</textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="incident_response" class="form-label">Incident Response</label>
+                    <textarea class="form-control" id="incident_response" name="incident_response" rows="3">{{ report.incident_response if report else '' }}</textarea>
+                </div>
 
                 <div class="mb-3">
                     <label for="lessons_learned" class="form-label">Lessons Learned</label>

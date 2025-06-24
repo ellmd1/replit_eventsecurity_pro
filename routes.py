@@ -71,6 +71,7 @@ def create_event_report():
                 'emergency_response_plan': request.form.get("emergency_response_plan"),
                 'lessons_learned': request.form.get("lessons_learned"),
                 'recommendations': request.form.get("recommendations"),
+                'incident_response': request.form.get("incident_response"),
             }
             new_report = EventReport(**report_data)
             db.session.add(new_report)
@@ -109,6 +110,7 @@ def edit_event_report(report_id):
             report.emergency_response_plan = request.form.get("emergency_response_plan")
             report.lessons_learned = request.form.get("lessons_learned")
             report.recommendations = request.form.get("recommendations")
+            report.incident_response = request.form.get("incident_response")
 
             db.session.commit()
             flash("Report updated successfully!", "success")
