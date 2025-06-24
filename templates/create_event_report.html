@@ -55,6 +55,42 @@
                 </div>
 
                 <hr>
+                <h5 class="mt-4">Risk Assessments</h5>
+                <div class="mb-4">
+                    {% if report.risk_assessments %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Assessment Date</th>
+                                    <th>Overall Risk Level</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for a in report.risk_assessments %}
+                                <tr>
+                                    <td>{{ a.assessment_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'danger' if a.overall_risk_level=='High' else 'warning' if a.overall_risk_level=='Medium' else 'success' }}">{{ a.overall_risk_level }}</span>
+                                    </td>
+                                    <td>{{ a.status }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info d-flex justify-content-between align-items-center">
+                        <span>No risk assessments have been recorded for this event.</span>
+                        <a href="{{ url_for('create_risk_assessment', report_id=report.id) }}" class="btn btn-sm btn-primary">
+                            <i data-feather="plus" class="feather-sm me-1"></i> New Assessment
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <hr>
                 <h5 class="mt-4">Security Details</h5>
 
                 <div class="row">
