@@ -98,9 +98,9 @@
                                     <h5 class="mb-0">Security Level Distribution</h5>
                                 </div>
                                 <div class="card-body">
-                                    <div id="securityLevelChart" style="height: 300px;">
-                                        <!-- Chart will be rendered here -->
-                                    </div>
+                                    <canvas id="securityLevelChart" style="height: 300px;"
+                                            data-labels='{{ security_labels | tojson | safe }}'
+                                            data-levels='{{ security_levels_data | tojson | safe }}'></canvas>
                                 </div>
                             </div>
                         </div>
@@ -111,9 +111,9 @@
                                     <h5 class="mb-0">Historical Incident Analysis</h5>
                                 </div>
                                 <div class="card-body">
-                                    <div id="incidentChart" style="height: 300px;">
-                                        <!-- Chart will be rendered here -->
-                                    </div>
+                                    <canvas id="incidentChart" style="height: 300px;"
+                                            data-labels='{{ incident_labels | tojson | safe }}'
+                                            data-values='{{ incident_data | tojson | safe }}'></canvas>
                                 </div>
                             </div>
                         </div>
@@ -126,12 +126,28 @@
                                 <div class="card-body">
                                     <div class="list-group">
                                         {% for recommendation in recommendations %}
-                                        <div class="list-group-item">
-                                            <div class="d-flex w-100 justify-content-between">
-                                                <h6 class="mb-1">{{ recommendation.title }}</h6>
-                                                <small class="text-muted">Priority: {{ recommendation.priority }}</small>
+                                        {# Determine visual style based on priority #}
+                                        {% set prio = recommendation.priority|lower %}
+                                        {% if 'high' in prio %}
+                                            {% set priority_class = 'danger' %}
+                                            {% set priority_icon = 'alert-triangle' %}
+                                        {% elif 'medium' in prio %}
+                                            {% set priority_class = 'warning' %}
+                                            {% set priority_icon = 'alert-circle' %}
+                                        {% else %}
+                                            {% set priority_class = 'success' %}
+                                            {% set priority_icon = 'check-circle' %}
+                                        {% endif %}
+
+                                        <div class="list-group-item d-flex align-items-start">
+                                            <i data-feather="{{ priority_icon }}" class="me-3 text-{{ priority_class }}"></i>
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                                    <h6 class="mb-1 mb-0">{{ recommendation.title }}</h6>
+                                                    <span class="badge bg-{{ priority_class }}">{{ recommendation.priority }}</span>
+                                                </div>
+                                                <p class="mb-1">{{ recommendation.description }}</p>
                                             </div>
-                                            <p class="mb-1">{{ recommendation.description }}</p>
                                         </div>
                                         {% endfor %}
                                     </div>
@@ -148,7 +164,6 @@
 <!-- Include Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Chart initialization code will go here
     document.addEventListener('DOMContentLoaded', function() {
         // Handle risk model form submission
         document.getElementById('riskModelForm').addEventListener('submit', function(e) {
@@ -178,44 +193,54 @@
         });
 
         // Security Level Chart
-        const securityCtx = document.getElementById('securityLevelChart').getContext('2d');
-        new Chart(securityCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Low', 'Medium', 'High', 'Very High'],
-                datasets: [{
-                    data: {{ security_levels_data | tojson }},
-                    backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#6610f2']
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
-            }
-        });
+        const securityCanvas = document.getElementById('securityLevelChart');
+        if (securityCanvas) {
+            const securityLabels = JSON.parse(securityCanvas.dataset.labels);
+            const securityData = JSON.parse(securityCanvas.dataset.levels);
+
+            new Chart(securityCanvas.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: securityLabels,
+                    datasets: [{
+                        data: securityData,
+                        backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
 
         // Incident Chart
-        const incidentCtx = document.getElementById('incidentChart').getContext('2d');
-        new Chart(incidentCtx, {
-            type: 'bar',
-            data: {
-                labels: {{ incident_labels | tojson }},
-                datasets: [{
-                    label: 'Number of Incidents',
-                    data: {{ incident_data | tojson }},
-                    backgroundColor: '#4A90E2'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true
+        const incidentCanvas = document.getElementById('incidentChart');
+        if (incidentCanvas) {
+            const incidentLabels = JSON.parse(incidentCanvas.dataset.labels);
+            const incidentData = JSON.parse(incidentCanvas.dataset.values);
+
+            new Chart(incidentCanvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: incidentLabels,
+                    datasets: [{
+                        label: 'Number of Incidents',
+                        data: incidentData,
+                        backgroundColor: '#4A90E2'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
     });
 </script>
 {% endblock %}
