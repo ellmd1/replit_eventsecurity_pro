@@ -84,6 +84,43 @@ def create_event_report():
     return render_template("create_event_report.html")
 
 
+@app.route("/edit-event-report/<int:report_id>", methods=["GET", "POST"])
+def edit_event_report(report_id):
+    """Edit an existing event report"""
+    report = EventReport.query.get_or_404(report_id)
+
+    if request.method == "POST":
+        try:
+            # Update fields from form
+            report.title = request.form.get("title")
+            date_str = request.form.get("date")
+            report.date = datetime.strptime(date_str, "%Y-%m-%d") if date_str else report.date
+            report.location = request.form.get("location")
+            report.description = request.form.get("description")
+            report.risk_level = request.form.get("risk_level")
+            report.incident_type = request.form.get("incident_type")
+            report.venue_type = request.form.get("venue_type")
+            attendance = request.form.get("attendance")
+            report.attendance = int(attendance) if attendance else None
+            report.security_staff_count = int(request.form.get("security_staff_count", 0))
+            report.incidents_reported = int(request.form.get("incidents_reported", 0))
+            report.security_measures = request.form.get("security_measures")
+            report.security_protocols = request.form.get("security_protocols")
+            report.emergency_response_plan = request.form.get("emergency_response_plan")
+            report.lessons_learned = request.form.get("lessons_learned")
+            report.recommendations = request.form.get("recommendations")
+
+            db.session.commit()
+            flash("Report updated successfully!", "success")
+            return redirect(url_for("view_report", report_id=report.id))
+        except Exception as e:
+            logger.error(f"Error updating event report: {e}")
+            flash("Error updating report. Please check the data and try again.", "danger")
+
+    # GET
+    return render_template("create_event_report.html", report=report)
+
+
 # Template Management Routes
 @app.route("/templates")
 def list_templates():
