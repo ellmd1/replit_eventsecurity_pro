@@ -82,7 +82,9 @@ def create_event_report():
             logger.error(f"Error creating event report: {e}")
             flash("Error creating report. Please check the data and try again.", "danger")
 
-    return render_template("create_event_report.html")
+    # For create mode, explicitly pass report as None so the template can conditionally
+    # render form fields without errors when accessing the variable.
+    return render_template("create_event_report.html", report=None)
 
 
 @app.route("/edit-event-report/<int:report_id>", methods=["GET", "POST"])
