@@ -781,7 +781,7 @@ def index():
     if risk_level:
         query = query.filter(EventReport.risk_level == risk_level)
 
-    reports = query.order_by(EventReport.date.desc()).limit(5).all()
+    reports = query.order_by(EventReport.date.desc()).all()
     log.interaction_details = {"results_count": len(reports)}
     db.session.commit()
 
