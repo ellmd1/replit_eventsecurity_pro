@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h4 class="mb-0">Add Risk Assessment – {{ report.title }}</h4>
+      <a class="btn btn-outline-secondary" href="{{ url_for('event_card_select') }}">Back</a>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label" for="overall_risk_level">Overall Risk Level</label>
+            <select class="form-select" id="overall_risk_level" name="overall_risk_level" required>
+              {% for level in ['Low','Medium','High'] %}
+              <option value="{{ level }}">{{ level }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label" for="status">Status</label>
+            <select class="form-select" id="status" name="status" required>
+              <option value="Active">Active</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label" for="assessment_date">Assessment Date</label>
+            <input type="date" class="form-control" id="assessment_date" name="assessment_date" value="{{ now.strftime('%Y-%m-%d') }}" required>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="risk_factors">Risk Factors (one per line)</label>
+          <textarea class="form-control" id="risk_factors" name="risk_factors" rows="4"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="mitigation_measures">Mitigation Measures (one per line)</label>
+          <textarea class="form-control" id="mitigation_measures" name="mitigation_measures" rows="4"></textarea>
+        </div>
+        <div class="d-flex justify-content-end">
+          <button type="submit" class="btn btn-primary">Save & Continue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %} 

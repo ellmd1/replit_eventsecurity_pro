@@ -31,6 +31,7 @@ from models import (
     AssessmentTemplate,
     SecurityInsight,
     ActivityLog,
+    RiskAssessment,
 )
 
 # Configure logging
@@ -86,8 +87,8 @@ def new_event_card():
         _populate_event_card(event, request.form)
         db.session.add(event)
         db.session.commit()
-        flash("Event Card created. Continue building the report.", "success")
-        return redirect(url_for("build_event_report", event_id=event.id))
+        flash("Event Card created. Add a risk assessment.", "success")
+        return redirect(url_for("add_risk_assessment", event_id=event.id))
     return render_template("event_card_form.html", event=None)
 
 
@@ -97,8 +98,8 @@ def edit_event_card(event_id):
     if request.method == "POST":
         _populate_event_card(event, request.form)
         db.session.commit()
-        flash("Event Card updated. Continue building the report.", "success")
-        return redirect(url_for("build_event_report", event_id=event.id))
+        flash("Event Card updated. Continue to risk assessment.", "success")
+        return redirect(url_for("add_risk_assessment", event_id=event.id))
     return render_template("event_card_form.html", event=event)
 
 
@@ -1401,3 +1402,33 @@ def calculate_risk():
     except Exception as e:
         logger.error(f"Error in calculate_risk route: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+# ─────────── Risk Assessment stage ──────────
+
+@app.route("/event-report/<int:event_id>/risk-assessment", methods=["GET", "POST"])
+def add_risk_assessment(event_id):
+    report = EventReport.query.get_or_404(event_id)
+    if request.method == "POST":
+        overall = request.form.get("overall_risk_level", "Medium")
+        status = request.form.get("status", "Active")
+        date_str = request.form.get("assessment_date")
+        assessment_date = datetime.strptime(date_str, "%Y-%m-%d") if date_str else datetime.utcnow()
+
+        factors = [f.strip() for f in request.form.get("risk_factors", "").splitlines() if f.strip()]
+        measures = [m.strip() for m in request.form.get("mitigation_measures", "").splitlines() if m.strip()]
+
+        assessment = RiskAssessment(
+            event_report_id=event_id,
+            assessment_date=assessment_date,
+            overall_risk_level=overall,
+            risk_factors=factors,
+            mitigation_measures=measures,
+            status=status,
+        )
+        db.session.add(assessment)
+        db.session.commit()
+
+        flash("Risk assessment saved. Continue with recommendations.", "success")
+        return redirect(url_for("build_event_report", event_id=event_id))
+
+    return render_template("risk_assessment_form.html", report=report, now=datetime.utcnow())
