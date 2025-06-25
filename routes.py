@@ -120,7 +120,9 @@ def build_event_report(event_id):
             staff_count_str = request.form.get("security_staff_count")
             incidents_str = request.form.get("incidents_reported")
 
-            report.description = request.form.get("description")
+            desc_val = request.form.get("description")
+            if desc_val is not None and desc_val.strip():
+                report.description = desc_val
             report.risk_level = request.form.get("risk_level") or report.risk_level
             report.venue_type = request.form.get("venue_type") or report.venue_type
             report.attendance = int(attendance_str) if attendance_str and attendance_str.isdigit() else report.attendance
@@ -203,7 +205,9 @@ def edit_event_report(report_id):
             date_str = request.form.get("date")
             report.date = datetime.strptime(date_str, "%Y-%m-%d") if date_str else report.date
             report.location = request.form.get("location")
-            report.description = request.form.get("description")
+            desc_val = request.form.get("description")
+            if desc_val is not None and desc_val.strip():
+                report.description = desc_val
             report.risk_level = request.form.get("risk_level")
             report.incident_type = request.form.get("incident_type")
             report.venue_type = request.form.get("venue_type")
