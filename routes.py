@@ -22,6 +22,7 @@ from openai import OpenAI
 from sqlalchemy import extract, func, or_, case
 import weasyprint
 from werkzeug.utils import secure_filename
+from typing import List
 
 from app import app, db
 from models import (
@@ -37,6 +38,110 @@ logger = logging.getLogger(__name__)
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+# ----- Event Card helpers -----
+CARD_FIELDS: List[str] = [
+    "title",
+    "date",
+    "location",
+    "incident_type",
+    "risk_level",
+    "venue_type",
+    "attendance",
+]
+
+
+def _populate_event_card(event: "EventReport", form_data):
+    """Populate or update the top-level Event Card fields on an EventReport."""
+    for field in CARD_FIELDS:
+        value = form_data.get(field)
+        if field == "date":
+            setattr(event, field, datetime.strptime(value, "%Y-%m-%d") if value else None)
+        elif field == "attendance":
+            setattr(event, field, int(value) if value else 0)
+        else:
+            setattr(event, field, value)
+
+
+# ────────────────────────────────────────────────────────────────
+#  Event Card stage
+# ────────────────────────────────────────────────────────────────
+
+
+@app.route("/event-card")
+def event_card_select():
+    """Stage-0: choose to create a new Event Card or edit an existing one."""
+    cards = (
+        EventReport.query.order_by(EventReport.date.desc())
+        .with_entities(EventReport.id, EventReport.title, EventReport.date, EventReport.location)
+        .all()
+    )
+    return render_template("event_card_select.html", cards=cards)
+
+
+@app.route("/event-card/new", methods=["GET", "POST"])
+def new_event_card():
+    if request.method == "POST":
+        event = EventReport()
+        _populate_event_card(event, request.form)
+        db.session.add(event)
+        db.session.commit()
+        flash("Event Card created. Continue building the report.", "success")
+        return redirect(url_for("build_event_report", event_id=event.id))
+    return render_template("event_card_form.html", event=None)
+
+
+@app.route("/event-card/<int:event_id>/edit", methods=["GET", "POST"])
+def edit_event_card(event_id):
+    event = EventReport.query.get_or_404(event_id)
+    if request.method == "POST":
+        _populate_event_card(event, request.form)
+        db.session.commit()
+        flash("Event Card updated. Continue building the report.", "success")
+        return redirect(url_for("build_event_report", event_id=event.id))
+    return render_template("event_card_form.html", event=event)
+
+
+# ────────────────────────────────────────────────────────────────
+#  Event Report Details stage
+# ────────────────────────────────────────────────────────────────
+
+
+@app.route("/event-report/<int:event_id>/build", methods=["GET", "POST"])
+def build_event_report(event_id):
+    """Stage-1: fill in the rest of the Event Report once an Event Card exists."""
+    report = EventReport.query.get_or_404(event_id)
+    if request.method == "POST":
+        try:
+            # Re-use logic from original create_event_report POST handler for lower fields
+            attendance_str = request.form.get("attendance")  # may come back again; safe
+            staff_count_str = request.form.get("security_staff_count")
+            incidents_str = request.form.get("incidents_reported")
+
+            report.description = request.form.get("description")
+            report.risk_level = request.form.get("risk_level") or report.risk_level
+            report.venue_type = request.form.get("venue_type") or report.venue_type
+            report.attendance = int(attendance_str) if attendance_str and attendance_str.isdigit() else report.attendance
+            report.security_staff_count = (
+                int(staff_count_str) if staff_count_str and staff_count_str.isdigit() else report.security_staff_count
+            )
+            report.incidents_reported = (
+                int(incidents_str) if incidents_str and incidents_str.isdigit() else report.incidents_reported
+            )
+            report.security_measures = request.form.get("security_measures")
+            report.security_protocols = request.form.get("security_protocols")
+            report.emergency_response_plan = request.form.get("emergency_response_plan")
+            report.lessons_learned = request.form.get("lessons_learned")
+            report.recommendations = request.form.get("recommendations")
+
+            db.session.commit()
+            flash("Event report details saved!", "success")
+            return redirect(url_for("view_report", report_id=report.id))
+        except Exception as e:
+            logger.error(f"Error updating event report details: {e}")
+            flash("Error saving details. Please check the inputs and try again.", "danger")
+
+    return render_template("event_report_details.html", report=report)
 
 
 @app.route("/create-risk-assessment")

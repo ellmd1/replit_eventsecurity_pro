@@ -1,0 +1,87 @@
+<hr>
+<h5 class="mt-4">Risk Assessments</h5>
+<div class="mb-4">
+    {% if report.risk_assessments %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Assessment Date</th>
+                    <th>Overall Risk Level</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in report.risk_assessments %}
+                <tr>
+                    <td>{{ a.assessment_date.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        <span class="badge bg-{{ 'danger' if a.overall_risk_level=='High' else 'warning' if a.overall_risk_level=='Medium' else 'success' }}">{{ a.overall_risk_level }}</span>
+                    </td>
+                    <td>{{ a.status }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info d-flex justify-content-between align-items-center">
+        <span>No risk assessments have been recorded for this event.</span>
+        <a href="{{ url_for('create_risk_assessment', report_id=report.id) }}" class="btn btn-sm btn-primary">
+            <i data-feather="plus" class="feather-sm me-1"></i> New Assessment
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<hr>
+<h5 class="mt-4">Security Recommendations</h5>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label for="security_staff_count" class="form-label">Security Staff Count</label>
+        <input type="number" class="form-control" id="security_staff_count" name="security_staff_count" value="{{ report.security_staff_count or 0 }}">
+    </div>
+    <div class="col-md-6 mb-3">
+        <label for="incidents_reported" class="form-label">Incidents Reported</label>
+        <input type="number" class="form-control" id="incidents_reported" name="incidents_reported" value="{{ report.incidents_reported or 0 }}">
+    </div>
+</div>
+
+<div class="mb-3">
+    <label for="security_protocols" class="form-label">Security Protocols</label>
+    <textarea class="form-control" id="security_protocols" name="security_protocols" rows="3">{{ report.security_protocols or '' }}</textarea>
+</div>
+
+<div class="mb-3">
+    <label for="emergency_response_plan" class="form-label">Emergency Response Plan</label>
+    <textarea class="form-control" id="emergency_response_plan" name="emergency_response_plan" rows="3">{{ report.emergency_response_plan or '' }}</textarea>
+</div>
+
+<hr>
+<h5 class="mt-4">Post-Event Report</h5>
+
+<div class="mb-3">
+    <label for="security_measures" class="form-label">Security Measures</label>
+    <textarea class="form-control" id="security_measures" name="security_measures" rows="3">{{ report.security_measures or '' }}</textarea>
+</div>
+
+<div class="mb-3">
+    <label for="incident_response" class="form-label">Incident Response</label>
+    <textarea class="form-control" id="incident_response" name="incident_response" rows="3">{{ report.incident_response or '' }}</textarea>
+</div>
+
+<div class="mb-3">
+    <label for="lessons_learned" class="form-label">Lessons Learned</label>
+    <textarea class="form-control" id="lessons_learned" name="lessons_learned" rows="3">{{ report.lessons_learned or '' }}</textarea>
+</div>
+
+<div class="mb-3">
+    <label for="recommendations" class="form-label">Recommendations</label>
+    <textarea class="form-control" id="recommendations" name="recommendations" rows="3">{{ report.recommendations or '' }}</textarea>
+</div>
+
+<div class="d-flex justify-content-end">
+    <a href="{{ url_for('view_report', report_id=report.id) }}" class="btn btn-secondary me-2">Cancel</a>
+    <button type="submit" class="btn btn-primary">Save Report</button>
+</div> 

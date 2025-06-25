@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <div class="card">
+    <div class="card-header">
+      <h4 class="mb-0">{{ 'Edit Event Card' if event else 'Create Event Card' }}</h4>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label" for="title">Event Title</label>
+            <input type="text" class="form-control" id="title" name="title" value="{{ event.title if event else '' }}" required>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label" for="date">Event Date</label>
+            <input type="date" class="form-control" id="date" name="date" value="{{ event.date.strftime('%Y-%m-%d') if event and event.date else '' }}" required>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label" for="location">Location</label>
+            <input type="text" class="form-control" id="location" name="location" value="{{ event.location if event else '' }}" required>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label" for="incident_type">Incident Type</label>
+            <input type="text" class="form-control" id="incident_type" name="incident_type" value="{{ event.incident_type if event else '' }}" required>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="description">Short Description</label>
+          <textarea class="form-control" id="description" name="description" rows="3">{{ event.description if event else '' }}</textarea>
+        </div>
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label" for="risk_level">Risk Level</label>
+            <select class="form-select" id="risk_level" name="risk_level" required>
+              {% for level in ['Low','Medium','High'] %}
+              <option value="{{ level }}" {% if event and event.risk_level==level %}selected{% endif %}>{{ level }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label" for="venue_type">Venue Type</label>
+            <input type="text" class="form-control" id="venue_type" name="venue_type" value="{{ event.venue_type if event else '' }}">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label" for="attendance">Attendance</label>
+            <input type="number" class="form-control" id="attendance" name="attendance" value="{{ event.attendance if event else '' }}">
+          </div>
+        </div>
+        <div class="d-flex justify-content-end">
+          <a href="{{ url_for('event_card_select') }}" class="btn btn-secondary me-2">Cancel</a>
+          <button type="submit" class="btn btn-primary">{{ 'Save & Continue' }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %} 
