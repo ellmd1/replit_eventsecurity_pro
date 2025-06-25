@@ -46,6 +46,7 @@ CARD_FIELDS: List[str] = [
     "date",
     "location",
     "incident_type",
+    "description",
     "risk_level",
     "venue_type",
     "attendance",
