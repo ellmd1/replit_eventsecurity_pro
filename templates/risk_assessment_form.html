@@ -4,7 +4,7 @@
   <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
       <h4 class="mb-0">Add Risk Assessment – {{ report.title }}</h4>
-      <a class="btn btn-outline-secondary" href="{{ url_for('event_card_select') }}">Back</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('edit_event_card', event_id=report.id) }}">Back to Event Card</a>
     </div>
     <div class="card-body">
       <form method="POST">
@@ -38,6 +38,7 @@
           <textarea class="form-control" id="mitigation_measures" name="mitigation_measures" rows="4"></textarea>
         </div>
         <div class="d-flex justify-content-end">
+          <a href="{{ url_for('edit_event_card', event_id=report.id) }}" class="btn btn-secondary me-2">Cancel</a>
           <button type="submit" class="btn btn-primary">Save & Continue</button>
         </div>
       </form>

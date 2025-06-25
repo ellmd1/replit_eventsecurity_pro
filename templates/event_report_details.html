@@ -4,7 +4,7 @@
   <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
       <h4 class="mb-0">Security Recommendations – {{ report.title }}</h4>
-      <a class="btn btn-outline-secondary" href="{{ url_for('event_card_select') }}">Back to Event Cards</a>
+      <a class="btn btn-outline-secondary" href="{{ url_for('add_risk_assessment', event_id=report.id) }}">Back to Risk Assessment</a>
     </div>
     <div class="card-body">
       <form method="POST">
