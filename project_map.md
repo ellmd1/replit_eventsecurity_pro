@@ -7,7 +7,7 @@ SecureEvent Pro is a comprehensive security monitoring dashboard for organizatio
 - **Backend**: Python 3.11, Flask, SQLAlchemy
 - **Database**: PostgreSQL
 - **AI Integration**: OpenAI GPT-4
-- **Frontend**: HTML, CSS, JavaScript (Vanilla), Bootstrap
+- **Frontend**: HTML, CSS, JavaScript (Vanilla), Bootstrap, Chart.js (visualisations)
 - **File Processing**: WeasyPrint (PDF), python-docx (Word), trafilatura (web scraping)
 - **Server**: Gunicorn for production, Flask dev server for development
 
@@ -185,18 +185,19 @@ The application uses 6 main database tables:
 ### 9. Risk Modeling (`/modeling` - modeling.html)
 **Files Involved**: `routes.py` (modeling function), `templates/modeling.html`
 **Functionality**:
-- Risk analysis visualization
-- Statistical modeling
-- Scenario planning
+- Predictive risk model form, including real-time scoring via `/calculate_risk`
+- Interactive visualisations (Chart.js) for security-level distribution & incident trends
+- Priority-coded security recommendations with icon / colour cues
+- Statistical modeling & scenario planning tools (future extension)
 **Database Tables**: EventReport, RiskAssessment
 
-### 10. Scenario Builder (`/scenario_builder` - scenario_builder.html)
-**Files Involved**: `routes.py`, `templates/scenario_builder.html`, `static/js/scenario_builder.js`
+### 10. Event Report Builder (`/create-event-report` - create_event_report.html)
+**Files Involved**: `routes.py` (`create_event_report` function), `templates/create_event_report.html`
 **Functionality**:
-- Interactive scenario creation
-- Drag-and-drop interface
-- Scenario saving and management
-**Database Tables**: EventReport (for scenario storage)
+- Guided form to create a new event report from a selected template
+- Template field pre-population (via `template_id` query param)
+- Validation and immediate database save
+**Database Tables**: EventReport
 
 ### 11. Create Risk Assessment (`/create-risk-assessment` - create_risk_assessment.html)
 **Files Involved**: `routes.py` (create_risk_assessment function), `templates/create_risk_assessment.html`
