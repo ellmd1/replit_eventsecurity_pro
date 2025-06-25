@@ -129,11 +129,8 @@ def build_event_report(event_id):
             report.incidents_reported = (
                 int(incidents_str) if incidents_str and incidents_str.isdigit() else report.incidents_reported
             )
-            report.security_measures = request.form.get("security_measures")
             report.security_protocols = request.form.get("security_protocols")
             report.emergency_response_plan = request.form.get("emergency_response_plan")
-            report.lessons_learned = request.form.get("lessons_learned")
-            report.recommendations = request.form.get("recommendations")
 
             db.session.commit()
             flash("Event report details saved!", "success")
