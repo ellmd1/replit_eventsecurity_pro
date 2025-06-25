@@ -67,7 +67,7 @@
                                     <th>Assessment Date</th>
                                     <th>Overall Risk Level</th>
                                     <th>Status</th>
-                                    <th>Actions</th>
+                                    <th style="width: 1%;">Actions</th> {# Added style for width #}
                                 </tr>
                             </thead>
                             <tbody>
@@ -78,7 +78,7 @@
                                         <span class="badge bg-{{ 'danger' if a.overall_risk_level=='High' else 'warning' if a.overall_risk_level=='Medium' else 'success' }}">{{ a.overall_risk_level }}</span>
                                     </td>
                                     <td>{{ a.status }}</td>
-                                    <td class="text-end">
+                                    <td class="text-end text-nowrap"> {# Added text-nowrap #}
                                         <a href="{{ url_for('view_risk_assessment', assessment_id=a.id) }}" class="btn btn-sm btn-outline-secondary me-1">View</a>
                                         <a href="{{ url_for('edit_risk_assessment', assessment_id=a.id) }}" class="btn btn-sm btn-outline-primary me-1">
                                             Edit
@@ -162,4 +162,4 @@
         </div>
     </div>
 </div>
-{% endblock %} 
+{% endblock %}
