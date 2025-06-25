@@ -55,10 +55,10 @@
                     </div>
                 </div>
 
-                {% if report %}
                 <hr>
                 <h5 class="mt-4">Risk Assessments</h5>
                 <div class="mb-4">
+                {% if report %}
                     {% if report.risk_assessments %}
                     <div class="table-responsive">
                         <table class="table table-hover">
@@ -90,8 +90,12 @@
                         </a>
                     </div>
                     {% endif %}
-                </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        Save the event first, then you can add detailed risk assessments.
+                    </div>
                 {% endif %}
+                </div>
 
                 <hr>
                 <h5 class="mt-4">Security Recommendations</h5>
