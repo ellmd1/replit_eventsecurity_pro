@@ -5,6 +5,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const topHeader = document.getElementById('topHeader');
     const footer = document.getElementById('footer');
     const sidebarToggle = document.getElementById('sidebarToggle');
+    // Back button visibility control
+    const backButton = document.getElementById('backButton');
+    if (backButton && window.history.length <= 1) {
+        backButton.style.display = 'none';
+    }
 
     if (sidebarToggle) {
         sidebarToggle.addEventListener('click', () => {

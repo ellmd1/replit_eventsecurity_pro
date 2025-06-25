@@ -434,8 +434,11 @@
         </header>
 
         <main class="main-content" id="mainContent">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h2">{% block page_title %}{% endblock %}</h1>
+            <div class="d-flex align-items-center gap-2 mb-4">
+                <button id="backButton" type="button" class="btn btn-outline-secondary btn-sm" onclick="window.history.back()" aria-label="Go back">
+                    <i data-feather="arrow-left"></i>
+                </button>
+                <h1 class="h2 mb-0">{% block page_title %}{% endblock %}</h1>
             </div>
             
             {% with messages = get_flashed_messages(with_categories=true) %}
