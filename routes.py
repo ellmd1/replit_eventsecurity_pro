@@ -1434,3 +1434,37 @@ def add_risk_assessment(event_id):
         return redirect(url_for("build_event_report", event_id=event_id))
 
     return render_template("risk_assessment_form.html", report=report, now=datetime.utcnow())
+
+@app.route("/risk-assessment/<int:assessment_id>/edit", methods=["GET", "POST"])
+def edit_risk_assessment(assessment_id):
+    assessment = RiskAssessment.query.get_or_404(assessment_id)
+    report = assessment.event_report
+
+    if request.method == "POST":
+        assessment.overall_risk_level = request.form.get("overall_risk_level", assessment.overall_risk_level)
+        assessment.status = request.form.get("status", assessment.status)
+        date_str = request.form.get("assessment_date")
+        if date_str:
+            assessment.assessment_date = datetime.strptime(date_str, "%Y-%m-%d")
+        assessment.risk_factors = [f.strip() for f in request.form.get("risk_factors", "").splitlines() if f.strip()]
+        assessment.mitigation_measures = [m.strip() for m in request.form.get("mitigation_measures", "").splitlines() if m.strip()]
+        db.session.commit()
+        flash("Risk assessment updated.", "success")
+        return redirect(url_for("edit_event_report", report_id=report.id))
+
+    return render_template("risk_assessment_form.html", report=report, assessment=assessment, now=datetime.utcnow())
+
+@app.route("/risk-assessment/<int:assessment_id>/delete", methods=["POST"])
+def delete_risk_assessment(assessment_id):
+    assessment = RiskAssessment.query.get_or_404(assessment_id)
+    report_id = assessment.event_report_id
+    db.session.delete(assessment)
+    db.session.commit()
+    flash("Risk assessment deleted.", "success")
+    return redirect(url_for("edit_event_report", report_id=report_id))
+
+@app.route("/risk-assessment/<int:assessment_id>")
+def view_risk_assessment(assessment_id):
+    assessment = RiskAssessment.query.get_or_404(assessment_id)
+    report = assessment.event_report
+    return render_template("risk_assessment_view.html", assessment=assessment, report=report)
